@@ -59,10 +59,23 @@ def _should_auto_launch(event_type: str, context: dict) -> bool:
 def _try_auto_launch() -> None:
     """Attempt to auto-launch hermes-vision. Never raises exceptions."""
     try:
-        # Use subprocess to call launcher as external command
-        # This ensures we don't block the gateway
+        # Get launch command from config or use default
+        config = {}
+        if os.path.exists(_CONFIG_PATH):
+            with open(_CONFIG_PATH, "r") as f:
+                config = json.load(f)
+        
+        # Check for custom launch command
+        custom_cmd = config.get("launch_command")
+        if custom_cmd:
+            cmd = custom_cmd.split()
+        else:
+            # Default: use hermes-vision CLI with auto-exit and logs
+            cmd = ["hermes-vision", "--daemon", "--auto-exit", "--logs"]
+        
+        # Launch in detached subprocess
         subprocess.Popen(
-            ["python3", "-m", "hermes_vision.launcher", "--test-launch"],
+            cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             start_new_session=True,  # Detach from parent

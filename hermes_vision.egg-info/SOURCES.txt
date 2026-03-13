@@ -1,3 +1,4 @@
+README.md
 pyproject.toml
 hermes_vision/__init__.py
 hermes_vision/__main__.py
@@ -5,6 +6,7 @@ hermes_vision/app.py
 hermes_vision/bridge.py
 hermes_vision/cli.py
 hermes_vision/events.py
+hermes_vision/launcher.py
 hermes_vision/log_overlay.py
 hermes_vision/renderer.py
 hermes_vision/scene.py
@@ -21,9 +23,12 @@ hermes_vision/sources/custom.py
 hermes_vision/sources/hook_handler.py
 hermes_vision/sources/memories.py
 hermes_vision/sources/state_db.py
+hermes_vision/sources/trajectories.py
 tests/test_app.py
 tests/test_bridge.py
 tests/test_events.py
+tests/test_hook_handler.py
+tests/test_launcher.py
 tests/test_log_overlay.py
 tests/test_renderer.py
 tests/test_scene.py
