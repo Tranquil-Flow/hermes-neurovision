@@ -200,3 +200,33 @@ def test_aegis_disabled():
     source = AegisSource("/nonexistent", enabled=False)
     events = source.poll(0.0)
     assert events == []
+
+
+def test_hook_handler_writes_jsonl():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output_path = os.path.join(tmpdir, "events.jsonl")
+
+        # Import and test the handle function directly
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "hook_handler",
+            os.path.join(os.path.dirname(__file__), "..", "hermes_vision", "sources", "hook_handler.py")
+        )
+        module = importlib.util.module_from_spec(spec)
+
+        # Patch the output path before loading
+        os.environ["HERMES_VISION_EVENTS_PATH"] = output_path
+        spec.loader.exec_module(module)
+
+        # Simulate a hook call
+        module.handle("agent:start", {"session_id": "test123", "platform": "local"})
+
+        # Verify output
+        with open(output_path) as f:
+            line = f.readline()
+            data = json.loads(line)
+            assert data["event_type"] == "agent:start"
+            assert data["context"]["session_id"] == "test123"
+            assert "timestamp" in data
+
+        del os.environ["HERMES_VISION_EVENTS_PATH"]

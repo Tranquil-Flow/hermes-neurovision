@@ -1,0 +1,9 @@
+name: hermes-vision
+description: Emits agent lifecycle events to the Hermes Vision neurovisualizer
+events:
+  - agent:start
+  - agent:step
+  - agent:end
+  - session:start
+  - session:reset
+  - command:*
