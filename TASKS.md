@@ -31,4 +31,4 @@ Read the full plan at `docs/superpowers/plans/2026-03-13-hermes-vision.md` for e
 
 - [x] Task 17: pip install -e . and install gateway hook to ~/.hermes/hooks/hermes-vision/
 - [x] Task 18: Run full test suite, smoke test gallery and live modes
-- [ ] Task 19: Register with grove
+- [x] Task 19: Register with grove (documented in INSTALL.md)
