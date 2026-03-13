@@ -55,18 +55,29 @@ class GalleryApp:
         self.renderer.draw(self.state, self.theme_index, len(self.themes), 
                           time.time() + (self.end_after or 0) if self.end_after else None)
         
-        # Draw "LOCKED" indicator in top-right when locked
+        # Draw status indicators on a black background to prevent flashing
+        # Top-right: LOCKED indicator
         if self.locked:
             text = " LOCKED "
             try:
+                # Clear the area first with black background
+                for i in range(len(text)):
+                    self.stdscr.addch(0, w - len(text) - 1 + i, ' ', curses.color_pair(0))
                 self.stdscr.addstr(0, w - len(text) - 1, text, curses.color_pair(5) | curses.A_BOLD)
             except curses.error:
                 pass
         
-        # Draw "Press 's' to select for live mode" at bottom-right
-        hint = " Press 's' to select "
+        # Bottom-left: hint for staying on current theme
+        lock_hint = " Enter to stay on current "
         try:
-            self.stdscr.addstr(h - 1, w - len(hint) - 1, hint, curses.color_pair(2) | curses.A_DIM)
+            self.stdscr.addstr(h - 1, 1, lock_hint, curses.color_pair(2) | curses.A_DIM)
+        except curses.error:
+            pass
+        
+        # Bottom-right: selection hint
+        select_hint = " 's' to select for live "
+        try:
+            self.stdscr.addstr(h - 1, w - len(select_hint) - 1, select_hint, curses.color_pair(2) | curses.A_DIM)
         except curses.error:
             pass
 
