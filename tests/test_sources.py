@@ -165,3 +165,38 @@ def test_cron_source_detects_lock():
         events = source.poll(0.0)
         kinds = [e.kind for e in events]
         assert "cron_executing" in kinds
+
+
+from hermes_vision.sources.aegis import AegisSource
+
+
+def test_aegis_source_no_dir():
+    source = AegisSource("/nonexistent/audit.jsonl")
+    events = source.poll(0.0)
+    assert events == []
+
+
+def test_aegis_source_reads_events():
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
+        path = f.name
+        f.write(json.dumps({
+            "timestamp": 1710417293.567,
+            "tool_name": "terminal",
+            "decision": "DANGEROUS_COMMAND",
+            "middleware": "AuditTrailMiddleware",
+            "args_redacted": {"command": "rm -rf /", "_danger_type": "destructive file operation"},
+        }) + "\n")
+    try:
+        source = AegisSource(path)
+        events = source.poll(0.0)
+        assert len(events) == 1
+        assert events[0].kind == "threat_blocked"
+        assert events[0].severity == "danger"
+    finally:
+        os.unlink(path)
+
+
+def test_aegis_disabled():
+    source = AegisSource("/nonexistent", enabled=False)
+    events = source.poll(0.0)
+    assert events == []
