@@ -77,13 +77,36 @@ def _try_auto_launch() -> None:
             )
             return
         
+        # Build command with config options
+        cmd_parts = ["hermes-vision", "--daemon", "--auto-exit"]
+        
+        # Add theme if specified
+        theme = config.get("launch_theme")
+        if theme:
+            cmd_parts.extend(["--theme", theme])
+        
+        # Add logs flag (default true)
+        if config.get("show_logs", True):
+            cmd_parts.append("--logs")
+        
+        vision_cmd = " ".join(cmd_parts)
+        
+        # Write debug log to track execution
+        debug_log = os.path.expanduser("~/.hermes/vision/launch_attempts.log")
+        try:
+            with open(debug_log, "a") as f:
+                f.write(f"{time.time()} Attempting launch: {vision_cmd}\n")
+        except:
+            pass
+        
         # Use the launcher module to open a new terminal window
         # Call it as a script to avoid import issues in gateway environment
         subprocess.Popen(
             [
                 "python3", "-c",
-                "from hermes_vision.launcher import auto_launch; "
-                "auto_launch('hermes-vision --daemon --auto-exit --logs')"
+                f"from hermes_vision.launcher import auto_launch; "
+                f"result = auto_launch('{vision_cmd}'); "
+                f"open('{debug_log}', 'a').write(f'{{time.time()}} Launch result: {{result}}\\n')"
             ],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,

@@ -12,10 +12,11 @@ events:
 # Create ~/.hermes/vision/config.json with:
 # {
 #   "auto_launch": true,          # Enable auto-launch on agent:start from cron
-#   "preferred_terminal": null,   # Override terminal detection ("iterm2", "terminal", "tmux", etc.)
-#   "launch_command": null,       # Custom command to run (overrides default)
-#   "auto_exit": true,            # Pass --auto-exit flag (exit after 30s idle)
-#   "show_logs": true             # Pass --logs flag
+#   "launch_theme": "storm-core", # Default theme for auto-launched sessions
+#   "launch_command": null,       # Custom command (overrides all other settings)
+#   "show_logs": true,            # Show log overlay (default: true)
+#   "log_fade_seconds": 6.0,      # Seconds before logs start fading
+#   "log_expire_seconds": 15.0    # Seconds before logs are removed
 # }
 #
 # Auto-launch only triggers on agent:start events with source="cron" or trigger="automated"

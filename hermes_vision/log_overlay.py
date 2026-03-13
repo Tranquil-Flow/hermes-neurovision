@@ -8,8 +8,8 @@ from typing import List, Tuple
 
 from hermes_vision.events import VisionEvent
 
-FADE_AFTER = 3.0    # seconds before dimming
-EXPIRE_AFTER = 8.0  # seconds before removal
+FADE_AFTER = 6.0    # seconds before dimming (configurable)
+EXPIRE_AFTER = 15.0  # seconds before removal (configurable)
 
 SOURCE_COLORS = {
     "agent": "cyan",
