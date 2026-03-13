@@ -182,11 +182,10 @@ def test_try_auto_launch_calls_subprocess():
         # Verify subprocess was called
         mock_popen.assert_called_once()
         
-        # Verify command includes launcher
+        # Verify command is calling hermes-vision CLI
         call_args = mock_popen.call_args[0][0]
-        assert "python3" in call_args
-        assert "hermes_vision.launcher" in call_args
-        assert "--test-launch" in call_args
+        assert "hermes-vision" in call_args
+        assert "--daemon" in call_args or "--auto-exit" in call_args
         
         # Verify detached execution
         kwargs = mock_popen.call_args[1]
@@ -298,7 +297,13 @@ def test_handle_crash_safety():
                         hook_handler.handle("test:event", {})
                 
                 elif "config_error" in test_case:
-                    with patch("builtins.open", side_effect=test_case["config_error"]):
+                    # Create a broken config file that will cause json.load to fail
+                    config_path = os.path.join(tmpdir, "config.json")
+                    with open(config_path, "w") as f:
+                        f.write("{invalid json]")  # Malformed JSON
+                    
+                    with patch.object(hook_handler, "_CONFIG_PATH", config_path):
+                        # Should not crash even if config parsing fails
                         hook_handler.handle("agent:start", {"source": "cron"})
                 
                 elif "launch_error" in test_case:
