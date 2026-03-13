@@ -23,12 +23,12 @@ Read the full plan at `docs/superpowers/plans/2026-03-13-hermes-vision.md` for e
 
 ## Chunk 3: Bridge + Log Overlay + Live Mode
 
-- [ ] Task 14: Create bridge.py — VisualTrigger dataclass + full event-to-visual mapping table (24 event types). Write tests first.
-- [ ] Task 15: Create log_overlay.py — LogOverlay with fading lines, color coding by source. Write tests first.
-- [ ] Task 16: Implement apply_trigger() in scene.py (8 effects: packet, pulse, burst, flash, spawn_node, wake, cool_down, dim). Add LiveApp to app.py. Wire up --live mode in cli.py. Write tests first.
+- [x] Task 14: Create bridge.py — VisualTrigger dataclass + full event-to-visual mapping table (24 event types). Write tests first.
+- [x] Task 15: Create log_overlay.py — LogOverlay with fading lines, color coding by source. Write tests first.
+- [x] Task 16: Implement apply_trigger() in scene.py (8 effects: packet, pulse, burst, flash, spawn_node, wake, cool_down, dim). Add LiveApp to app.py. Wire up --live mode in cli.py. Write tests first.
 
 ## Chunk 4: Polish + Install
 
-- [ ] Task 17: pip install -e . and install gateway hook to ~/.hermes/hooks/hermes-vision/
-- [ ] Task 18: Run full test suite, smoke test gallery and live modes
+- [x] Task 17: pip install -e . and install gateway hook to ~/.hermes/hooks/hermes-vision/
+- [x] Task 18: Run full test suite, smoke test gallery and live modes
 - [ ] Task 19: Register with grove
