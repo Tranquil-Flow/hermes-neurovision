@@ -41,3 +41,51 @@ def test_bridge_unknown_event():
     ev = VisionEvent(time.time(), "unknown", "something_new", "info", {})
     triggers = bridge.translate(ev)
     assert triggers == []  # unknown events produce no triggers
+
+
+def test_bridge_maps_trajectory_logged():
+    bridge = Bridge()
+    ev = VisionEvent(time.time(), "trajectories", "trajectory_logged", "info", {})
+    triggers = bridge.translate(ev)
+    assert len(triggers) == 1
+    assert triggers[0].effect == "pulse"
+    assert triggers[0].intensity == 0.4
+
+
+def test_bridge_maps_trajectory_failed():
+    bridge = Bridge()
+    ev = VisionEvent(time.time(), "trajectories", "trajectory_failed", "warning", {})
+    triggers = bridge.translate(ev)
+    assert len(triggers) == 1
+    assert triggers[0].effect == "flash"
+    assert triggers[0].color_key == "warning"
+
+
+def test_bridge_maps_session_duration():
+    bridge = Bridge()
+    # Test with 30 minutes (1800 seconds)
+    ev = VisionEvent(time.time(), "state_db", "session_duration", "info", {"duration_seconds": 1800})
+    triggers = bridge.translate(ev)
+    assert len(triggers) == 1
+    assert triggers[0].effect == "pulse"
+    # Intensity should be proportional to duration/3600, capped at 1.0 and min 0.3
+    intensity = triggers[0].intensity
+    assert 0.3 <= intensity <= 1.0
+
+
+def test_bridge_maps_tool_burst():
+    bridge = Bridge()
+    ev = VisionEvent(time.time(), "state_db", "tool_burst", "info", {"tool_count": 7, "time_span": 8.5})
+    triggers = bridge.translate(ev)
+    assert len(triggers) == 1
+    assert triggers[0].effect == "burst"
+    assert triggers[0].intensity == 0.9
+
+
+def test_bridge_maps_tool_chain():
+    bridge = Bridge()
+    ev = VisionEvent(time.time(), "state_db", "tool_chain", "info", {"tool_name": "read_file", "repeat_count": 3})
+    triggers = bridge.translate(ev)
+    assert len(triggers) == 1
+    assert triggers[0].effect == "packet"
+    assert triggers[0].color_key == "accent"

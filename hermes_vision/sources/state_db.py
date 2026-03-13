@@ -168,40 +168,43 @@ class StateDbSource:
         """Detect tool usage patterns from recent events."""
         now = time.time()
         
-        # Extract tool calls from message_added events
+        # Extract tool calls from message_added events and update history
+        new_tool_count = 0
         for ev in events:
             if ev.kind == "message_added" and ev.data.get("tool_name"):
                 tool_name = ev.data["tool_name"]
                 self._tool_history.append((tool_name, ev.timestamp))
+                new_tool_count += 1
                 
                 # Track tool chains (same tool repeated)
                 if tool_name == self._last_tool_name:
                     self._tool_repeat_count += 1
-                    if self._tool_repeat_count >= 3:
-                        # Emit tool_chain pattern
-                        events.append(VisionEvent(
-                            timestamp=now, source="state_db",
-                            kind="tool_chain", severity="info",
-                            data={
-                                "tool_name": tool_name,
-                                "repeat_count": self._tool_repeat_count,
-                            },
-                        ))
-                        self._tool_repeat_count = 0  # Reset after emitting
                 else:
                     self._last_tool_name = tool_name
                     self._tool_repeat_count = 1
         
+        # Emit tool_chain if we hit the threshold
+        if self._tool_repeat_count >= 3:
+            events.append(VisionEvent(
+                timestamp=now, source="state_db",
+                kind="tool_chain", severity="info",
+                data={
+                    "tool_name": self._last_tool_name,
+                    "repeat_count": self._tool_repeat_count,
+                },
+            ))
+            self._tool_repeat_count = 0  # Reset after emitting
+        
         # Detect tool bursts (5+ tools in 10 seconds)
-        # Clean old entries
+        # Clean old entries first
         cutoff = now - 10.0
         self._tool_history = [(t, ts) for t, ts in self._tool_history if ts >= cutoff]
         
-        if len(self._tool_history) >= 5:
-            # Check if we haven't emitted a burst recently
-            recent_bursts = [ev for ev in events if ev.kind == "tool_burst" and ev.timestamp >= now - 10]
-            if not recent_bursts:
-                time_span = now - self._tool_history[0][1]
+        # Check if we have a burst (5+ tools in recent history)
+        if len(self._tool_history) >= 5 and new_tool_count > 0:
+            # Only emit if we haven't emitted a burst event in the last second
+            if not hasattr(self, '_last_burst_time') or (now - self._last_burst_time) > 1.0:
+                time_span = now - self._tool_history[0][1] if self._tool_history else 0
                 events.append(VisionEvent(
                     timestamp=now, source="state_db",
                     kind="tool_burst", severity="info",
@@ -210,5 +213,4 @@ class StateDbSource:
                         "time_span": round(time_span, 1),
                     },
                 ))
-                # Clear history after burst to avoid duplicate events
-                self._tool_history = []
+                self._last_burst_time = now

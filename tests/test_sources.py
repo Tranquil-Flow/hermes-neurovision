@@ -116,6 +116,93 @@ def test_state_db_detects_token_update():
         os.unlink(path)
 
 
+def test_state_db_detects_session_duration():
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        path = f.name
+    try:
+        # Create session that started 6 minutes ago
+        start_time = time.time() - 360.0  # 6 minutes
+        conn = _create_test_db(path)
+        conn.execute("INSERT INTO sessions VALUES ('s1','local','gpt-4',?,NULL,0,0,0,0,NULL)", (start_time,))
+        conn.commit()
+        conn.close()
+
+        source = StateDbSource(path)
+        # Set short interval for testing
+        source._duration_event_interval = 300.0
+        events = source.poll(0.0)
+        
+        # Should get active_session and session_duration
+        kinds = [e.kind for e in events]
+        assert "active_session" in kinds
+        assert "session_duration" in kinds
+        
+        duration_ev = [e for e in events if e.kind == "session_duration"][0]
+        assert duration_ev.data["duration_seconds"] >= 360
+        assert "duration_formatted" in duration_ev.data
+    finally:
+        os.unlink(path)
+
+
+def test_state_db_detects_tool_burst():
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        path = f.name
+    try:
+        conn = _create_test_db(path)
+        conn.execute("INSERT INTO sessions VALUES ('s1','local','gpt-4',1000.0,NULL,0,0,0,0,NULL)")
+        conn.commit()
+
+        source = StateDbSource(path)
+        source.poll(0.0)  # initial poll to establish session
+        
+        # Insert 5 tool calls in quick succession
+        now = time.time()
+        for i in range(5):
+            conn.execute("INSERT INTO messages VALUES (?,?,?,?,?,?,?)",
+                        (i+1, 's1', 'assistant', '', f'tool{i}', now + i, 10))
+        conn.commit()
+        
+        events = source.poll(time.time())
+        kinds = [e.kind for e in events]
+        assert "tool_burst" in kinds, f"Expected tool_burst, got: {kinds}"
+        
+        burst_ev = [e for e in events if e.kind == "tool_burst"][0]
+        assert burst_ev.data["tool_count"] == 5
+        conn.close()
+    finally:
+        os.unlink(path)
+
+
+def test_state_db_detects_tool_chain():
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        path = f.name
+    try:
+        conn = _create_test_db(path)
+        conn.execute("INSERT INTO sessions VALUES ('s1','local','gpt-4',1000.0,NULL,0,0,0,0,NULL)")
+        conn.commit()
+
+        source = StateDbSource(path)
+        source.poll(0.0)  # initial poll to establish session
+        
+        # Insert same tool 3 times
+        now = time.time()
+        for i in range(3):
+            conn.execute("INSERT INTO messages VALUES (?,?,?,?,?,?,?)",
+                        (i+1, 's1', 'assistant', '', 'read_file', now + i*2, 10))
+        conn.commit()
+        
+        events = source.poll(time.time())
+        kinds = [e.kind for e in events]
+        assert "tool_chain" in kinds, f"Expected tool_chain, got: {kinds}"
+        
+        chain_ev = [e for e in events if e.kind == "tool_chain"][0]
+        assert chain_ev.data["tool_name"] == "read_file"
+        assert chain_ev.data["repeat_count"] >= 3
+        conn.close()
+    finally:
+        os.unlink(path)
+
+
 from hermes_vision.sources.memories import MemoriesSource
 
 
