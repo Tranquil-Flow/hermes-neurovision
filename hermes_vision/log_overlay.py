@@ -18,6 +18,7 @@ SOURCE_COLORS = {
     "cron": "cyan",
     "aegis": "yellow",
     "custom": "green",
+    "trajectories": "cyan",
 }
 
 
@@ -82,6 +83,23 @@ def _format_event(ev: VisionEvent) -> str:
         tool = data.get("tool_name", "")
         suffix = f" ({tool})" if tool else ""
         return f"[{ts}] msg:{role}{suffix}"
+    elif ev.kind == "trajectory_logged":
+        tid = data.get("trajectory_id", "?")[:8]
+        return f"[{ts}] trajectory:logged {tid}"
+    elif ev.kind == "trajectory_failed":
+        tid = data.get("trajectory_id", "?")[:8]
+        return f"[{ts}] trajectory:failed {tid}"
+    elif ev.kind == "session_duration":
+        duration_fmt = data.get("duration_formatted", "?")
+        return f"[{ts}] Session: {duration_fmt}"
+    elif ev.kind == "tool_burst":
+        count = data.get("tool_count", 0)
+        time_span = data.get("time_span", 0)
+        return f"[{ts}] Tool burst: {count} calls in {time_span}s"
+    elif ev.kind == "tool_chain":
+        tool = data.get("tool_name", "?")
+        count = data.get("repeat_count", 0)
+        return f"[{ts}] Tool chain: {tool} x{count}"
     else:
         return f"[{ts}] {ev.kind}"
 

@@ -220,3 +220,181 @@ class LiveApp:
                 self.show_logs = not self.show_logs
             if ch == ord(" "):
                 pass  # pause not yet wired
+
+
+class DaemonApp:
+    """Daemon mode — gallery when idle, switches to live on events."""
+
+    def __init__(self, stdscr: "curses._CursesWindow", themes: Sequence[str], theme_seconds: float, poller, bridge, log_overlay, show_logs: bool = False) -> None:
+        self.stdscr = stdscr
+        self.themes = list(themes)
+        self.theme_seconds = max(1.0, theme_seconds)
+        self.poller = poller
+        self.bridge = bridge
+        self.log_overlay = log_overlay
+        self.show_logs = show_logs
+        self.renderer = Renderer(stdscr)
+        
+        # Gallery state
+        self.theme_index = 0
+        self.selected_theme_name = themes[0] if themes else "neural-sky"
+        
+        # Mode tracking
+        self.mode = "gallery"  # "gallery" or "live"
+        self.last_event_time: Optional[float] = None
+        self.idle_threshold = 30.0  # seconds to wait before returning to gallery
+        self.transition_alpha = 0.0  # for visual transitions
+        
+        # Initialize with gallery state
+        self.gallery_state = self._make_gallery_state(self.themes[self.theme_index])
+        self.live_state: Optional[ThemeState] = None
+        self.switch_at = time.time() + self.theme_seconds if len(self.themes) > 1 else float("inf")
+        
+        self._poll_counter = 0
+
+    def _make_gallery_state(self, theme_name: str) -> ThemeState:
+        h, w = self.stdscr.getmaxyx()
+        return ThemeState(build_theme_config(theme_name), w, h, seed=(hash(theme_name) & 0xFFFF))
+
+    def _make_live_state(self) -> ThemeState:
+        h, w = self.stdscr.getmaxyx()
+        return ThemeState(build_theme_config(self.selected_theme_name), w, h, seed=hash(self.selected_theme_name) & 0xFFFF)
+
+    def run(self) -> None:
+        curses.curs_set(0)
+        self.stdscr.nodelay(True)
+
+        while True:
+            now = time.time()
+            self._handle_input()
+            
+            # Poll for events every ~20 frames (1 second)
+            self._poll_counter += 1
+            if self._poll_counter >= 20:
+                self._poll_counter = 0
+                events = self.poller.poll()
+                
+                if events:
+                    # Transition to live mode on first event
+                    if self.mode == "gallery":
+                        self._transition_to_live()
+                    
+                    self.last_event_time = now
+                    
+                    # Apply events to live state
+                    for ev in events:
+                        triggers = self.bridge.translate(ev)
+                        for trigger in triggers:
+                            if self.live_state:
+                                self.live_state.apply_trigger(trigger)
+                        if self.show_logs:
+                            self.log_overlay.add_event(ev)
+            
+            # Check idle timeout
+            if self.mode == "live" and self.last_event_time is not None:
+                idle_time = now - self.last_event_time
+                if idle_time >= self.idle_threshold:
+                    self._transition_to_gallery()
+            
+            # Step the appropriate state
+            if self.mode == "gallery":
+                self.gallery_state.step()
+                # Auto-advance themes in gallery mode
+                if len(self.themes) > 1 and now >= self.switch_at:
+                    self._advance_theme(1)
+                self._draw_gallery()
+            else:  # live mode
+                if self.live_state:
+                    self.live_state.step()
+                self._draw_live(now)
+            
+            self.stdscr.refresh()
+            time.sleep(FRAME_DELAY)
+
+    def _transition_to_live(self) -> None:
+        """Transition from gallery to live mode."""
+        self.mode = "live"
+        # Preserve selected theme from gallery
+        self.selected_theme_name = self.themes[self.theme_index]
+        self.live_state = self._make_live_state()
+        self.last_event_time = time.time()
+
+    def _transition_to_gallery(self) -> None:
+        """Transition from live to gallery mode."""
+        self.mode = "gallery"
+        self.last_event_time = None
+        # Reset gallery state to current theme
+        self.gallery_state = self._make_gallery_state(self.themes[self.theme_index])
+        self.switch_at = time.time() + self.theme_seconds if len(self.themes) > 1 else float("inf")
+
+    def _advance_theme(self, direction: int) -> None:
+        """Advance to next/previous theme in gallery mode."""
+        self.theme_index = (self.theme_index + direction) % len(self.themes)
+        self.gallery_state = self._make_gallery_state(self.themes[self.theme_index])
+        self.switch_at = time.time() + self.theme_seconds
+
+    def _draw_gallery(self) -> None:
+        """Draw gallery mode with indicator."""
+        h, w = self.stdscr.getmaxyx()
+        self.renderer.draw(self.gallery_state, self.theme_index, len(self.themes), None)
+        
+        # Draw mode indicator
+        mode_text = " DAEMON: gallery "
+        try:
+            self.stdscr.addstr(0, w - len(mode_text) - 1, mode_text, curses.color_pair(2) | curses.A_BOLD)
+        except curses.error:
+            pass
+
+    def _draw_live(self, now: float) -> None:
+        """Draw live mode with indicator and optional logs."""
+        h, w = self.stdscr.getmaxyx()
+        if self.live_state:
+            self.renderer.draw(self.live_state, 0, 1, None)
+        
+        # Draw mode indicator
+        mode_text = " DAEMON: live "
+        try:
+            self.stdscr.addstr(0, w - len(mode_text) - 1, mode_text, curses.color_pair(5) | curses.A_BOLD)
+        except curses.error:
+            pass
+        
+        # Draw log overlay if enabled
+        if self.show_logs:
+            self._draw_logs(now)
+
+    def _draw_logs(self, now: float) -> None:
+        """Draw log overlay (same as LiveApp)."""
+        h, w = self.stdscr.getmaxyx()
+        if h < 24 or w < 80:
+            return
+        lines = self.log_overlay.get_visible_lines(now)
+        color_map = {"cyan": 2, "green": 2, "white": 3, "magenta": 4, "yellow": 5}
+        for i, (text, brightness, color) in enumerate(lines):
+            y = h - 2 - len(lines) + i
+            if y < 1:
+                continue
+            attr = curses.color_pair(color_map.get(color, 3))
+            if brightness == "bold":
+                attr |= curses.A_BOLD
+            else:
+                attr |= curses.A_DIM
+            try:
+                self.stdscr.addstr(y, 1, text[:w - 2], attr)
+            except curses.error:
+                pass
+
+    def _handle_input(self) -> None:
+        """Handle keyboard input."""
+        while True:
+            ch = self.stdscr.getch()
+            if ch == -1:
+                return
+            if ch in (ord("q"), ord("Q")):
+                raise SystemExit(0)
+            if ch == ord("l"):
+                self.show_logs = not self.show_logs
+            if self.mode == "gallery":
+                if ch in (ord("n"), curses.KEY_RIGHT):
+                    self._advance_theme(1)
+                elif ch in (ord("p"), curses.KEY_LEFT):
+                    self._advance_theme(-1)

@@ -19,6 +19,13 @@ class StateDbSource:
         self._active_session_id: Optional[str] = None
         self._last_model: Optional[str] = None
         self._last_tokens: Tuple[int, int] = (0, 0)
+        self._session_start_time: Optional[float] = None
+        self._last_duration_event: float = 0.0
+        self._duration_event_interval = 300.0  # 5 minutes in seconds
+        # Tool usage pattern tracking
+        self._tool_history: List[Tuple[str, float]] = []  # (tool_name, timestamp)
+        self._last_tool_name: Optional[str] = None
+        self._tool_repeat_count: int = 0
 
     def poll(self, since: float) -> List[VisionEvent]:
         if not os.path.exists(self._path):
@@ -32,6 +39,8 @@ class StateDbSource:
                 self._poll_active_session(conn, events)
                 self._poll_messages(conn, events)
                 self._poll_tokens(conn, events)
+                self._poll_session_duration(conn, events)
+                self._detect_tool_patterns(events)
             finally:
                 conn.close()
         except (sqlite3.Error, OSError):
@@ -53,6 +62,14 @@ class StateDbSource:
         if session_id != self._active_session_id:
             self._active_session_id = session_id
             self._last_model = model
+            # Get session start time for duration tracking
+            start_row = conn.execute(
+                "SELECT started_at FROM sessions WHERE id = ?",
+                (session_id,)
+            ).fetchone()
+            if start_row:
+                self._session_start_time = start_row["started_at"]
+                self._last_duration_event = 0.0  # Reset duration tracker
             events.append(VisionEvent(
                 timestamp=time.time(), source="state_db",
                 kind="active_session", severity="info",
@@ -114,3 +131,84 @@ class StateDbSource:
             ))
 
         self._last_tokens = (input_t, output_t)
+
+    def _poll_session_duration(self, conn, events):
+        """Emit session duration events every 5 minutes."""
+        if self._active_session_id is None or self._session_start_time is None:
+            return
+
+        now = time.time()
+        duration = now - self._session_start_time
+
+        # Emit event every 5 minutes
+        if duration - self._last_duration_event >= self._duration_event_interval:
+            self._last_duration_event = duration
+            
+            # Format duration nicely
+            minutes = int(duration / 60)
+            hours = minutes // 60
+            remaining_mins = minutes % 60
+            
+            if hours > 0:
+                duration_fmt = f"{hours}h{remaining_mins}m"
+            else:
+                duration_fmt = f"{minutes}m"
+            
+            events.append(VisionEvent(
+                timestamp=now, source="state_db",
+                kind="session_duration", severity="info",
+                data={
+                    "session_id": self._active_session_id,
+                    "duration_seconds": int(duration),
+                    "duration_formatted": duration_fmt,
+                },
+            ))
+
+    def _detect_tool_patterns(self, events):
+        """Detect tool usage patterns from recent events."""
+        now = time.time()
+        
+        # Extract tool calls from message_added events
+        for ev in events:
+            if ev.kind == "message_added" and ev.data.get("tool_name"):
+                tool_name = ev.data["tool_name"]
+                self._tool_history.append((tool_name, ev.timestamp))
+                
+                # Track tool chains (same tool repeated)
+                if tool_name == self._last_tool_name:
+                    self._tool_repeat_count += 1
+                    if self._tool_repeat_count >= 3:
+                        # Emit tool_chain pattern
+                        events.append(VisionEvent(
+                            timestamp=now, source="state_db",
+                            kind="tool_chain", severity="info",
+                            data={
+                                "tool_name": tool_name,
+                                "repeat_count": self._tool_repeat_count,
+                            },
+                        ))
+                        self._tool_repeat_count = 0  # Reset after emitting
+                else:
+                    self._last_tool_name = tool_name
+                    self._tool_repeat_count = 1
+        
+        # Detect tool bursts (5+ tools in 10 seconds)
+        # Clean old entries
+        cutoff = now - 10.0
+        self._tool_history = [(t, ts) for t, ts in self._tool_history if ts >= cutoff]
+        
+        if len(self._tool_history) >= 5:
+            # Check if we haven't emitted a burst recently
+            recent_bursts = [ev for ev in events if ev.kind == "tool_burst" and ev.timestamp >= now - 10]
+            if not recent_bursts:
+                time_span = now - self._tool_history[0][1]
+                events.append(VisionEvent(
+                    timestamp=now, source="state_db",
+                    kind="tool_burst", severity="info",
+                    data={
+                        "tool_count": len(self._tool_history),
+                        "time_span": round(time_span, 1),
+                    },
+                ))
+                # Clear history after burst to avoid duplicate events
+                self._tool_history = []

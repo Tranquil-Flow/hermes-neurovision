@@ -48,6 +48,11 @@ _MAPPING = {
     "image_generated":   ("burst",      0.7, "bright",  "random_node"),
     "active_session":    ("pulse",      0.3, "soft",    "center"),
     "message_added":     ("packet",     0.3, "soft",    "random_edge"),
+    "trajectory_logged": ("pulse",      0.4, "soft",    "random_node"),
+    "trajectory_failed": ("flash",      0.8, "warning", "random_node"),
+    "session_duration":  ("pulse",      0.5, "accent",  "all"),
+    "tool_burst":        ("burst",      0.9, "bright",  "center"),
+    "tool_chain":        ("packet",     0.7, "accent",  "random_edge"),
 }
 
 
@@ -65,5 +70,10 @@ class Bridge:
         if event.kind == "token_update":
             delta = event.data.get("delta_input", 0) + event.data.get("delta_output", 0)
             intensity = max(0.1, min(1.0, delta / 1000.0))
+        
+        # Dynamic intensity for session_duration (proportional to hours, max 1.0)
+        if event.kind == "session_duration":
+            duration_seconds = event.data.get("duration_seconds", 0)
+            intensity = max(0.3, min(1.0, duration_seconds / 3600.0))
 
         return [VisualTrigger(effect, intensity, color_key, target)]

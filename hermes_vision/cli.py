@@ -35,8 +35,7 @@ def main(argv=None):
     if args.gallery:
         _run_gallery(args)
     elif args.daemon:
-        print("Daemon mode not yet implemented.", file=sys.stderr)
-        sys.exit(1)
+        _run_daemon(args)
     else:
         _run_live(args)  # --live is the default
 
@@ -85,12 +84,14 @@ def _run_live(args):
     from hermes_vision.sources.memories import MemoriesSource
     from hermes_vision.sources.cron import CronSource
     from hermes_vision.sources.aegis import AegisSource
+    from hermes_vision.sources.trajectories import TrajectoriesSource
 
     sources = [
         CustomSource().poll,
         StateDbSource().poll,
         MemoriesSource().poll,
         CronSource().poll,
+        TrajectoriesSource().poll,
     ]
     if not args.no_aegis:
         sources.append(AegisSource().poll)
@@ -102,6 +103,42 @@ def _run_live(args):
     def run_curses(stdscr):
         app = LiveApp(stdscr, args.theme, poller, bridge, log_overlay,
                       end_after=args.seconds, show_logs=args.logs)
+        app.run()
+
+    curses.wrapper(run_curses)
+
+
+def _run_daemon(args):
+    from hermes_vision.app import DaemonApp
+    from hermes_vision.events import EventPoller
+    from hermes_vision.bridge import Bridge
+    from hermes_vision.log_overlay import LogOverlay
+    from hermes_vision.sources.custom import CustomSource
+    from hermes_vision.sources.state_db import StateDbSource
+    from hermes_vision.sources.memories import MemoriesSource
+    from hermes_vision.sources.cron import CronSource
+    from hermes_vision.sources.aegis import AegisSource
+    from hermes_vision.sources.trajectories import TrajectoriesSource
+
+    sources = [
+        CustomSource().poll,
+        StateDbSource().poll,
+        MemoriesSource().poll,
+        CronSource().poll,
+        TrajectoriesSource().poll,
+    ]
+    if not args.no_aegis:
+        sources.append(AegisSource().poll)
+
+    poller = EventPoller(sources=sources)
+    bridge = Bridge()
+    log_overlay = LogOverlay()
+
+    # Use all themes for gallery rotation
+    themes = list(THEMES)
+
+    def run_curses(stdscr):
+        app = DaemonApp(stdscr, themes, args.theme_seconds, poller, bridge, log_overlay, show_logs=args.logs)
         app.run()
 
     curses.wrapper(run_curses)

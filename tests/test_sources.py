@@ -230,3 +230,54 @@ def test_hook_handler_writes_jsonl():
             assert "timestamp" in data
 
         del os.environ["HERMES_VISION_EVENTS_PATH"]
+
+
+from hermes_vision.sources.trajectories import TrajectoriesSource
+
+
+def test_trajectories_source_no_files():
+    source = TrajectoriesSource("/nonexistent/success.jsonl", "/nonexistent/failed.jsonl")
+    events = source.poll(0.0)
+    assert events == []
+
+
+def test_trajectories_source_reads_success():
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
+        path = f.name
+        f.write(json.dumps({
+            "timestamp": time.time(),
+            "trajectory_id": "traj123",
+            "session_id": "sess456",
+            "tool_calls": ["tool1", "tool2"],
+            "outcome": "success",
+        }) + "\n")
+    try:
+        source = TrajectoriesSource(success_path=path, failed_path="/nonexistent")
+        events = source.poll(0.0)
+        assert len(events) == 1
+        assert events[0].kind == "trajectory_logged"
+        assert events[0].source == "trajectories"
+        assert events[0].data["trajectory_id"] == "traj123"
+    finally:
+        os.unlink(path)
+
+
+def test_trajectories_source_reads_failed():
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
+        path = f.name
+        f.write(json.dumps({
+            "timestamp": time.time(),
+            "trajectory_id": "traj789",
+            "session_id": "sess999",
+            "tool_calls": [],
+            "outcome": "failed",
+        }) + "\n")
+    try:
+        source = TrajectoriesSource(success_path="/nonexistent", failed_path=path)
+        events = source.poll(0.0)
+        assert len(events) == 1
+        assert events[0].kind == "trajectory_failed"
+        assert events[0].severity == "warning"
+        assert events[0].data["trajectory_id"] == "traj789"
+    finally:
+        os.unlink(path)
