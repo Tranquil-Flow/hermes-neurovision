@@ -55,7 +55,24 @@ def _run_gallery(args):
         return
 
     themes = list(THEMES) if args.gallery else [args.theme]
-    curses.wrapper(lambda stdscr: GalleryApp(stdscr, themes, args.theme_seconds, args.seconds).run())
+    
+    # Run gallery and check if a theme was selected
+    gallery_app = None
+    def run_gallery_wrapper(stdscr):
+        nonlocal gallery_app
+        gallery_app = GalleryApp(stdscr, themes, args.theme_seconds, args.seconds)
+        gallery_app.run()
+    
+    try:
+        curses.wrapper(run_gallery_wrapper)
+    except SystemExit:
+        pass
+    
+    # If user selected a theme with 's', launch live mode with it
+    if gallery_app and gallery_app.selected_theme:
+        print(f"Launching live mode with theme: {gallery_app.selected_theme}")
+        args.theme = gallery_app.selected_theme
+        _run_live(args)
 
 
 def _run_live(args):

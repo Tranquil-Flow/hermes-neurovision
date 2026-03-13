@@ -118,36 +118,67 @@ class ThemeState:
         count = max(8, min(40, int((w * h) / 140)))
 
         if self.config.galaxy_mode:
-            arms = 4
-            disc_radius = min(usable_w, usable_h) * 0.42
-            core_nodes = max(5, count // 5)
-            for i in range(count):
-                arm = i % arms
-                ratio = i / max(1, count - 1)
-                base_angle = arm * (math.tau / arms)
-                twist = ratio * math.tau * 1.15
-                angle = base_angle + twist + self.rng.uniform(-0.16, 0.16)
-                radius = disc_radius * (0.10 + ratio * 0.92)
-                radius *= self.rng.uniform(0.88, 1.08)
-                x = cx + math.cos(angle) * radius + self.rng.uniform(-0.7, 0.7)
-                y = cy + math.sin(angle) * radius + self.rng.uniform(-0.7, 0.7)
-                nodes.append((x, y))
+            # 3 distinct spiral arms with varied density
+            arms = 3
+            disc_radius = min(usable_w, usable_h) * 0.44
+            
+            # Distribute nodes by arm with varying density
+            arm_distributions = [0.40, 0.35, 0.25]  # Asymmetric arms add realism
+            nodes_per_arm = [int(count * ratio) for ratio in arm_distributions]
+            
+            for arm_idx in range(arms):
+                arm_nodes = nodes_per_arm[arm_idx]
+                for i in range(arm_nodes):
+                    ratio = i / max(1, arm_nodes - 1)
+                    base_angle = arm_idx * (math.tau / arms)
+                    # Increased twist for more dramatic spiral
+                    twist = ratio * math.tau * 1.8
+                    angle = base_angle + twist
+                    
+                    # Vary radius with some randomness for natural look
+                    radius = disc_radius * (0.12 + ratio * 0.88)
+                    radius *= self.rng.uniform(0.85, 1.12)
+                    
+                    # Add slight randomness perpendicular to arm
+                    perp_offset = self.rng.uniform(-0.9, 0.9)
+                    x = cx + math.cos(angle) * radius + math.cos(angle + math.pi/2) * perp_offset
+                    y = cy + math.sin(angle) * radius + math.sin(angle + math.pi/2) * perp_offset
+                    nodes.append((x, y))
+            
+            # Bright galactic core
+            core_nodes = max(6, count // 6)
             for i in range(core_nodes):
                 angle = (math.tau * i) / core_nodes
-                radius = disc_radius * self.rng.uniform(0.02, 0.12)
+                radius = disc_radius * self.rng.uniform(0.02, 0.10)
                 nodes.append((cx + math.cos(angle) * radius, cy + math.sin(angle) * radius))
+            
+            # Central bulge
             nodes.append((cx, cy))
         elif self.config.black_hole_mode:
-            ring_count = max(12, count)
-            radius_x = usable_w * 0.20
-            radius_y = usable_h * 0.24
-            for i in range(ring_count):
-                a = (math.tau * i) / ring_count
-                wobble = 1.0 + math.sin(i * 0.9) * 0.10
+            # Inner event horizon ring (spins fastest)
+            inner_count = 8
+            radius_x = usable_w * 0.12
+            radius_y = usable_h * 0.14
+            for i in range(inner_count):
+                a = (math.tau * i) / inner_count
+                nodes.append((cx + math.cos(a) * radius_x, cy + math.sin(a) * radius_y))
+            
+            # Middle accretion disk ring
+            mid_count = max(12, count // 2)
+            radius_x = usable_w * 0.22
+            radius_y = usable_h * 0.26
+            for i in range(mid_count):
+                a = (math.tau * i) / mid_count
+                wobble = 1.0 + math.sin(i * 0.9) * 0.08
                 nodes.append((cx + math.cos(a) * radius_x * wobble, cy + math.sin(a) * radius_y * wobble))
-            for i in range(max(6, ring_count // 3)):
-                a = (math.tau * i) / max(1, ring_count // 3) + 0.4
-                nodes.append((cx + math.cos(a) * radius_x * 1.55, cy + math.sin(a) * radius_y * 0.65))
+            
+            # Outer ring (slower)
+            outer_count = max(6, count // 3)
+            for i in range(outer_count):
+                a = (math.tau * i) / outer_count + 0.4
+                nodes.append((cx + math.cos(a) * usable_w * 0.32, cy + math.sin(a) * usable_h * 0.38))
+            
+            # Singularity at center
             nodes.append((cx, cy))
         elif self.config.ring_mode:
             radius_x = usable_w * 0.28
@@ -258,6 +289,48 @@ class ThemeState:
         else:
             self.intensity_multiplier = self._intensity_target
 
+    def _step_node_animation(self) -> None:
+        """Animate nodes for black hole spinning effect."""
+        if not self.config.black_hole_mode or not self.nodes:
+            return
+        
+        cx = self.width / 2.0
+        cy = self.height / 2.0
+        
+        # Animate inner ring (fastest rotation)
+        inner_count = 8
+        for i in range(min(inner_count, len(self.nodes))):
+            dx = self.nodes[i][0] - cx
+            dy = self.nodes[i][1] - cy
+            radius = math.hypot(dx, dy)
+            angle = math.atan2(dy, dx)
+            # Fast rotation for event horizon
+            angle += 0.08  # ~4.5 degrees per frame
+            self.nodes[i] = (cx + math.cos(angle) * radius, cy + math.sin(angle) * radius)
+        
+        # Animate middle ring (medium rotation)
+        mid_start = inner_count
+        mid_count = max(12, (len(self.nodes) - inner_count - 1) // 2)
+        for i in range(mid_start, min(mid_start + mid_count, len(self.nodes) - 1)):
+            dx = self.nodes[i][0] - cx
+            dy = self.nodes[i][1] - cy
+            radius = math.hypot(dx, dy)
+            angle = math.atan2(dy, dx)
+            # Medium rotation for accretion disk
+            angle += 0.04  # ~2.3 degrees per frame
+            self.nodes[i] = (cx + math.cos(angle) * radius, cy + math.sin(angle) * radius)
+        
+        # Animate outer ring (slowest rotation)
+        outer_start = mid_start + mid_count
+        for i in range(outer_start, len(self.nodes) - 1):
+            dx = self.nodes[i][0] - cx
+            dy = self.nodes[i][1] - cy
+            radius = math.hypot(dx, dy)
+            angle = math.atan2(dy, dx)
+            # Slow rotation for outer ring
+            angle += 0.02  # ~1.1 degrees per frame
+            self.nodes[i] = (cx + math.cos(angle) * radius, cy + math.sin(angle) * radius)
+
     def apply_trigger(self, trigger) -> None:
         """Apply a VisualTrigger to the scene state."""
         import time as _time
@@ -322,6 +395,7 @@ class ThemeState:
     def step(self) -> None:
         self._step_intensity()
         self.frame += 1
+        self._step_node_animation()
         self._step_stars()
         self._spawn_packets()
         self._step_packets()

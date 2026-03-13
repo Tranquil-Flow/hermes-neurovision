@@ -20,6 +20,8 @@ class GalleryApp:
         self.renderer = Renderer(stdscr)
         self.theme_index = 0
         self.paused = False
+        self.locked = False
+        self.selected_theme = None
         self.state = self._make_state(self.themes[self.theme_index])
         self.switch_at = time.time() + self.theme_seconds if len(self.themes) > 1 else float("inf")
 
@@ -41,15 +43,38 @@ class GalleryApp:
             self._handle_input()
             if not self.paused:
                 self.state.step()
-                if len(self.themes) > 1 and now >= self.switch_at:
+                if len(self.themes) > 1 and not self.locked and now >= self.switch_at:
                     self._advance_theme(1)
-            self.renderer.draw(self.state, self.theme_index, len(self.themes), deadline)
+            self._draw_with_indicators()
+            self.stdscr.refresh()
             time.sleep(FRAME_DELAY)
+
+    def _draw_with_indicators(self) -> None:
+        """Draw scene with lock and selection indicators."""
+        h, w = self.stdscr.getmaxyx()
+        self.renderer.draw(self.state, self.theme_index, len(self.themes), 
+                          time.time() + (self.end_after or 0) if self.end_after else None)
+        
+        # Draw "LOCKED" indicator in top-right when locked
+        if self.locked:
+            text = " LOCKED "
+            try:
+                self.stdscr.addstr(0, w - len(text) - 1, text, curses.color_pair(5) | curses.A_BOLD)
+            except curses.error:
+                pass
+        
+        # Draw "Press 's' to select for live mode" at bottom-right
+        hint = " Press 's' to select "
+        try:
+            self.stdscr.addstr(h - 1, w - len(hint) - 1, hint, curses.color_pair(2) | curses.A_DIM)
+        except curses.error:
+            pass
 
     def _advance_theme(self, direction: int) -> None:
         self.theme_index = (self.theme_index + direction) % len(self.themes)
         self.state = self._make_state(self.themes[self.theme_index])
-        self.switch_at = time.time() + self.theme_seconds
+        if not self.locked:
+            self.switch_at = time.time() + self.theme_seconds
 
     def _handle_input(self) -> None:
         while True:
@@ -57,6 +82,9 @@ class GalleryApp:
             if ch == -1:
                 return
             if ch in (ord("q"), ord("Q")):
+                if self.selected_theme:
+                    # Exit to launch live mode with selected theme
+                    raise SystemExit(0)
                 raise SystemExit(0)
             if ch in (ord("n"), curses.KEY_RIGHT):
                 self._advance_theme(1)
@@ -64,6 +92,15 @@ class GalleryApp:
                 self._advance_theme(-1)
             elif ch == ord(" "):
                 self.paused = not self.paused
+            elif ch in (ord("\n"), ord("\r"), curses.KEY_ENTER, 10, 13):
+                # Enter key toggles lock mode
+                self.locked = not self.locked
+                if self.locked:
+                    self.switch_at = float("inf")  # Stop timer
+            elif ch == ord("s"):
+                # Select current theme for live mode
+                self.selected_theme = self.themes[self.theme_index]
+                raise SystemExit(0)
 
     @classmethod
     def run_headless(cls, themes: Sequence[str], seconds: float, theme_seconds: float = 8.0) -> dict:
