@@ -137,3 +137,31 @@ def test_memories_source_detects_new_file():
         events = source.poll(0.0)
         kinds = [e.kind for e in events]
         assert "memory_created" in kinds
+
+
+from hermes_vision.sources.cron import CronSource
+
+
+def test_cron_source_no_dir():
+    source = CronSource("/nonexistent/cron/")
+    events = source.poll(0.0)
+    assert events == []
+
+
+def test_cron_source_detects_lock():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Write a jobs.json
+        jobs_path = os.path.join(tmpdir, "jobs.json")
+        with open(jobs_path, "w") as f:
+            json.dump({"jobs": [{"id": "j1", "name": "test-job", "status": "active"}], "updated_at": ""}, f)
+
+        source = CronSource(tmpdir)
+        source.poll(0.0)  # baseline
+
+        # Create lock file (indicates executing)
+        with open(os.path.join(tmpdir, ".tick.lock"), "w") as f:
+            f.write("locked")
+
+        events = source.poll(0.0)
+        kinds = [e.kind for e in events]
+        assert "cron_executing" in kinds
