@@ -27,7 +27,7 @@ echo '{"auto_launch": true}' > ~/.hermes/vision/config.json
 
 3. Test with a cronjob:
 ```bash
-hermes schedule "Test vision auto-launch: write timestamp to /tmp/vision-test.log" --schedule "1m"
+hermes cron add --schedule "1m" --prompt "Test vision auto-launch: write timestamp to /tmp/vision-test.log with the current time"
 ```
 
 4. Verify:

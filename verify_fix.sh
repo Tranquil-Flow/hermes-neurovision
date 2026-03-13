@@ -79,7 +79,7 @@ echo "  ✅ Verification Complete"
 echo "════════════════════════════════════════════════════════════"
 echo
 echo "To test auto-launch with a real cronjob:"
-echo "  hermes schedule \"Test vision auto-launch\" --schedule \"1m\""
+echo "  hermes cron add --schedule \"1m\" --prompt \"Test vision auto-launch\""
 echo
 echo "Expected behavior:"
 echo "  - Event written to ~/.hermes/vision/events.jsonl"
