@@ -74,6 +74,9 @@ def launch_iterm2(command: str) -> bool:
         tell current session of current window
             write text "{command}"
         end tell
+        tell current window
+            set bounds to {{100, 100, 1200, 800}}
+        end tell
     end tell
     '''
     try:
@@ -92,7 +95,10 @@ def launch_terminal_app(command: str) -> bool:
     """Launch in Terminal.app using AppleScript."""
     script = f'''
     tell application "Terminal"
-        do script "{command}"
+        set newWindow to do script "{command}"
+        tell window 1
+            set bounds to {{100, 100, 1200, 800}}
+        end tell
         activate
     end tell
     '''
