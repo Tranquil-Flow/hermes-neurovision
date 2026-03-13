@@ -114,3 +114,26 @@ def test_state_db_detects_token_update():
         assert token_ev.data["delta_input"] == 100
     finally:
         os.unlink(path)
+
+
+from hermes_vision.sources.memories import MemoriesSource
+
+
+def test_memories_source_no_dir():
+    source = MemoriesSource("/nonexistent/memories/")
+    events = source.poll(0.0)
+    assert events == []
+
+
+def test_memories_source_detects_new_file():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        source = MemoriesSource(tmpdir)
+        source.poll(0.0)  # baseline
+
+        # Create a new file
+        with open(os.path.join(tmpdir, "test.md"), "w") as f:
+            f.write("memory content")
+
+        events = source.poll(0.0)
+        kinds = [e.kind for e in events]
+        assert "memory_created" in kinds
