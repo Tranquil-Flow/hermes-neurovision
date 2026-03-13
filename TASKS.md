@@ -4,12 +4,12 @@ Read the full plan at `docs/superpowers/plans/2026-03-13-hermes-vision.md` for e
 
 ## Chunk 1: Project Scaffold + Visual Engine Extraction
 
-- [ ] Task 1: Create pyproject.toml, __init__.py, directory structure. Init git repo.
-- [ ] Task 2: Extract themes.py from ~/Desktop/neurovisualizer.py (THEMES tuple, ThemeConfig, build_theme_config, constants). Write tests first.
-- [ ] Task 3: Extract scene.py (Particle, Packet, ThemeState with all simulation logic). Keep _build_edges() as callable method. Add intensity_multiplier fields. Write tests first.
-- [ ] Task 4: Extract renderer.py (Renderer class, all drawing code). Signature: draw(state, gallery_index, gallery_total, end_time). Write tests first.
-- [ ] Task 5: Extract app.py — GalleryApp with run() and run_headless(). Write tests first.
-- [ ] Task 6: Create cli.py with argparse + __main__.py. Gallery mode working end-to-end.
+- [x] Task 1: Create pyproject.toml, __init__.py, directory structure. Init git repo.
+- [x] Task 2: Extract themes.py from ~/Desktop/neurovisualizer.py (THEMES tuple, ThemeConfig, build_theme_config, constants). Write tests first.
+- [x] Task 3: Extract scene.py (Particle, Packet, ThemeState with all simulation logic). Keep _build_edges() as callable method. Add intensity_multiplier fields. Write tests first.
+- [x] Task 4: Extract renderer.py (Renderer class, all drawing code). Signature: draw(state, gallery_index, gallery_total, end_time). Write tests first.
+- [x] Task 5: Extract app.py — GalleryApp with run() and run_headless(). Write tests first.
+- [x] Task 6: Create cli.py with argparse + __main__.py. Gallery mode working end-to-end.
 
 ## Chunk 2: Event System + Sources
 
