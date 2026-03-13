@@ -1,0 +1,76 @@
+===============================================================================
+CRITICAL FIX NEEDED IN HERMES-AGENT GATEWAY
+===============================================================================
+
+PROBLEM:
+Cronjobs execute but DON'T emit agent:start events, so hooks never fire.
+
+EVIDENCE:
+- Gateway logs show: "Loaded hook 'hermes-vision' for events: ['agent:start', ...]"
+- Cronjobs ARE running (request_dump files show they executed)
+- events.jsonl shows NO agent:start events from real cronjobs
+- Manual handler.handle() calls with source="cron" DO trigger auto-launch
+
+ROOT CAUSE:
+The gateway's cron executor doesn't emit agent:start events when starting a job.
+
+FIX LOCATION:
+Find where the gateway starts executing a cronjob. This is likely in:
+  ~/.hermes/hermes-agent/gateway/run.py
+  OR ~/.hermes/hermes-agent/cron/scheduler.py
+  OR wherever cronjob sessions are created
+
+REQUIRED CODE CHANGE:
+When a cronjob starts executing, add:
+
+```python
+# After initializing the cronjob session/agent
+if self.hook_manager:  # or whatever the hooks variable is called
+    self.hook_manager.emit("agent:start", {
+        "session_id": session_id,
+        "source": "cron",
+        "job_id": job_id,
+        "timestamp": time.time(),
+    })
+```
+
+Similarly, emit agent:end when the job completes:
+
+```python
+if self.hook_manager:
+    self.hook_manager.emit("agent:end", {
+        "session_id": session_id,
+        "source": "cron",
+        "job_id": job_id,
+        "exit_status": "success",  # or "error"
+        "timestamp": time.time(),
+    })
+```
+
+HOW TO FIND THE RIGHT FILE:
+```bash
+cd ~/.hermes/hermes-agent
+grep -r "cronjob" . --include="*.py" | grep -E "(execute|run|start)"
+grep -r "request_dump_cron" . --include="*.py"
+```
+
+The file that writes "request_dump_cron_*.json" is where we need to add the emit() calls.
+
+===============================================================================
+VERIFICATION AFTER FIX:
+===============================================================================
+
+1. Restart gateway:
+   launchctl stop ai.hermes.gateway
+   launchctl start ai.hermes.gateway
+
+2. Schedule test job (use the tool from CLI chat):
+   /schedule 1m "Test job"
+
+3. Wait 1 minute, check:
+   tail -5 ~/.hermes/vision/events.jsonl
+   # Should see: {"event_type": "agent:start", "context": {"source": "cron", ...}}
+
+4. If events appear AND auto_launch is enabled, terminal should auto-open
+
+===============================================================================
