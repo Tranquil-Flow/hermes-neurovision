@@ -260,8 +260,64 @@ class ThemeState:
 
     def apply_trigger(self, trigger) -> None:
         """Apply a VisualTrigger to the scene state."""
-        # This will be called by the bridge — stub for now
-        pass
+        import time as _time
+        
+        effect = trigger.effect
+        intensity = trigger.intensity
+
+        if effect == "packet" and self.edges:
+            edge_idx = self.rng.randrange(len(self.edges))
+            edge = self.edges[edge_idx]
+            speed = 0.04 + intensity * 0.06
+            self.packets.append(Packet((edge[0], edge[1]), 0.0, speed))
+
+        elif effect == "pulse" and self.nodes:
+            if trigger.target == "center":
+                idx = len(self.nodes) // 2
+            else:
+                idx = self.rng.randrange(len(self.nodes))
+            nx, ny = self.nodes[idx]
+            self.pulses.append((nx, ny, 0.0))
+
+        elif effect == "burst" and self.nodes:
+            if trigger.target == "center":
+                idx = len(self.nodes) // 2
+            else:
+                idx = self.rng.randrange(len(self.nodes))
+            nx, ny = self.nodes[idx]
+            for _ in range(int(3 + intensity * 5)):
+                vx = self.rng.uniform(-0.3, 0.3) * intensity
+                vy = self.rng.uniform(-0.2, 0.2) * intensity
+                life = self.rng.randint(6, 14)
+                self.particles.append(Particle(nx, ny, vx, vy, life, life, self.rng.choice(".:*+@")))
+
+        elif effect == "flash":
+            self.flash_until = _time.time() + 0.3 * intensity
+            self.flash_color_key = trigger.color_key
+
+        elif effect == "spawn_node":
+            if len(self._dynamic_nodes) >= self.MAX_DYNAMIC_NODES:
+                oldest = self._dynamic_nodes.pop(0)
+                if oldest < len(self.nodes):
+                    self.nodes.pop(oldest)
+            x = self.rng.uniform(4, max(5, self.width - 5))
+            y = self.rng.uniform(2, max(3, self.height - 3))
+            self.nodes.append((x, y))
+            self._dynamic_nodes.append(len(self.nodes) - 1)
+            self._build_edges()
+
+        elif effect == "wake":
+            self._intensity_target = 1.0
+            self._intensity_rate = 0.15  # fast ramp up
+
+        elif effect == "cool_down":
+            self._intensity_target = 0.3
+            self._intensity_rate = 0.05  # slow fade
+
+        elif effect == "dim":
+            self.intensity_multiplier = max(0.2, self.intensity_multiplier - 0.2)
+            self._intensity_target = 0.6  # recover to base
+            self._intensity_rate = 0.08
 
     def step(self) -> None:
         self._step_intensity()

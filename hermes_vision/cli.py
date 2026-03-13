@@ -32,17 +32,13 @@ def parse_args(argv=None):
 def main(argv=None):
     args = parse_args(argv)
 
-    if args.gallery or (not args.live and not args.daemon):
-        # Gallery mode — this is a temporary default until live mode is built in Task 16.
-        # Task 16 changes the default to --live.
+    if args.gallery:
         _run_gallery(args)
-    elif args.live:
-        # Live mode — will be implemented in Chunk 3
-        print("Live mode not yet implemented. Use --gallery for now.", file=sys.stderr)
-        sys.exit(1)
     elif args.daemon:
         print("Daemon mode not yet implemented.", file=sys.stderr)
         sys.exit(1)
+    else:
+        _run_live(args)  # --live is the default
 
 
 def _run_gallery(args):
@@ -60,3 +56,35 @@ def _run_gallery(args):
 
     themes = list(THEMES) if args.gallery else [args.theme]
     curses.wrapper(lambda stdscr: GalleryApp(stdscr, themes, args.theme_seconds, args.seconds).run())
+
+
+def _run_live(args):
+    from hermes_vision.app import LiveApp
+    from hermes_vision.events import EventPoller
+    from hermes_vision.bridge import Bridge
+    from hermes_vision.log_overlay import LogOverlay
+    from hermes_vision.sources.custom import CustomSource
+    from hermes_vision.sources.state_db import StateDbSource
+    from hermes_vision.sources.memories import MemoriesSource
+    from hermes_vision.sources.cron import CronSource
+    from hermes_vision.sources.aegis import AegisSource
+
+    sources = [
+        CustomSource().poll,
+        StateDbSource().poll,
+        MemoriesSource().poll,
+        CronSource().poll,
+    ]
+    if not args.no_aegis:
+        sources.append(AegisSource().poll)
+
+    poller = EventPoller(sources=sources)
+    bridge = Bridge()
+    log_overlay = LogOverlay()
+
+    def run_curses(stdscr):
+        app = LiveApp(stdscr, args.theme, poller, bridge, log_overlay,
+                      end_after=args.seconds, show_logs=args.logs)
+        app.run()
+
+    curses.wrapper(run_curses)
