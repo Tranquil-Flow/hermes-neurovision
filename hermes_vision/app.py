@@ -137,6 +137,8 @@ class LiveApp:
             # Draw log overlay if enabled
             if self.show_logs:
                 self._draw_logs(now)
+                # Draw status indicator
+                self._draw_status_indicator()
 
             self.stdscr.refresh()
             time.sleep(FRAME_DELAY)
@@ -160,6 +162,15 @@ class LiveApp:
                 self.stdscr.addstr(y, 1, text[:w - 2], attr)
             except curses.error:
                 pass
+
+    def _draw_status_indicator(self) -> None:
+        """Draw a status indicator showing log overlay is active."""
+        h, w = self.stdscr.getmaxyx()
+        status = " LOGS: ON "
+        try:
+            self.stdscr.addstr(0, w - len(status) - 1, status, curses.color_pair(2) | curses.A_BOLD)
+        except curses.error:
+            pass
 
     def _handle_input(self) -> None:
         while True:
