@@ -59,7 +59,7 @@ def _should_auto_launch(event_type: str, context: dict) -> bool:
 def _try_auto_launch() -> None:
     """Attempt to auto-launch hermes-vision. Never raises exceptions."""
     try:
-        # Get launch command from config or use default
+        # Get config
         config = {}
         if os.path.exists(_CONFIG_PATH):
             with open(_CONFIG_PATH, "r") as f:
@@ -68,17 +68,26 @@ def _try_auto_launch() -> None:
         # Check for custom launch command
         custom_cmd = config.get("launch_command")
         if custom_cmd:
-            cmd = custom_cmd.split()
-        else:
-            # Default: use hermes-vision CLI with auto-exit and logs
-            cmd = ["hermes-vision", "--daemon", "--auto-exit", "--logs"]
+            import shlex
+            subprocess.Popen(
+                shlex.split(custom_cmd),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+            return
         
-        # Launch in detached subprocess
+        # Use the launcher module to open a new terminal window
+        # Call it as a script to avoid import issues in gateway environment
         subprocess.Popen(
-            cmd,
+            [
+                "python3", "-c",
+                "from hermes_vision.launcher import auto_launch; "
+                "auto_launch('hermes-vision --daemon --auto-exit --logs')"
+            ],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            start_new_session=True,  # Detach from parent
+            start_new_session=True,
         )
     except Exception:
         pass  # Fail silently - never crash the gateway
