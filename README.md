@@ -32,7 +32,7 @@ cd ~/Projects/hermes-vision
 pip install -e .
 
 # Run setup script (does everything!)
-python3 setup.py
+python3 install_helper.py
 
 # Start visualizing
 hermes-vision
