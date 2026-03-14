@@ -6,7 +6,7 @@ All Phase 1 UX improvements have been successfully implemented:
 
 ### 1. Gallery Lock Mode ✓
 
-**Files Modified:** `hermes_vision/app.py`
+**Files Modified:** `hermes_neurovision/app.py`
 
 **Features:**
 - Added `locked` flag to `GalleryApp.__init__`
@@ -37,7 +37,7 @@ if self.locked:
 
 ### 2. Black Hole Spinning Animation ✓
 
-**Files Modified:** `hermes_vision/scene.py`
+**Files Modified:** `hermes_neurovision/scene.py`
 
 **Features:**
 - Complete restructure of black hole into 3 distinct rings:
@@ -63,7 +63,7 @@ Inner ring moved 45.8°, middle 22.9°, outer 11.4° over 10 frames.
 
 ### 3. Spiral Galaxy Distinct Arms ✓
 
-**Files Modified:** `hermes_vision/scene.py`
+**Files Modified:** `hermes_neurovision/scene.py`
 
 **Features:**
 - Changed from 4 symmetric arms to **3 distinct spiral arms**
@@ -84,7 +84,7 @@ twist = ratio * math.tau * 1.8  # Was 1.15
 
 ### 4. Theme Selection Workflow ✓
 
-**Files Modified:** `hermes_vision/cli.py`, `hermes_vision/app.py`
+**Files Modified:** `hermes_neurovision/cli.py`, `hermes_neurovision/app.py`
 
 **Features:**
 - Press **'s' key** in gallery mode to select current theme
@@ -95,7 +95,7 @@ twist = ratio * math.tau * 1.8  # Was 1.15
 - Seamless transition from gallery to live mode
 
 **Usage Flow:**
-1. Run `hermes-vision --gallery`
+1. Run `hermes-neurovision --gallery`
 2. Browse themes with n/p or wait for auto-rotation
 3. Press Enter to lock on favorite theme
 4. Press 's' to select it for live mode
@@ -127,13 +127,13 @@ All features verified through:
 
 ```bash
 # Gallery with all themes (lock with Enter, select with 's')
-hermes-vision --gallery
+hermes-neurovision --gallery
 
 # Live mode with spinning black hole
-hermes-vision --theme black-hole
+hermes-neurovision --theme black-hole
 
 # Live mode with distinct spiral galaxy
-hermes-vision --theme spiral-galaxy
+hermes-neurovision --theme spiral-galaxy
 ```
 
 ## Commit History

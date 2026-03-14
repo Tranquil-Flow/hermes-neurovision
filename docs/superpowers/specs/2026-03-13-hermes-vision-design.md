@@ -1,4 +1,4 @@
-# Hermes Vision — Neurovisualizer Design Spec
+# Hermes Neurovision — Neurovisualizer Design Spec
 
 **Date:** 2026-03-13
 **Status:** Approved
@@ -6,11 +6,11 @@
 
 ## Overview
 
-Hermes Vision is a terminal-native (curses) neurovisualizer that displays a living neural network animation reactive to real events from Hermes Agent. It shows glowing nodes, pulsating edges, travelling packets, expanding pulses, and particle bursts — all driven by actual agent activity (tool calls, token usage, memory operations, cron jobs, and optionally security events from Hermes Aegis).
+Hermes Neurovision is a terminal-native (curses) neurovisualizer that displays a living neural network animation reactive to real events from Hermes Agent. It shows glowing nodes, pulsating edges, travelling packets, expanding pulses, and particle bursts — all driven by actual agent activity (tool calls, token usage, memory operations, cron jobs, and optionally security events from Hermes Aegis).
 
 ## Prior Art
 
-An existing `neurovisualizer.py` (846 lines, pure Python/curses) lives at `~/Desktop/neurovisualizer.py`. Built by Hermes Agent in a prior session. It has 10 themes, a particle/packet/pulse system, gallery rotation mode, and headless CI mode. Hermes Vision extracts and extends this into a proper project.
+An existing `neurovisualizer.py` (846 lines, pure Python/curses) lives at `~/Desktop/neurovisualizer.py`. Built by Hermes Agent in a prior session. It has 10 themes, a particle/packet/pulse system, gallery rotation mode, and headless CI mode. Hermes Neurovision extracts and extends this into a proper project.
 
 ## Architecture
 
@@ -20,12 +20,12 @@ Separate package with extracted visual engine, new event system, and bridge laye
 
 ### Rendering: Terminal-native (curses)
 
-Pure Python, stdlib only (`curses`, `sqlite3`, `json`, `os`, `math`, `random`). No external dependencies for the `hermes_vision` package itself. Note: the gateway hook's `HOOK.yaml` manifest is consumed by the existing Hermes gateway process (which has PyYAML as a dependency). The hook's `handler.py` is stdlib-only.
+Pure Python, stdlib only (`curses`, `sqlite3`, `json`, `os`, `math`, `random`). No external dependencies for the `hermes_neurovision` package itself. Note: the gateway hook's `HOOK.yaml` manifest is consumed by the existing Hermes gateway process (which has PyYAML as a dependency). The hook's `handler.py` is stdlib-only.
 
 ### Data: Hybrid (C + A)
 
 - **Primary:** Poll SQLite (`state.db`) + tail Aegis audit trail for rich historical data
-- **Secondary:** Custom event channel (`~/.hermes/vision/events.jsonl`) fed by a gateway hook for real-time agent lifecycle events
+- **Secondary:** Custom event channel (`~/.hermes/neurovision/events.jsonl`) fed by a gateway hook for real-time agent lifecycle events
 
 ### Aegis: Optional
 
@@ -34,8 +34,8 @@ All Aegis-related code gracefully degrades. If `~/.hermes-aegis/` doesn't exist,
 ## Project Structure
 
 ```
-~/Projects/hermes-vision/
-  hermes_vision/
+~/Projects/hermes-neurovision/
+  hermes_neurovision/
     __init__.py
     cli.py              # argparse entry: --live, --gallery, --theme, --daemon
     events.py           # EventPoller — unified polling across all sources
@@ -50,8 +50,8 @@ All Aegis-related code gracefully degrades. If `~/.hermes-aegis/` doesn't exist,
       memories.py       # Filesystem watcher for ~/.hermes/memories/
       cron.py           # Cron job status poller
       aegis.py          # Audit trail tailer (optional)
-      custom.py         # JSONL tailer for ~/.hermes/vision/events.jsonl
-      hook_handler.py   # Gateway hook handler — standalone, stdlib-only, gets copied to ~/.hermes/hooks/hermes-vision/handler.py. Must not import from hermes_vision.
+      custom.py         # JSONL tailer for ~/.hermes/neurovision/events.jsonl
+      hook_handler.py   # Gateway hook handler — standalone, stdlib-only, gets copied to ~/.hermes/hooks/hermes-neurovision/handler.py. Must not import from hermes_neurovision.
   pyproject.toml
   README.md
 ```
@@ -99,7 +99,7 @@ The `sessions` table uses `id TEXT PRIMARY KEY` (UUIDs) and the `messages` table
 
 Subscribes to: `agent:start`, `agent:step`, `agent:end`, `session:start`, `session:reset`, `command:*`
 
-On each event, appends a JSON line to `~/.hermes/vision/events.jsonl`. Installed at `~/.hermes/hooks/hermes-vision/` with `HOOK.yaml` + `handler.py`.
+On each event, appends a JSON line to `~/.hermes/neurovision/events.jsonl`. Installed at `~/.hermes/hooks/hermes-neurovision/` with `HOOK.yaml` + `handler.py`.
 
 ### Complete Event Catalog (35+ types)
 
@@ -227,15 +227,15 @@ Toggled via `--logs` flag or `l` key at runtime.
 
 ### Modes
 
-1. **Live** (`hermes-vision --live`) — Real-time event visualization. Default mode.
-2. **Gallery** (`hermes-vision --gallery`) — Theme rotation screensaver. Generative only, no event polling.
-3. **Daemon** (`hermes-vision --daemon`) — Gallery when idle, switches to live when events arrive, fades back when they stop. Log overlay state and theme selection persist across gallery/live transitions. Mode is fixed at launch — no runtime switching between live/gallery/daemon.
-4. **Auto-launch** — Gateway hook spawns `hermes-vision --live --auto-exit` in a new terminal window/tmux pane when a cron job triggers `agent:start`. Exits 30s after last event.
+1. **Live** (`hermes-neurovision --live`) — Real-time event visualization. Default mode.
+2. **Gallery** (`hermes-neurovision --gallery`) — Theme rotation screensaver. Generative only, no event polling.
+3. **Daemon** (`hermes-neurovision --daemon`) — Gallery when idle, switches to live when events arrive, fades back when they stop. Log overlay state and theme selection persist across gallery/live transitions. Mode is fixed at launch — no runtime switching between live/gallery/daemon.
+4. **Auto-launch** — Gateway hook spawns `hermes-neurovision --live --auto-exit` in a new terminal window/tmux pane when a cron job triggers `agent:start`. Exits 30s after last event.
 
 ### CLI
 
 ```
-hermes-vision [mode] [options]
+hermes-neurovision [mode] [options]
 
 Modes:
   --live              Real-time event visualization (default)
@@ -290,14 +290,14 @@ This project is designed to be built by Hermes Agent using its existing tools:
 ## Installation
 
 ```bash
-cd ~/Projects/hermes-vision
+cd ~/Projects/hermes-neurovision
 pip install -e .
 ```
 
 Gateway hook installation:
 ```bash
-mkdir -p ~/.hermes/hooks/hermes-vision
-cp hermes_vision/sources/hook_handler.py ~/.hermes/hooks/hermes-vision/handler.py
+mkdir -p ~/.hermes/hooks/hermes-neurovision
+cp hermes_neurovision/sources/hook_handler.py ~/.hermes/hooks/hermes-neurovision/handler.py
 # HOOK.yaml created by install script
 ```
 

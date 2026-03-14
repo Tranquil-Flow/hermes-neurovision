@@ -1,18 +1,18 @@
-# Hermes Vision Installation
+# Hermes Neurovision Installation
 
 ## Installation
 
 ```bash
-cd ~/Projects/hermes-vision
+cd ~/Projects/hermes-neurovision
 pip install -e .
 ```
 
 ## Gateway Hook Installation
 
 ```bash
-mkdir -p ~/.hermes/hooks/hermes-vision
-cp hermes_vision/sources/hook_handler.py ~/.hermes/hooks/hermes-vision/handler.py
-cp hermes_vision/sources/HOOK.yaml ~/.hermes/hooks/hermes-vision/HOOK.yaml
+mkdir -p ~/.hermes/hooks/hermes-neurovision
+cp hermes_neurovision/sources/hook_handler.py ~/.hermes/hooks/hermes-neurovision/handler.py
+cp hermes_neurovision/sources/HOOK.yaml ~/.hermes/hooks/hermes-neurovision/HOOK.yaml
 ```
 
 ## Grove Registration (Optional)
@@ -20,26 +20,26 @@ cp hermes_vision/sources/HOOK.yaml ~/.hermes/hooks/hermes-vision/HOOK.yaml
 If you have grove installed:
 
 ```bash
-grove add ~/Projects/hermes-vision
+grove add ~/Projects/hermes-neurovision
 ```
 
 ## Usage
 
 ```bash
 # Live mode (default) - visualizes agent events in real-time
-hermes-vision
+hermes-neurovision
 
 # With log overlay
-hermes-vision --logs
+hermes-neurovision --logs
 
 # Gallery mode - theme screensaver
-hermes-vision --gallery
+hermes-neurovision --gallery
 
 # Specific theme
-hermes-vision --theme neural-sky
+hermes-neurovision --theme neural-sky
 
 # Test run
-hermes-vision --seconds 10
+hermes-neurovision --seconds 10
 ```
 
 ## Modes
@@ -60,8 +60,8 @@ hermes-vision --seconds 10
 
 ## Event Sources
 
-Hermes Vision monitors:
-- Custom events (gateway hook → ~/.hermes/vision/events.jsonl)
+Hermes Neurovision monitors:
+- Custom events (gateway hook → ~/.hermes/neurovision/events.jsonl)
 - Agent state (SQLite → ~/.hermes/state.db)
 - Memory operations (filesystem → ~/.hermes/memories/)
 - Cron jobs (status → ~/.hermes/cron/)

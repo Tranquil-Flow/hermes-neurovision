@@ -3,10 +3,10 @@ requires = ["setuptools>=64"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "hermes-vision"
-version = "0.1.0"
+name = "hermes-neurovision"
+version = "0.1.1"
 description = "Terminal neurovisualizer for Hermes Agent"
 requires-python = ">=3.10"
 
 [project.scripts]
-hermes-vision = "hermes_vision.cli:main"
+hermes-neurovision = "hermes_neurovision.cli:main"

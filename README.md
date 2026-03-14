@@ -1,10 +1,11 @@
-# 🌌 Hermes Neurovisualizer
+# 🌌 Hermes Neurovision
 
 **Terminal neurovisualizer for Hermes Agent**
 
 A beautiful living neural network that reacts to your AI agent's activity in real-time. Watch as tool calls become traveling packets, memory updates spawn new nodes, and token usage creates pulsating waves across cosmic visualizations.
 
-![Version](https://img.shields.io/badge/version-0.1.0-blue)
+![Version](https://img.shields.io/badge/version-0.1.1-blue)
+![First Public Release](https://img.shields.io/badge/release-first%20public-green)
 ![Python](https://img.shields.io/badge/python-3.10+-green)
 ![Tests](https://img.shields.io/badge/tests-63%20passing-brightgreen)
 ![Dependencies](https://img.shields.io/badge/dependencies-stdlib%20only-orange)
@@ -20,6 +21,7 @@ A beautiful living neural network that reacts to your AI agent's activity in rea
 📝 **Log Overlay** - Color-coded event stream with fading text  
 🌓 **Daemon Mode** - Gallery when idle, live when active  
 🚀 **Auto-Launch** - Opens automatically with cron jobs  
+💾 **Theme Export/Import** - Share custom themes as .hvtheme files  
 ⚡ **Pure Stdlib** - Zero external dependencies  
 🧪 **63 Tests** - 100% passing, production-ready  
 🎭 **Plugin System** - Extensible theme architecture  
@@ -30,14 +32,14 @@ A beautiful living neural network that reacts to your AI agent's activity in rea
 
 ```bash
 # Install
-cd ~/Projects/hermes-vision
+cd ~/Projects/hermes-vision  # (or hermes-neurovision if renamed)
 pip install -e .
 
 # Run setup script (does everything!)
 python3 install_helper.py
 
 # Start visualizing
-hermes-vision
+hermes-neurovision
 ```
 
 That's it! 🎉
@@ -50,19 +52,19 @@ If you prefer to set up manually:
 
 ```bash
 # 1. Install package
-cd ~/Projects/hermes-vision
+cd ~/Projects/hermes-neurovision
 pip install -e .
 
 # 2. Install gateway hook
-mkdir -p ~/.hermes/hooks/hermes-vision
-cp hermes_vision/sources/hook_handler.py ~/.hermes/hooks/hermes-vision/handler.py
-cp hermes_vision/sources/HOOK.yaml ~/.hermes/hooks/hermes-vision/HOOK.yaml
+mkdir -p ~/.hermes/hooks/hermes-neurovision
+cp hermes_neurovision/sources/hook_handler.py ~/.hermes/hooks/hermes-neurovision/handler.py
+cp hermes_neurovision/sources/HOOK.yaml ~/.hermes/hooks/hermes-neurovision/HOOK.yaml
 
 # 3. (Optional) Enable auto-launch for cron jobs
-echo '{"auto_launch": true}' > ~/.hermes/vision/config.json
+echo '{"auto_launch": true}' > ~/.hermes/neurovision/config.json
 
 # 4. Test it
-hermes-vision --gallery
+hermes-neurovision --gallery
 ```
 
 ---
@@ -73,22 +75,22 @@ hermes-vision --gallery
 
 ```bash
 # Live mode (default) - reacts to agent events
-hermes-vision
+hermes-neurovision
 
 # With log overlay to see event details
-hermes-vision --logs
+hermes-neurovision --logs
 
 # Gallery mode - browse all 10 themes
-hermes-vision --gallery
+hermes-neurovision --gallery
 
 # Daemon mode - best of both worlds
-hermes-vision --daemon
+hermes-neurovision --daemon
 
 # Specific theme
-hermes-vision --theme storm-core
+hermes-neurovision --theme storm-core
 
 # Test run (auto-exit after 10 seconds)
-hermes-vision --seconds 10
+hermes-neurovision --seconds 10
 ```
 
 ### Keyboard Controls
@@ -113,7 +115,7 @@ hermes-vision --seconds 10
 
 ## 🎨 Themes
 
-42 animated themes across 8 categories. Browse with `hermes-vision --gallery`:
+42 animated themes across 8 categories. Browse with `hermes-neurovision --gallery`:
 
 ### Originals (7)
 1. **black-hole** ⭐ - Rotating singularity with event horizon
@@ -181,7 +183,7 @@ hermes-vision --seconds 10
 
 ## 📊 What It Monitors
 
-Hermes Vision tracks 34 event types across 7 data sources:
+Hermes Neurovision tracks 34 event types across 7 data sources:
 
 ### Agent Activity
 - Sessions starting/ending
@@ -230,14 +232,14 @@ Events trigger one of 8 visual effects:
 
 ## 🤖 Auto-Launch
 
-Have hermes-vision automatically open when cron jobs start:
+Have hermes-neurovision automatically open when cron jobs start:
 
 ```bash
 # Enable auto-launch
-echo '{"auto_launch": true}' > ~/.hermes/vision/config.json
+echo '{"auto_launch": true}' > ~/.hermes/neurovision/config.json
 
 # Test it
-python3 hermes_vision/launcher.py --test-launch
+python3 hermes_neurovision/launcher.py --test-launch
 ```
 
 **Supported platforms:**
@@ -254,26 +256,59 @@ See [AUTOLAUNCH.md](AUTOLAUNCH.md) for detailed testing guide.
 ### Daemon Mode (Recommended for Always-On Monitoring)
 
 ```bash
-hermes-vision --daemon --logs
+hermes-neurovision --daemon --logs
 ```
 
 Starts in gallery (beautiful screensaver), automatically switches to live mode when you start working with Hermes, returns to gallery after 30 seconds idle.
 
 ### Custom Configuration
 
-Create `~/.hermes/vision/config.json`:
+Create `~/.hermes/neurovision/config.json`:
 
 ```json
 {
   "auto_launch": true,
   "preferred_terminal": "iterm2",
-  "launch_command": "hermes-vision --daemon --logs"
+  "launch_command": "hermes-neurovision --daemon --logs"
 }
 ```
 
+### Theme Export/Import (NEW in v0.1.1)
+
+Share custom themes as portable `.hvtheme` files:
+
+```bash
+# Export a theme
+hermes-neurovision --export neural-sky --author "YourName"
+
+# Preview a theme before importing
+hermes-neurovision --import mytheme.hvtheme --preview
+
+# Import a theme
+hermes-neurovision --import mytheme.hvtheme
+
+# List all imported themes
+hermes-neurovision --list-themes
+
+# Use an imported theme
+hermes-neurovision --theme mytheme
+```
+
+**Theme Types:**
+- **Config-only**: Just parameter tweaks (safe, no code)
+- **Custom plugin**: Includes Python code (requires confirmation)
+
+**Use Cases:**
+- Share themes with the community
+- Backup your custom themes
+- Have AI agents design themes for you
+- Download themes from others
+
+See `V0.1.1_IMPLEMENTATION_COMPLETE.md` for full details.
+
 ### Integration with Hermes Agent
 
-Hermes Vision automatically monitors your agent activity through:
+Hermes Neurovision automatically monitors your agent activity through:
 - SQLite database (`~/.hermes/state.db`)
 - Gateway hooks (event stream)
 - Filesystem watching (memories, cron)
@@ -298,10 +333,10 @@ No additional configuration needed - just install and run!
 python -m pytest tests/ -v
 
 # Quick smoke test
-echo "" | hermes-vision --gallery --seconds 1
+echo "" | hermes-neurovision --gallery --seconds 1
 
 # Check if events are being captured
-tail -f ~/.hermes/vision/events.jsonl
+tail -f ~/.hermes/neurovision/events.jsonl
 ```
 
 **Test Coverage:** 63 tests, 100% passing ✅
@@ -332,9 +367,9 @@ tail -f ~/.hermes/vision/events.jsonl
 - Check your terminal supports key events
 
 **Q: Auto-launch not working?**
-- Check config: `cat ~/.hermes/vision/config.json`
-- Test launcher: `python3 hermes_vision/launcher.py --test-launch`
-- Verify hook installed: `ls ~/.hermes/hooks/hermes-vision/`
+- Check config: `cat ~/.hermes/neurovision/config.json`
+- Test launcher: `python3 hermes_neurovision/launcher.py --test-launch`
+- Verify hook installed: `ls ~/.hermes/hooks/hermes-neurovision/`
 
 **Q: "LOCKED" text flashing?**
 - Update to latest version (fixed in commit 2f103b2)
@@ -343,7 +378,7 @@ tail -f ~/.hermes/vision/events.jsonl
 
 ## 💡 Tips
 
-- **Best experience:** Run `hermes-vision --daemon --logs` in a dedicated terminal
+- **Best experience:** Run `hermes-neurovision --daemon --logs` in a dedicated terminal
 - **Theme browsing:** Use `--gallery`, press `Enter` to lock your favorite
 - **Theme selection:** In gallery, press `s` to select for live mode
 - **Performance:** Daemon mode is efficient - safe to leave running 24/7
@@ -388,9 +423,9 @@ Copyright (c) 2026 Nous Research
 
 ```
 MODES:
-  hermes-vision              → Live (default)
-  hermes-vision --gallery    → Gallery (browse themes)
-  hermes-vision --daemon     → Daemon (auto-switch)
+  hermes-neurovision              → Live (default)
+  hermes-neurovision --gallery    → Gallery (browse themes)
+  hermes-neurovision --daemon     → Daemon (auto-switch)
 
 KEYS (Gallery):
   n/p     → Next/Previous theme
@@ -404,10 +439,10 @@ KEYS (Live):
   q       → Quit
 
 SETUP AUTO-LAUNCH:
-  echo '{"auto_launch": true}' > ~/.hermes/vision/config.json
+  echo '{"auto_launch": true}' > ~/.hermes/neurovision/config.json
   
 TEST AUTO-LAUNCH:
-  python3 hermes_vision/launcher.py --test-launch
+  python3 hermes_neurovision/launcher.py --test-launch
 ```
 
 ---

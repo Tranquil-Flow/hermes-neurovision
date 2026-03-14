@@ -1,5 +1,5 @@
-from hermes_vision.bridge import Bridge, VisualTrigger
-from hermes_vision.events import VisionEvent
+from hermes_neurovision.bridge import Bridge, VisualTrigger
+from hermes_neurovision.events import VisionEvent
 import time
 
 

@@ -1,7 +1,7 @@
 """Tests for auto-launch functionality."""
 
 import os
-from hermes_vision.launcher import (
+from hermes_neurovision.launcher import (
     detect_platform,
     detect_terminal,
     is_already_running,

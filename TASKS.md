@@ -1,6 +1,6 @@
-# Hermes Vision — Tasks
+# Hermes Neurovision — Tasks
 
-Read the full plan at `docs/superpowers/plans/2026-03-13-hermes-vision.md` for exact code, tests, and commands.
+Read the full plan at `docs/superpowers/plans/2026-03-13-hermes-neurovision.md` for exact code, tests, and commands.
 
 ## Chunk 1: Project Scaffold + Visual Engine Extraction
 
@@ -14,12 +14,12 @@ Read the full plan at `docs/superpowers/plans/2026-03-13-hermes-vision.md` for e
 ## Chunk 2: Event System + Sources
 
 - [x] Task 7: Create events.py — VisionEvent dataclass + EventPoller. Write tests first.
-- [x] Task 8: Create sources/custom.py — JSONL file tailer for ~/.hermes/vision/events.jsonl. Write tests first.
+- [x] Task 8: Create sources/custom.py — JSONL file tailer for ~/.hermes/neurovision/events.jsonl. Write tests first.
 - [x] Task 9: Create sources/state_db.py — SQLite poller for ~/.hermes/state.db (sessions + messages tables). Write tests first.
 - [x] Task 10: Create sources/memories.py — Filesystem watcher for ~/.hermes/memories/. Write tests first.
 - [x] Task 11: Create sources/cron.py — Cron job status poller from ~/.hermes/cron/. Write tests first.
 - [x] Task 12: Create sources/aegis.py — Optional Aegis audit trail tailer (graceful if missing). Write tests first.
-- [x] Task 13: Create sources/hook_handler.py — Standalone gateway hook + HOOK.yaml. Must NOT import hermes_vision. Write tests first.
+- [x] Task 13: Create sources/hook_handler.py — Standalone gateway hook + HOOK.yaml. Must NOT import hermes_neurovision. Write tests first.
 
 ## Chunk 3: Bridge + Log Overlay + Live Mode
 
@@ -29,6 +29,6 @@ Read the full plan at `docs/superpowers/plans/2026-03-13-hermes-vision.md` for e
 
 ## Chunk 4: Polish + Install
 
-- [x] Task 17: pip install -e . and install gateway hook to ~/.hermes/hooks/hermes-vision/
+- [x] Task 17: pip install -e . and install gateway hook to ~/.hermes/hooks/hermes-neurovision/
 - [x] Task 18: Run full test suite, smoke test gallery and live modes
 - [x] Task 19: Register with grove (documented in INSTALL.md)

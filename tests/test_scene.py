@@ -1,5 +1,5 @@
-from hermes_vision.themes import build_theme_config, THEMES
-from hermes_vision.scene import ThemeState, Particle, Packet
+from hermes_neurovision.themes import build_theme_config, THEMES
+from hermes_neurovision.scene import ThemeState, Particle, Packet
 
 
 def test_theme_state_builds_scene():

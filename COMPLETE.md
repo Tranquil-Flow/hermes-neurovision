@@ -1,4 +1,4 @@
-# Hermes Vision - Final Release
+# Hermes Neurovision - Final Release
 
 ## 🎉 ALL FEATURES COMPLETE
 
@@ -44,17 +44,17 @@
 ## Installation
 
 ```bash
-cd ~/Projects/hermes-vision
+cd ~/Projects/hermes-neurovision
 pip install -e .
 
 # Install gateway hook
-mkdir -p ~/.hermes/hooks/hermes-vision
-cp hermes_vision/sources/hook_handler.py ~/.hermes/hooks/hermes-vision/handler.py
-cp hermes_vision/sources/HOOK.yaml ~/.hermes/hooks/hermes-vision/HOOK.yaml
+mkdir -p ~/.hermes/hooks/hermes-neurovision
+cp hermes_neurovision/sources/hook_handler.py ~/.hermes/hooks/hermes-neurovision/handler.py
+cp hermes_neurovision/sources/HOOK.yaml ~/.hermes/hooks/hermes-neurovision/HOOK.yaml
 
 # Enable auto-launch (optional)
-mkdir -p ~/.hermes/vision
-echo '{"auto_launch": true}' > ~/.hermes/vision/config.json
+mkdir -p ~/.hermes/neurovision
+echo '{"auto_launch": true}' > ~/.hermes/neurovision/config.json
 ```
 
 ---
@@ -65,22 +65,22 @@ echo '{"auto_launch": true}' > ~/.hermes/vision/config.json
 
 ```bash
 # Default mode (live visualization)
-hermes-vision
+hermes-neurovision
 
 # Gallery mode (browse themes)
-hermes-vision --gallery
+hermes-neurovision --gallery
 
 # Daemon mode (best of both worlds)
-hermes-vision --daemon
+hermes-neurovision --daemon
 
 # With log overlay
-hermes-vision --logs
+hermes-neurovision --logs
 
 # Specific theme
-hermes-vision --theme black-hole
+hermes-neurovision --theme black-hole
 
 # Auto-exit after idle
-hermes-vision --auto-exit
+hermes-neurovision --auto-exit
 ```
 
 ### Keyboard Controls
@@ -105,7 +105,7 @@ hermes-vision --auto-exit
 
 ## Event Sources
 
-1. **Custom Events** - Gateway hook → `~/.hermes/vision/events.jsonl`
+1. **Custom Events** - Gateway hook → `~/.hermes/neurovision/events.jsonl`
 2. **State Database** - SQLite → `~/.hermes/state.db`
 3. **Memories** - Filesystem → `~/.hermes/memories/`
 4. **Cron Jobs** - Status → `~/.hermes/cron/`
@@ -182,10 +182,10 @@ See [AUTOLAUNCH.md](AUTOLAUNCH.md) for detailed testing guide.
 **Quick setup:**
 ```bash
 # Enable auto-launch
-echo '{"auto_launch": true}' > ~/.hermes/vision/config.json
+echo '{"auto_launch": true}' > ~/.hermes/neurovision/config.json
 
 # Test it
-python3 hermes_vision/launcher.py --test-launch
+python3 hermes_neurovision/launcher.py --test-launch
 ```
 
 Platform support:
@@ -205,7 +205,7 @@ python -m pytest tests/ -v
 python -m pytest tests/test_launcher.py -v
 
 # Headless smoke test
-echo "" | hermes-vision --gallery --seconds 1
+echo "" | hermes-neurovision --gallery --seconds 1
 ```
 
 **Current test coverage:** 63 tests, 100% passing ✅
@@ -263,7 +263,7 @@ Built with:
 - Test-Driven Development (TDD)
 - Moonsong's vision ✨
 
-**Thank you for using Hermes Vision!** 🌙
+**Thank you for using Hermes Neurovision!** 🌙
 
 ---
 

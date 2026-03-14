@@ -1,0 +1,23 @@
+name: hermes-neurovision
+description: Emits agent lifecycle events to the Hermes Vision neurovisualizer
+events:
+  - agent:start
+  - agent:step
+  - agent:end
+  - session:start
+  - session:reset
+  - command:*
+
+# Auto-launch configuration (optional):
+# Create ~/.hermes/vision/config.json with:
+# {
+#   "auto_launch": true,          # Enable auto-launch on agent:start from cron
+#   "launch_theme": "storm-core", # Default theme for auto-launched sessions
+#   "launch_command": null,       # Custom command (overrides all other settings)
+#   "show_logs": true,            # Show log overlay (default: true)
+#   "log_fade_seconds": 6.0,      # Seconds before logs start fading
+#   "log_expire_seconds": 15.0    # Seconds before logs are removed
+# }
+#
+# Auto-launch only triggers on agent:start events with source="cron" or trigger="automated"
+# Includes duplicate prevention - won't launch if hermes-neurovision already running

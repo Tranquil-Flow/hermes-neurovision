@@ -1,6 +1,6 @@
 import time
-from hermes_vision.log_overlay import LogOverlay
-from hermes_vision.events import VisionEvent
+from hermes_neurovision.log_overlay import LogOverlay
+from hermes_neurovision.events import VisionEvent
 
 
 def test_log_overlay_add_event():

@@ -1,12 +1,12 @@
 # Auto-Launch Feature
 
-Automatically open hermes-vision in a new terminal when a cron job starts a Hermes session.
+Automatically open hermes-neurovision in a new terminal when a cron job starts a Hermes session.
 
 ## How It Works
 
 1. **Cron triggers** an agent:start event
 2. **Gateway hook** detects it's from cron
-3. **Launcher** spawns hermes-vision in a new terminal
+3. **Launcher** spawns hermes-neurovision in a new terminal
 4. **Visualization** starts with `--auto-exit --logs`
 5. **Auto-closes** after 30 seconds of inactivity
 
@@ -16,8 +16,8 @@ Automatically open hermes-vision in a new terminal when a cron job starts a Herm
 
 Create config file:
 ```bash
-mkdir -p ~/.hermes/vision
-cat > ~/.hermes/vision/config.json << 'EOF'
+mkdir -p ~/.hermes/neurovision
+cat > ~/.hermes/neurovision/config.json << 'EOF'
 {
   "auto_launch": true
 }
@@ -28,16 +28,16 @@ EOF
 
 ```bash
 # Should exist from earlier installation
-ls -la ~/.hermes/hooks/hermes-vision/
+ls -la ~/.hermes/hooks/hermes-neurovision/
 # Should show: handler.py and HOOK.yaml
 ```
 
 If missing, reinstall:
 ```bash
-cd ~/Projects/hermes-vision
-mkdir -p ~/.hermes/hooks/hermes-vision
-cp hermes_vision/sources/hook_handler.py ~/.hermes/hooks/hermes-vision/handler.py
-cp hermes_vision/sources/HOOK.yaml ~/.hermes/hooks/hermes-vision/HOOK.yaml
+cd ~/Projects/hermes-neurovision
+mkdir -p ~/.hermes/hooks/hermes-neurovision
+cp hermes_neurovision/sources/hook_handler.py ~/.hermes/hooks/hermes-neurovision/handler.py
+cp hermes_neurovision/sources/HOOK.yaml ~/.hermes/hooks/hermes-neurovision/HOOK.yaml
 ```
 
 ## Testing
@@ -45,8 +45,8 @@ cp hermes_vision/sources/HOOK.yaml ~/.hermes/hooks/hermes-vision/HOOK.yaml
 ### Test 1: Platform Detection
 
 ```bash
-cd ~/Projects/hermes-vision
-python3 hermes_vision/launcher.py
+cd ~/Projects/hermes-neurovision
+python3 hermes_neurovision/launcher.py
 ```
 
 Expected output:
@@ -59,20 +59,20 @@ Already running: False
 ### Test 2: Manual Launch
 
 ```bash
-python3 hermes_vision/launcher.py --test-launch
+python3 hermes_neurovision/launcher.py --test-launch
 ```
 
 This should:
 - Open a new terminal window/tab
-- Start hermes-vision with `--auto-exit --logs`
+- Start hermes-neurovision with `--auto-exit --logs`
 - Exit with code 0 if successful
 
 ### Test 3: Duplicate Prevention
 
-1. Run `hermes-vision` in one terminal
+1. Run `hermes-neurovision` in one terminal
 2. In another terminal:
 ```bash
-python3 hermes_vision/launcher.py --test-launch
+python3 hermes_neurovision/launcher.py --test-launch
 ```
 
 Should print "Launch failed" (duplicate prevented)
@@ -93,13 +93,13 @@ echo '{
     "source": "cron",
     "session_id": "test_auto_launch"
   }
-}' >> ~/.hermes/vision/events.jsonl
+}' >> ~/.hermes/neurovision/events.jsonl
 ```
 
 3. **Trigger the hook manually**:
 
 ```bash
-cd ~/.hermes/hooks/hermes-vision
+cd ~/.hermes/hooks/hermes-neurovision
 python3 handler.py
 ```
 
@@ -107,7 +107,7 @@ Or if gateway is running, it will handle automatically.
 
 4. **Verify**:
 - A new terminal should open automatically
-- hermes-vision should be running with logs
+- hermes-neurovision should be running with logs
 - After 30s of no events, it should auto-exit
 
 ## Supported Terminals
@@ -126,32 +126,32 @@ Or if gateway is running, it will handle automatically.
 
 ## Configuration Options
 
-`~/.hermes/vision/config.json`:
+`~/.hermes/neurovision/config.json`:
 
 ```json
 {
   "auto_launch": true,
   "preferred_terminal": "iterm2",
-  "launch_command": "hermes-vision --daemon --logs"
+  "launch_command": "hermes-neurovision --daemon --logs"
 }
 ```
 
 **Options:**
 - `auto_launch` (bool): Enable/disable auto-launch (default: false)
 - `preferred_terminal` (string): Force specific terminal (default: auto-detect)
-- `launch_command` (string): Custom command to run (default: "hermes-vision --auto-exit --logs")
+- `launch_command` (string): Custom command to run (default: "hermes-neurovision --auto-exit --logs")
 
 ## Troubleshooting
 
 **Auto-launch not working:**
-1. Check config: `cat ~/.hermes/vision/config.json`
-2. Verify hook installed: `ls ~/.hermes/hooks/hermes-vision/`
-3. Test launcher: `python3 hermes_vision/launcher.py --test-launch`
+1. Check config: `cat ~/.hermes/neurovision/config.json`
+2. Verify hook installed: `ls ~/.hermes/hooks/hermes-neurovision/`
+3. Test launcher: `python3 hermes_neurovision/launcher.py --test-launch`
 4. Check gateway logs for errors
 
 **Multiple windows opening:**
-- Launcher checks if hermes-vision is already running
-- If duplicate opens, check `ps aux | grep hermes-vision` for stale processes
+- Launcher checks if hermes-neurovision is already running
+- If duplicate opens, check `ps aux | grep hermes-neurovision` for stale processes
 
 **Wrong terminal opening:**
 - Set `preferred_terminal` in config.json

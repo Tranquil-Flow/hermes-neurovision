@@ -10,13 +10,13 @@ The .hvtheme format needs to handle version mismatches gracefully as the schema 
 {
   "format_version": "1.0",
   "metadata": {
-    "hermes_vision_version": "0.1.1"
+    "hermes_neurovision_version": "0.1.1"
   }
 }
 ```
 
 - **format_version**: .hvtheme file format version (schema)
-- **hermes_vision_version**: Version of Hermes Vision that created the file
+- **hermes_neurovision_version**: Version of Hermes Neurovision that created the file
 
 ## Compatibility Strategy
 
@@ -49,7 +49,7 @@ if file_version.major > current_version.major:
     print("✗ Cannot import theme")
     print(f"  Requires format v{file_version}")
     print(f"  Current: v{current_version}")
-    print("  Please upgrade Hermes Vision")
+    print("  Please upgrade Hermes Neurovision")
     return None
 ```
 
@@ -138,7 +138,7 @@ def import_theme(theme_path):
         raise IncompatibleVersionError(
             f"Theme requires format {file_version.major}.x\n"
             f"Current version: {current_version.major}.x\n"
-            f"Please upgrade Hermes Vision"
+            f"Please upgrade Hermes Neurovision"
         )
     
     # Migrate old versions
@@ -161,7 +161,7 @@ def export_theme(theme_name):
     return {
         "format_version": "1.0",  # Current format version
         "metadata": {
-            "hermes_vision_version": "0.1.1",  # App version
+            "hermes_neurovision_version": "0.1.1",  # App version
             # ...
         },
         # ...
@@ -204,7 +204,7 @@ def migrate_v0_to_v1(data):
             "author": "unknown",
             "description": "Migrated from v0.9",
             "created": datetime.utcnow().isoformat() + "Z",
-            "hermes_vision_version": "0.1.1"
+            "hermes_neurovision_version": "0.1.1"
         },
         "config": data.get("config", {}),
         "plugin": {

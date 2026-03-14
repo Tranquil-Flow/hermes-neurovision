@@ -1,4 +1,4 @@
-from hermes_vision.themes import THEMES, ThemeConfig, build_theme_config
+from hermes_neurovision.themes import THEMES, ThemeConfig, build_theme_config
 
 
 def test_all_theme_names_are_defined():

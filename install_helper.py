@@ -31,7 +31,7 @@ def main():
     
     # Step 2: Install package
     current += 1
-    print_step(current, total_steps, "Installing hermes-vision package...")
+    print_step(current, total_steps, "Installing hermes-neurovision package...")
     try:
         subprocess.run(
             [sys.executable, "-m", "pip", "install", "-e", "."],
@@ -46,11 +46,11 @@ def main():
     # Step 3: Install gateway hook
     current += 1
     print_step(current, total_steps, "Installing gateway hook...")
-    hook_dir = os.path.expanduser("~/.hermes/hooks/hermes-vision")
+    hook_dir = os.path.expanduser("~/.hermes/hooks/hermes-neurovision")
     os.makedirs(hook_dir, exist_ok=True)
     
-    handler_src = "hermes_vision/sources/hook_handler.py"
-    hook_yaml_src = "hermes_vision/sources/HOOK.yaml"
+    handler_src = "hermes_neurovision/sources/hook_handler.py"
+    hook_yaml_src = "hermes_neurovision/sources/HOOK.yaml"
     
     shutil.copy(handler_src, os.path.join(hook_dir, "handler.py"))
     shutil.copy(hook_yaml_src, os.path.join(hook_dir, "HOOK.yaml"))
@@ -59,7 +59,7 @@ def main():
     # Step 4: Create config directory
     current += 1
     print_step(current, total_steps, "Setting up configuration...")
-    config_dir = os.path.expanduser("~/.hermes/vision")
+    config_dir = os.path.expanduser("~/.hermes/neurovision")
     os.makedirs(config_dir, exist_ok=True)
     print(f"✅ Config directory: {config_dir}")
     
@@ -68,7 +68,7 @@ def main():
     print_step(current, total_steps, "Testing installation...")
     try:
         result = subprocess.run(
-            ["hermes-vision", "--help"],
+            ["hermes-neurovision", "--help"],
             capture_output=True,
             text=True,
             timeout=5
@@ -79,8 +79,8 @@ def main():
             print("⚠️  CLI may need PATH adjustment")
             print(f"   Try: export PATH=\"$HOME/.local/bin:$PATH\"")
     except (subprocess.TimeoutExpired, FileNotFoundError):
-        print("⚠️  Command 'hermes-vision' not found in PATH")
-        print(f"   You may need to add to PATH or use: python3 -m hermes_vision.cli")
+        print("⚠️  Command 'hermes-neurovision' not found in PATH")
+        print(f"   You may need to add to PATH or use: python3 -m hermes_neurovision.cli")
     
     # Done!
     print("\n" + "=" * 60)
@@ -89,17 +89,17 @@ def main():
     
     print("\n📚 Quick Start:\n")
     print("  # Live mode (reacts to agent events)")
-    print("  hermes-vision")
+    print("  hermes-neurovision")
     print()
     print("  # Gallery mode (browse themes)")
-    print("  hermes-vision --gallery")
+    print("  hermes-neurovision --gallery")
     print()
     print("  # Daemon mode (gallery when idle)")
-    print("  hermes-vision --daemon --logs")
+    print("  hermes-neurovision --daemon --logs")
     
     print("\n🤖 Enable Auto-Launch (optional):\n")
-    print("  echo '{\"auto_launch\": true}' > ~/.hermes/vision/config.json")
-    print("  python3 hermes_vision/launcher.py --test-launch")
+    print("  echo '{\"auto_launch\": true}' > ~/.hermes/neurovision/config.json")
+    print("  python3 hermes_neurovision/launcher.py --test-launch")
     
     print("\n📖 Documentation:\n")
     print("  README.md     - This file")
