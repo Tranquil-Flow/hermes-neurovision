@@ -58,6 +58,21 @@ THEMES: Tuple[str, ...] = (
     "sol",
     "terra",
     "binary-star",
+    # ── ASCII Fields (10) ─────────────────────────────────────────────
+    "synaptic-plasma",
+    "oracle",
+    "cellular-cortex",
+    "reaction-field",
+    "stellar-weave",
+    "life-colony",
+    "aurora-bands",
+    "waveform-scope",
+    "lissajous-mind",
+    "pulse-matrix",
+    # ── Extreme Fields (3) ───────────────────────────────────────────
+    "fractal-engine",
+    "n-body",
+    "standing-waves",
 )
 
 FRAME_DELAY = 0.05
@@ -140,12 +155,35 @@ def build_theme_config(name: str) -> ThemeConfig:
         "coral-reef": ThemeConfig(name, "Coral Reef", "\u274b", 0.022, 0.04, 0.18, 0.26, (0.03, 0.06), 0.08, 0.50, 3, palette=(curses.COLOR_CYAN, curses.COLOR_GREEN, curses.COLOR_MAGENTA, curses.COLOR_WHITE)),
         "ant-colony": ThemeConfig(name, "Ant Colony", "\u2022", 0.016, 0.00, 0.10, 0.36, (0.04, 0.08), 0.08, 0.55, 3, palette=(curses.COLOR_YELLOW, curses.COLOR_WHITE, curses.COLOR_CYAN, curses.COLOR_GREEN)),
         "satellite-orbit": ThemeConfig(name, "Satellite Orbit", "\u25c7", 0.028, 0.00, 0.08, 0.24, (0.03, 0.06), 0.06, 0.50, 3, palette=(curses.COLOR_CYAN, curses.COLOR_BLUE, curses.COLOR_WHITE, curses.COLOR_YELLOW)),
-        "starfall": ThemeConfig(name, "Starfall", "\u2726", 0.040, 0.00, 0.06, 0.22, (0.03, 0.06), 0.08, 0.55, 3, palette=(curses.COLOR_WHITE, curses.COLOR_CYAN, curses.COLOR_YELLOW, curses.COLOR_MAGENTA)),
-        # ── Cosmic New ───────────────────────────────────────────
-        "quasar": ThemeConfig(name, "Quasar", "\u25c9", 0.034, 0.00, 0.08, 0.28, (0.03, 0.07), 0.10, 0.50, 3, palette=(curses.COLOR_MAGENTA, curses.COLOR_BLUE, curses.COLOR_WHITE, curses.COLOR_CYAN)),
-        "supernova": ThemeConfig(name, "Supernova", "*", 0.030, 0.00, 0.14, 0.34, (0.04, 0.08), 0.14, 0.45, 3, palette=(curses.COLOR_YELLOW, curses.COLOR_MAGENTA, curses.COLOR_WHITE, curses.COLOR_CYAN)),
-        "sol": ThemeConfig(name, "Sol", "\u25c9", 0.026, 0.02, 0.20, 0.26, (0.03, 0.06), 0.10, 0.50, 3, palette=(curses.COLOR_YELLOW, curses.COLOR_WHITE, curses.COLOR_MAGENTA, curses.COLOR_CYAN)),
-        "terra": ThemeConfig(name, "Terra", "\u00b7", 0.028, 0.02, 0.08, 0.22, (0.02, 0.05), 0.06, 0.50, 3, palette=(curses.COLOR_CYAN, curses.COLOR_BLUE, curses.COLOR_WHITE, curses.COLOR_GREEN)),
-        "binary-star": ThemeConfig(name, "Binary Star", "\u25c9", 0.032, 0.00, 0.10, 0.24, (0.03, 0.06), 0.08, 0.50, 3, palette=(curses.COLOR_BLUE, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_YELLOW)),
+        # ── Redesigned: Starfall (v2 replaces legacy-starfall) ────────────────
+        "starfall":      ThemeConfig(name, "Starfall",     "\u2726", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_WHITE, curses.COLOR_CYAN, curses.COLOR_BLUE, curses.COLOR_MAGENTA)),
+        # ── Cosmic New (redesigned v2 — replace old entries) ──────────────────
+        "quasar":        ThemeConfig(name, "Quasar",       "\u25c8", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_CYAN, curses.COLOR_BLUE, curses.COLOR_WHITE, curses.COLOR_YELLOW)),
+        "supernova":     ThemeConfig(name, "Supernova",    "*",      0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_YELLOW, curses.COLOR_MAGENTA, curses.COLOR_WHITE, curses.COLOR_CYAN)),
+        "sol":           ThemeConfig(name, "Sol",          "\u25c9", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_YELLOW, curses.COLOR_WHITE, curses.COLOR_CYAN, curses.COLOR_MAGENTA)),
+        "terra":         ThemeConfig(name, "Terra",        "\u00b7", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_CYAN, curses.COLOR_GREEN, curses.COLOR_WHITE, curses.COLOR_BLUE)),
+        "binary-star":   ThemeConfig(name, "Binary Star",  "\u2605", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_BLUE, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_YELLOW)),
+        # ── Legacy variants (original implementations, hidden from gallery) ────
+        "legacy-starfall":    ThemeConfig(name, "Starfall (Legacy)",    "\u2726", 0.040, 0.00, 0.06, 0.22, (0.03, 0.06), 0.08, 0.55, 3, palette=(curses.COLOR_WHITE, curses.COLOR_CYAN, curses.COLOR_YELLOW, curses.COLOR_MAGENTA)),
+        "legacy-quasar":      ThemeConfig(name, "Quasar (Legacy)",      "\u25c9", 0.034, 0.00, 0.08, 0.28, (0.03, 0.07), 0.10, 0.50, 3, palette=(curses.COLOR_MAGENTA, curses.COLOR_BLUE, curses.COLOR_WHITE, curses.COLOR_CYAN)),
+        "legacy-supernova":   ThemeConfig(name, "Supernova (Legacy)",   "*",      0.030, 0.00, 0.14, 0.34, (0.04, 0.08), 0.14, 0.45, 3, palette=(curses.COLOR_YELLOW, curses.COLOR_MAGENTA, curses.COLOR_WHITE, curses.COLOR_CYAN)),
+        "legacy-sol":         ThemeConfig(name, "Sol (Legacy)",         "\u25c9", 0.026, 0.02, 0.20, 0.26, (0.03, 0.06), 0.10, 0.50, 3, palette=(curses.COLOR_YELLOW, curses.COLOR_WHITE, curses.COLOR_MAGENTA, curses.COLOR_CYAN)),
+        "legacy-terra":       ThemeConfig(name, "Terra (Legacy)",       "\u00b7", 0.028, 0.02, 0.08, 0.22, (0.02, 0.05), 0.06, 0.50, 3, palette=(curses.COLOR_CYAN, curses.COLOR_BLUE, curses.COLOR_WHITE, curses.COLOR_GREEN)),
+        "legacy-binary-star": ThemeConfig(name, "Binary Star (Legacy)", "\u25c9", 0.032, 0.00, 0.10, 0.24, (0.03, 0.06), 0.08, 0.50, 3, palette=(curses.COLOR_BLUE, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_YELLOW)),
+        # ── ASCII Fields ──────────────────────────────────────────────
+        "synaptic-plasma": ThemeConfig(name, "Synaptic Plasma", "\u00b7", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_CYAN, curses.COLOR_BLUE, curses.COLOR_WHITE, curses.COLOR_MAGENTA)),
+        "oracle":          ThemeConfig(name, "Oracle", "\u25ce", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_MAGENTA, curses.COLOR_BLUE, curses.COLOR_CYAN, curses.COLOR_WHITE)),
+        "cellular-cortex": ThemeConfig(name, "Cellular Cortex", "\u25c8", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_CYAN, curses.COLOR_GREEN, curses.COLOR_WHITE, curses.COLOR_MAGENTA)),
+        "reaction-field":  ThemeConfig(name, "Reaction Field", "\u00b7", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_CYAN, curses.COLOR_MAGENTA, curses.COLOR_WHITE, curses.COLOR_GREEN)),
+        "stellar-weave":   ThemeConfig(name, "Stellar Weave", "\u2726", 0.012, 0.01, 0.05, 0.05, (0.02, 0.05), 0.04, 0.5, 2, palette=(curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_MAGENTA, curses.COLOR_YELLOW)),
+        "life-colony":     ThemeConfig(name, "Life Colony", "\u00b7", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_GREEN, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_YELLOW)),
+        "aurora-bands":    ThemeConfig(name, "Aurora Bands", "~", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_GREEN, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_MAGENTA)),
+        "waveform-scope":  ThemeConfig(name, "Waveform Scope", "\u2500", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_CYAN, curses.COLOR_GREEN, curses.COLOR_WHITE, curses.COLOR_YELLOW)),
+        "lissajous-mind":  ThemeConfig(name, "Lissajous Mind", "\u25c8", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_MAGENTA, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_BLUE)),
+        "pulse-matrix":    ThemeConfig(name, "Pulse Matrix", "\u00b7", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_BLUE, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_MAGENTA)),
+        # ── Extreme Fields ────────────────────────────────────────────
+        "fractal-engine":  ThemeConfig(name, "Fractal Engine", "\u2588", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_BLUE, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_MAGENTA)),
+        "n-body":          ThemeConfig(name, "N-Body",         "\u25c9", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_BLUE, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_YELLOW)),
+        "standing-waves":  ThemeConfig(name, "Standing Waves", "\u2592", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_MAGENTA, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_BLUE)),
     }
     return configs[name]

@@ -1,0 +1,966 @@
+"""Redesigned themes 37-42 + 3 extreme new screens using full-screen ASCII field engine."""
+
+from __future__ import annotations
+
+import curses
+import math
+import random
+from typing import List, Optional, Tuple
+
+from hermes_neurovision.plugin import ThemePlugin
+from hermes_neurovision.theme_plugins import register
+
+
+# ── Starfall v2: 3D perspective starfield ─────────────────────────────────────
+
+class StarfallV2Plugin(ThemePlugin):
+    """3D perspective starfield — stars stream toward the viewer."""
+    name = "starfall"
+
+    def __init__(self):
+        self._stars = None
+
+    def build_nodes(self, w, h, cx, cy, count, rng):
+        return []
+
+    def _init_stars(self, w, h, rng):
+        self._stars = [
+            {'sx': rng.uniform(-1, 1), 'sy': rng.uniform(-1, 1), 'sz': rng.uniform(0.01, 1.0)}
+            for _ in range(200)
+        ]
+
+    def draw_extras(self, stdscr, state, color_pairs):
+        w = state.width
+        h = state.height
+        f = state.frame
+        rng = state.rng
+
+        if self._stars is None:
+            self._init_stars(w, h, rng)
+
+        stars = self._stars
+        intensity = state.intensity_multiplier
+
+        # Move stars toward viewer
+        for star in stars:
+            star['sz'] -= 0.015 + 0.01 * intensity
+            if star['sz'] <= 0:
+                star['sx'] = rng.uniform(-1, 1)
+                star['sy'] = rng.uniform(-1, 1)
+                star['sz'] = 1.0
+
+        bright_attr = curses.color_pair(color_pairs["bright"]) | curses.A_BOLD
+        accent_attr = curses.color_pair(color_pairs["accent"])
+        soft_attr = curses.color_pair(color_pairs["soft"])
+        base_dim_attr = curses.color_pair(color_pairs["base"]) | curses.A_DIM
+        depth_chars = " \u00b7\u2219\u2022\u25e6\u25cb\u25cf\u25c9"  # 8 chars
+
+        for star in stars:
+            sz = star['sz']
+            scale = 1.0 / (sz + 0.01)
+            px = int(w / 2 + star['sx'] * scale * w * 0.45)
+            py = int(h / 2 + star['sy'] * scale * h * 0.42)
+
+            if not (1 <= py <= h - 2 and 0 <= px <= w - 2):
+                continue
+
+            depth_idx = int((1 - sz) * 7)
+            depth_idx = max(0, min(7, depth_idx))
+            ch = depth_chars[depth_idx]
+
+            if sz < 0.2:
+                attr = bright_attr
+            elif sz < 0.4:
+                attr = accent_attr
+            elif sz < 0.7:
+                attr = soft_attr
+            else:
+                attr = base_dim_attr
+
+            try:
+                stdscr.addstr(py, px, ch, attr)
+            except curses.error:
+                pass
+
+            # Short streak behind fast-moving near stars
+            if sz < 0.25:
+                streak_py = py - 1
+                if 1 <= streak_py <= h - 2:
+                    try:
+                        stdscr.addstr(streak_py, px, "\u00b7", base_dim_attr)
+                    except curses.error:
+                        pass
+
+
+# ── Quasar v2: Bipolar jets + accretion disk ──────────────────────────────────
+
+class QuasarV2Plugin(ThemePlugin):
+    """Bipolar relativistic jets and accretion disk — full-screen field rendering."""
+    name = "quasar"
+
+    def build_nodes(self, w, h, cx, cy, count, rng):
+        return []
+
+    def draw_extras(self, stdscr, state, color_pairs):
+        w = state.width
+        h = state.height
+        f = state.frame
+        intensity = state.intensity_multiplier
+
+        cx = w / 2.0
+        cy = h / 2.0
+
+        bright_attr = curses.color_pair(color_pairs["bright"]) | curses.A_BOLD
+        accent_attr = curses.color_pair(color_pairs["accent"])
+        soft_attr = curses.color_pair(color_pairs["soft"])
+        base_dim_attr = curses.color_pair(color_pairs["base"]) | curses.A_DIM
+
+        for y in range(1, h - 1):
+            dy = y - cy
+            for x in range(0, w - 1):
+                dx = x - cx
+                dist = math.sqrt(dx * dx / 2.25 + dy * dy)
+                angle = math.atan2(dy, dx * 1.5)
+
+                ch = " "
+                attr = base_dim_attr
+
+                # Accretion disk
+                if abs(dy) < 3 + math.sin(x * 0.3 + f * 0.04) * 1.5 and 3 < dist < w * 0.35:
+                    disk_v = max(0.0, 1 - dist / (w * 0.35)) * (1 - abs(dy) / 3)
+                    disk_chars = "~\u2248\u2550\u2500"
+                    ch = disk_chars[(x + f // 4) % 4]
+                    if dist < w * 0.15:
+                        attr = accent_attr
+                    else:
+                        attr = soft_attr
+
+                # Bipolar jets
+                elif abs(dx) < 2 and abs(dy) > 2:
+                    jet_dist = abs(dy) - 2
+                    jet_v = max(0.0, 1 - jet_dist / (h * 0.45 * max(0.2, intensity)))
+                    if jet_v > 0:
+                        jet_chars = "\u2502\u2551|!"
+                        ch = jet_chars[int(jet_v * 3)]
+                        if (x + y + f) % 3 == 0 and jet_v > 0.3:
+                            ch = "\u2503"
+                        if jet_v > 0.7:
+                            attr = bright_attr
+                        elif jet_v > 0.4:
+                            attr = accent_attr
+                        else:
+                            attr = soft_attr
+
+                # Magnetic field lines
+                else:
+                    field_v = abs(math.sin(dist * 0.3 - f * 0.02) * math.cos(angle * 2)) * 0.3 * intensity
+                    if field_v > 0.05:
+                        ch = "\u00b7"
+                        attr = base_dim_attr
+
+                try:
+                    stdscr.addstr(y, x, ch, attr)
+                except curses.error:
+                    pass
+
+        # Core glyphs
+        core_y = int(cy)
+        core_x = int(cx)
+        if 1 <= core_y <= h - 2 and 0 <= core_x <= w - 2:
+            try:
+                stdscr.addstr(core_y, core_x, "\u25c8", bright_attr)
+            except curses.error:
+                pass
+        if 1 <= core_y <= h - 2 and core_x - 1 >= 0:
+            try:
+                stdscr.addstr(core_y, core_x - 1, "\u25cf", accent_attr)
+            except curses.error:
+                pass
+        if 1 <= core_y <= h - 2 and core_x + 1 <= w - 2:
+            try:
+                stdscr.addstr(core_y, core_x + 1, "\u25cf", accent_attr)
+            except curses.error:
+                pass
+
+
+# ── Supernova v2: Periodic explosion cycle ────────────────────────────────────
+
+class SupernovaV2Plugin(ThemePlugin):
+    """Periodic explosion cycle — implosion, shockwave, nebula, fade."""
+    name = "supernova"
+
+    def build_nodes(self, w, h, cx, cy, count, rng):
+        return []
+
+    def draw_extras(self, stdscr, state, color_pairs):
+        w = state.width
+        h = state.height
+        f = state.frame
+        intensity = state.intensity_multiplier
+
+        cx = w / 2.0
+        cy = h / 2.0
+        phase = f % 600
+
+        bright_attr = curses.color_pair(color_pairs["bright"]) | curses.A_BOLD
+        accent_attr = curses.color_pair(color_pairs["accent"])
+        soft_attr = curses.color_pair(color_pairs["soft"])
+        base_dim_attr = curses.color_pair(color_pairs["base"]) | curses.A_DIM
+
+        density_chars = "\u00b7.:+*#@\u25c9"
+        block_chars = "\u2591\u2592\u2593\u2588\u2593\u2592\u2591"
+
+        for y in range(1, h - 1):
+            for x in range(0, w - 1):
+                dx = x - cx
+                dy = y - cy
+                dist = math.sqrt(dx * dx / 2.25 + dy * dy)
+                max_dist = math.sqrt((w / 2) ** 2 / 2.25 + (h / 2) ** 2)
+                dist_n = dist / max(max_dist, 1.0)
+
+                ch = " "
+                attr = base_dim_attr
+
+                if phase < 100:
+                    # Implosion / core buildup
+                    t = phase / 100.0
+                    v = max(0.0, 1 - dist_n * (3 + t * 5)) * intensity
+                    if v > 0:
+                        ci = int(v * (len(density_chars) - 1))
+                        ch = density_chars[ci]
+                        if v > 0.5:
+                            attr = bright_attr
+                        elif v > 0.2:
+                            attr = accent_attr
+                        else:
+                            attr = soft_attr
+
+                elif phase < 350:
+                    # Expanding shockwave
+                    t = (phase - 100) / 250.0
+                    ring_r = dist_n - t * 1.1
+                    ring_v = max(0.0, 1 - abs(ring_r) * 15) * intensity
+                    ring2_r = dist_n - t * 0.8
+                    ring2_v = max(0.0, 1 - abs(ring2_r) * 20) * 0.5 * intensity
+                    if ring_v > 0.05:
+                        ci = int(ring_v * (len(block_chars) - 1))
+                        ch = block_chars[ci]
+                        if ring_v > 0.5:
+                            attr = bright_attr
+                        else:
+                            attr = accent_attr
+                    elif ring2_v > 0.1:
+                        ch = "\u00b7"
+                        attr = accent_attr
+
+                elif phase < 550:
+                    # Nebula expansion
+                    t = (phase - 350) / 200.0
+                    nebula_v = max(0.0, (1 - dist_n * (0.8 + t * 0.4)) * abs(math.sin(dist_n * 15 + f * 0.03)) * 0.8) * intensity
+                    if nebula_v > 0.05:
+                        dense_chars = " \u00b7.:+*"
+                        ci = int(nebula_v * (len(dense_chars) - 1))
+                        ch = dense_chars[ci]
+                        if (x + y) % 2 == 0:
+                            attr = soft_attr
+                        else:
+                            attr = accent_attr
+
+                else:
+                    # Fade — sparse remnant
+                    t = (phase - 550) / 50.0
+                    v = max(0.0, math.sin(x * 0.7 + y * 0.5 + f * 0.02) * 0.3 * (1 - t)) * intensity
+                    if v > 0.1:
+                        ch = "\u00b7"
+                        attr = base_dim_attr
+
+                try:
+                    stdscr.addstr(y, x, ch, attr)
+                except curses.error:
+                    pass
+
+
+# ── Sol v2: Solar plasma with convection cells ────────────────────────────────
+
+class SolV2Plugin(ThemePlugin):
+    """Solar plasma surface with Voronoi convection cells and limb darkening."""
+    name = "sol"
+
+    def __init__(self):
+        self._cells = None
+        self._w = 0
+        self._h = 0
+
+    def build_nodes(self, w, h, cx, cy, count, rng):
+        return []
+
+    def _init_cells(self, rng):
+        self._cells = [
+            {
+                'x': rng.uniform(0, 1),
+                'y': rng.uniform(0, 1),
+                'vx': rng.uniform(-0.001, 0.001),
+                'vy': rng.uniform(-0.001, 0.001),
+            }
+            for _ in range(25)
+        ]
+
+    def draw_extras(self, stdscr, state, color_pairs):
+        w = state.width
+        h = state.height
+        f = state.frame
+        intensity = state.intensity_multiplier
+        rng = state.rng
+
+        if self._cells is None or w != self._w or h != self._h:
+            self._init_cells(rng)
+            self._w = w
+            self._h = h
+
+        cells = self._cells
+
+        # Drift cell centers
+        for c in cells:
+            c['x'] += c['vx']
+            c['y'] += c['vy']
+            if c['x'] < 0.0 or c['x'] > 1.0:
+                c['vx'] = -c['vx']
+                c['x'] = max(0.0, min(1.0, c['x']))
+            if c['y'] < 0.0 or c['y'] > 1.0:
+                c['vy'] = -c['vy']
+                c['y'] = max(0.0, min(1.0, c['y']))
+
+        bright_attr = curses.color_pair(color_pairs["bright"]) | curses.A_BOLD
+        accent_attr = curses.color_pair(color_pairs["accent"])
+        soft_attr = curses.color_pair(color_pairs["soft"])
+        base_dim_attr = curses.color_pair(color_pairs["base"]) | curses.A_DIM
+
+        granule_chars = "\u2591\u2592\u2593\u2588"
+        density_chars = ".:+#@\u25c9"
+
+        # Solar flare parameters
+        flare_phase = f % 200
+        draw_flare = flare_phase < 40
+
+        for y in range(1, h - 1):
+            ny = y / h
+            for x in range(0, w - 1):
+                nx = x / w
+
+                # Limb darkening
+                limb_dist = math.sqrt((nx - 0.5) ** 2 + (ny - 0.5) ** 2) * 2
+                limb_v = max(0.0, 1 - limb_dist * 1.1)
+
+                if limb_dist > 1.0:
+                    # Corona
+                    corona_v = max(0.0, 0.4 / (limb_dist + 0.1) - 0.3) * intensity
+                    if corona_v > 0.02:
+                        try:
+                            stdscr.addstr(y, x, "\u00b7", base_dim_attr)
+                        except curses.error:
+                            pass
+                    continue
+
+                # Find 2 nearest Voronoi cell centers
+                dists = []
+                for ci, c in enumerate(cells):
+                    ddx = nx - c['x']
+                    ddy = ny - c['y']
+                    dists.append(ddx * ddx + ddy * ddy)
+                dists_sorted = sorted(range(len(dists)), key=lambda i: dists[i])
+                dist_1st = math.sqrt(dists[dists_sorted[0]])
+                dist_2nd = math.sqrt(dists[dists_sorted[1]])
+                edge = dist_2nd - dist_1st
+
+                ch = " "
+                attr = base_dim_attr
+
+                if edge < 0.02:
+                    # Intergranular lane
+                    if limb_v > 0.1:
+                        ch = "\u2500" if (x + y) % 2 == 0 else "\u2502"
+                        attr = base_dim_attr
+                else:
+                    # Cell interior
+                    granule_v = limb_v * (0.6 + 0.4 * abs(math.sin(dist_1st * 40 + f * 0.04))) * intensity
+                    if granule_v > 0.8:
+                        ch = "\u2588"
+                        attr = bright_attr
+                    elif granule_v > 0.5:
+                        idx = int(granule_v * (len(density_chars) - 1))
+                        ch = density_chars[idx]
+                        attr = accent_attr
+                    elif granule_v > 0.2:
+                        idx = int(granule_v * (len(granule_chars) - 1))
+                        ch = granule_chars[idx]
+                        attr = soft_attr
+                    else:
+                        ch = "\u00b7"
+                        attr = base_dim_attr
+
+                try:
+                    stdscr.addstr(y, x, ch, attr)
+                except curses.error:
+                    pass
+
+        # Solar flare prominence arc at top of disk
+        if draw_flare:
+            t_flare = flare_phase / 40.0
+            arc_cx = int(w * 0.5)
+            arc_cy = int(h * 0.18)
+            arc_r = int(h * 0.08 * t_flare)
+            for ax in range(max(1, arc_cx - arc_r * 2), min(w - 1, arc_cx + arc_r * 2)):
+                arc_dx = (ax - arc_cx) / max(arc_r * 2, 1)
+                arc_y_off = int(arc_r * math.sqrt(max(0, 1 - arc_dx * arc_dx)))
+                ay = arc_cy - arc_y_off
+                if 1 <= ay <= h - 2:
+                    try:
+                        stdscr.addstr(ay, ax, "*",
+                                      curses.color_pair(color_pairs["bright"]) | curses.A_BOLD)
+                    except curses.error:
+                        pass
+
+
+# ── Terra v2: Rotating Earth globe ───────────────────────────────────────────
+
+class TerraV2Plugin(ThemePlugin):
+    """Spherical projection of Earth — continents, ocean, poles, day/night."""
+    name = "terra"
+
+    def build_nodes(self, w, h, cx, cy, count, rng):
+        return []
+
+    def draw_extras(self, stdscr, state, color_pairs):
+        w = state.width
+        h = state.height
+        f = state.frame
+        intensity = state.intensity_multiplier
+
+        bright_attr = curses.color_pair(color_pairs["bright"]) | curses.A_BOLD
+        accent_attr = curses.color_pair(color_pairs["accent"])
+        soft_attr = curses.color_pair(color_pairs["soft"])
+        base_dim_attr = curses.color_pair(color_pairs["base"]) | curses.A_DIM
+
+        rng = state.rng
+
+        for y in range(1, h - 1):
+            for x in range(0, w - 1):
+                nx = (x / (w - 1)) * 2 - 1
+                ny = (y / (h - 1)) * 2 - 1
+                nx_adj = nx
+                ny_adj = ny * 2.0
+                r2 = nx_adj ** 2 + ny_adj ** 2
+
+                if r2 > 1.0:
+                    # Space — sparse stars
+                    # Use deterministic pseudo-random based on position
+                    seed_val = (x * 1000 + y * 7 + 13) % 100
+                    if seed_val < 5:
+                        try:
+                            stdscr.addstr(y, x, "\u00b7", base_dim_attr)
+                        except curses.error:
+                            pass
+                    # Atmosphere glow at edge
+                    elif r2 < 1.3:
+                        atm_v = (1.3 - r2) / 0.3
+                        if atm_v > 0.3:
+                            try:
+                                stdscr.addstr(y, x, "\u2591", soft_attr)
+                            except curses.error:
+                                pass
+                    continue
+
+                z = math.sqrt(max(0.0, 1 - r2))
+                lon = math.atan2(ny_adj, nx_adj) + f * 0.008
+                lat = math.asin(max(-1.0, min(1.0, z)))
+
+                terrain = (math.sin(lon * 4 + lat * 3) * math.sin(lon * 7) * math.sin(lat * 5))
+                polar = abs(ny_adj) > 0.85
+
+                edge_fade = max(0.0, 1.0 - r2)
+                day_side = nx_adj * math.cos(f * 0.003) + z * 0.3
+                night_mult = 0.2 if day_side < 0 else 1.0
+
+                ch = " "
+                attr = base_dim_attr
+
+                if polar:
+                    ch = "*" if edge_fade > 0.5 else "\u2588"
+                    attr = bright_attr
+                elif terrain > 0:
+                    # Land
+                    land_v = terrain * edge_fade * night_mult * intensity
+                    if land_v > 0.3:
+                        ch = "\u2593"
+                        attr = accent_attr
+                    elif land_v > 0.1:
+                        ch = "\u2592"
+                        attr = accent_attr
+                    else:
+                        ch = "\u00b7"
+                        attr = soft_attr
+                else:
+                    # Ocean
+                    ocean_v = edge_fade * night_mult * intensity
+                    if ocean_v > 0.5:
+                        ch = "\u2248" if (x + y + f // 10) % 3 == 0 else "~"
+                        attr = soft_attr
+                    elif ocean_v > 0.2:
+                        ch = "~"
+                        attr = base_dim_attr
+                    else:
+                        ch = " "
+                        attr = base_dim_attr
+
+                try:
+                    stdscr.addstr(y, x, ch, attr)
+                except curses.error:
+                    pass
+
+
+# ── Binary Star v2: Two orbiting stars with gravitational field ───────────────
+
+class BinaryStarV2Plugin(ThemePlugin):
+    """Two orbiting stars with equipotential gravitational field visualization."""
+    name = "binary-star"
+
+    def build_nodes(self, w, h, cx, cy, count, rng):
+        return []
+
+    def draw_extras(self, stdscr, state, color_pairs):
+        w = state.width
+        h = state.height
+        f = state.frame
+        intensity = state.intensity_multiplier
+
+        period = 120
+        angle = f * (2 * math.pi / period)
+        sep = min(w, h) * 0.22
+        cx = w / 2.0
+        cy = h / 2.0
+
+        s1x = cx + math.cos(angle) * sep
+        s1y = cy + math.sin(angle) * sep * 0.45
+        s2x = cx - math.cos(angle) * sep
+        s2y = cy - math.sin(angle) * sep * 0.45
+
+        bright_attr = curses.color_pair(color_pairs["bright"]) | curses.A_BOLD
+        accent_attr = curses.color_pair(color_pairs["accent"])
+        soft_attr = curses.color_pair(color_pairs["soft"])
+        base_dim_attr = curses.color_pair(color_pairs["base"]) | curses.A_DIM
+
+        potential_chars = " \u00b7.:;+=*#"
+
+        for y in range(1, h - 1):
+            for x in range(0, w - 1):
+                r1 = math.sqrt((x - s1x) ** 2 / 2.25 + (y - s1y) ** 2)
+                r2 = math.sqrt((x - s2x) ** 2 / 2.25 + (y - s2y) ** 2)
+                V = -(1.0 / (r1 + 0.5) + 1.0 / (r2 + 0.5)) * 3.0
+                v = max(0.0, min(1.0, (-V - 0.5) / 3.0)) * intensity
+
+                if abs(r1 - r2) < 0.8:
+                    ch = "\u2500"
+                    attr = accent_attr
+                else:
+                    ci = int(v * (len(potential_chars) - 1))
+                    ch = potential_chars[ci]
+                    if v > 0.8:
+                        attr = bright_attr
+                    elif v > 0.5:
+                        attr = accent_attr
+                    elif v > 0.3:
+                        attr = soft_attr
+                    else:
+                        attr = base_dim_attr
+
+                try:
+                    stdscr.addstr(y, x, ch, attr)
+                except curses.error:
+                    pass
+
+        # Draw star bodies
+        for sx, sy in [(s1x, s1y), (s2x, s2y)]:
+            sxi = int(sx)
+            syi = int(sy)
+            if 1 <= syi <= h - 2 and 0 <= sxi <= w - 2:
+                try:
+                    stdscr.addstr(syi, sxi, "\u2605", bright_attr)
+                except curses.error:
+                    pass
+
+        # Trailing light from 3 and 6 frames ago
+        for lag in (3, 6):
+            past_angle = f * (2 * math.pi / period) - lag * (2 * math.pi / period)
+            p1x = int(cx + math.cos(past_angle) * sep)
+            p1y = int(cy + math.sin(past_angle) * sep * 0.45)
+            p2x = int(cx - math.cos(past_angle) * sep)
+            p2y = int(cy - math.sin(past_angle) * sep * 0.45)
+            for px, py in [(p1x, p1y), (p2x, p2y)]:
+                if 1 <= py <= h - 2 and 0 <= px <= w - 2:
+                    try:
+                        stdscr.addstr(py, px, "\u00b7", base_dim_attr)
+                    except curses.error:
+                        pass
+
+
+# ── Fractal Engine: Real-time ASCII Mandelbrot set ────────────────────────────
+
+class FractalEnginePlugin(ThemePlugin):
+    """Real-time Mandelbrot set zoom — iterative ASCII rendering."""
+    name = "fractal-engine"
+
+    def __init__(self):
+        self._zoom = 3.5
+        self._cx = -0.7
+        self._cy = 0.0
+        self._target_cx = -0.7269
+        self._target_cy = 0.1889
+
+    def build_nodes(self, w, h, cx, cy, count, rng):
+        return []
+
+    def draw_extras(self, stdscr, state, color_pairs):
+        w = state.width
+        h = state.height
+        intensity = state.intensity_multiplier
+
+        # Zoom in
+        self._zoom *= 0.992
+        if self._zoom < 0.0001:
+            self._zoom = 3.5
+
+        t = max(0.0, 1 - self._zoom / 3.5)
+        view_cx = self._cx + (self._target_cx - self._cx) * t
+        view_cy = self._cy + (self._target_cy - self._cy) * t
+
+        bright_attr = curses.color_pair(color_pairs["bright"]) | curses.A_BOLD
+        accent_attr = curses.color_pair(color_pairs["accent"])
+        soft_attr = curses.color_pair(color_pairs["soft"])
+        base_dim_attr = curses.color_pair(color_pairs["base"]) | curses.A_DIM
+        base_attr = curses.color_pair(color_pairs["base"])
+
+        MAX_ITER = 24
+        mid_chars = "\u00b7.:;+="
+
+        for y in range(1, h - 1):
+            for x in range(0, w - 1):
+                re = view_cx + (x / max(w, 1) - 0.5) * self._zoom
+                im = view_cy + (y / max(h, 1) - 0.5) * self._zoom * (h / max(w, 1)) * 2.2
+
+                zr, zi = 0.0, 0.0
+                i = 0
+                for i in range(MAX_ITER):
+                    zr2, zi2 = zr * zr, zi * zi
+                    if zr2 + zi2 > 4.0:
+                        break
+                    zi = 2 * zr * zi + im
+                    zr = zr2 - zi2 + re
+                else:
+                    i = MAX_ITER
+
+                if i == MAX_ITER:
+                    ch = "\u2588"
+                    attr = base_attr
+                else:
+                    v = i / MAX_ITER
+                    color_sel = i % 3
+                    if v < 0.15:
+                        ch = "\u2593"
+                        attr = accent_attr | curses.A_BOLD
+                    elif v < 0.5:
+                        idx = int((v - 0.15) / 0.35 * (len(mid_chars) - 1))
+                        ch = mid_chars[idx]
+                        if color_sel == 0:
+                            attr = base_dim_attr
+                        elif color_sel == 1:
+                            attr = soft_attr
+                        else:
+                            attr = accent_attr
+                    else:
+                        ch = "\u00b7" if v < 0.75 else " "
+                        attr = base_dim_attr
+
+                try:
+                    stdscr.addstr(y, x, ch, attr)
+                except curses.error:
+                    pass
+
+
+# ── N-Body: Gravitational N-body simulation ───────────────────────────────────
+
+class NBodyPlugin(ThemePlugin):
+    """Gravitational N-body simulation with field visualization and trails."""
+    name = "n-body"
+
+    def __init__(self):
+        self._bodies = None
+        self._trails = None
+        self._frame_count = 0
+
+    def build_nodes(self, w, h, cx, cy, count, rng):
+        return []
+
+    def _init_bodies(self):
+        self._bodies = [
+            {'x': 0.5,  'y': 0.35, 'vx':  0.008, 'vy':  0.0,   'mass': 2.0, 'c': 'bright'},
+            {'x': 0.5,  'y': 0.65, 'vx': -0.008, 'vy':  0.0,   'mass': 2.0, 'c': 'accent'},
+            {'x': 0.25, 'y': 0.5,  'vx':  0.0,   'vy':  0.006, 'mass': 1.0, 'c': 'soft'},
+            {'x': 0.75, 'y': 0.5,  'vx':  0.0,   'vy': -0.006, 'mass': 1.0, 'c': 'soft'},
+            {'x': 0.35, 'y': 0.35, 'vx':  0.004, 'vy':  0.004, 'mass': 0.5, 'c': 'base'},
+            {'x': 0.65, 'y': 0.65, 'vx': -0.004, 'vy': -0.004, 'mass': 0.5, 'c': 'base'},
+        ]
+        self._trails = [[] for _ in range(6)]
+        self._frame_count = 0
+
+    def draw_extras(self, stdscr, state, color_pairs):
+        w = state.width
+        h = state.height
+        intensity = state.intensity_multiplier
+
+        if self._bodies is None:
+            self._init_bodies()
+
+        bodies = self._bodies
+        trails = self._trails
+        self._frame_count += 1
+
+        # Physics update — 3 substeps
+        G = 0.00015
+        dt = 1.0
+        for substep in range(3):
+            accels = [(0.0, 0.0)] * len(bodies)
+            for i, b in enumerate(bodies):
+                ax, ay = 0.0, 0.0
+                for j, other in enumerate(bodies):
+                    if i == j:
+                        continue
+                    dx = other['x'] - b['x']
+                    dy = other['y'] - b['y']
+                    r2 = dx * dx + dy * dy + 0.001
+                    r = math.sqrt(r2)
+                    F = G * other['mass'] / r2
+                    ax += F * dx / r
+                    ay += F * dy / r
+                accels[i] = (ax, ay)
+            for i, b in enumerate(bodies):
+                b['vx'] += accels[i][0] * dt / 3
+                b['vy'] += accels[i][1] * dt / 3
+            for b in bodies:
+                b['x'] += b['vx'] * dt / 3
+                b['y'] += b['vy'] * dt / 3
+                if b['x'] < 0.02 or b['x'] > 0.98:
+                    b['vx'] *= -0.8
+                if b['y'] < 0.02 or b['y'] > 0.98:
+                    b['vy'] *= -0.8
+                b['x'] = max(0.02, min(0.98, b['x']))
+                b['y'] = max(0.02, min(0.98, b['y']))
+
+        # Update trails
+        for i, b in enumerate(bodies):
+            sx = int(b['x'] * w)
+            sy = int(b['y'] * h)
+            trails[i].append((sx, sy))
+            if len(trails[i]) > 40:
+                trails[i].pop(0)
+
+        # Reset check every 1000 frames
+        if self._frame_count % 1000 == 0:
+            all_close = all(
+                math.sqrt((b['x'] - bodies[0]['x']) ** 2 + (b['y'] - bodies[0]['y']) ** 2) < 0.05
+                for b in bodies[1:]
+            )
+            if all_close:
+                self._init_bodies()
+
+        bright_attr = curses.color_pair(color_pairs["bright"]) | curses.A_BOLD
+        accent_attr = curses.color_pair(color_pairs["accent"])
+        soft_attr = curses.color_pair(color_pairs["soft"])
+        base_dim_attr = curses.color_pair(color_pairs["base"]) | curses.A_DIM
+        base_attr = curses.color_pair(color_pairs["base"])
+
+        # Gravity field background
+        for y in range(1, h - 1):
+            for x in range(0, w - 1):
+                nx = x / max(w, 1)
+                ny = y / max(h, 1)
+                V = 0.0
+                for b in bodies:
+                    ddx = nx - b['x']
+                    ddy = ny - b['y']
+                    r2 = ddx * ddx + ddy * ddy
+                    V += -b['mass'] / math.sqrt(r2 + 0.01)
+
+                if V < -8:
+                    ch = "\u2588"
+                    attr = bright_attr
+                elif V < -4:
+                    ch = "\u2593"
+                    attr = accent_attr
+                elif V < -2:
+                    ch = "\u2592"
+                    attr = soft_attr
+                elif V < -1:
+                    ch = "\u2591"
+                    attr = base_dim_attr
+                else:
+                    ch = " "
+                    attr = base_dim_attr
+
+                try:
+                    stdscr.addstr(y, x, ch, attr)
+                except curses.error:
+                    pass
+
+        # Draw trails
+        trail_chars = "\u00b7\u2219\u2022"
+        for i, trail in enumerate(trails):
+            tlen = len(trail)
+            for ti, (tx, ty) in enumerate(trail):
+                if not (1 <= ty <= h - 2 and 0 <= tx <= w - 2):
+                    continue
+                age = ti / max(tlen, 1)
+                tch = trail_chars[int(age * 2)]
+                if age > 0.6:
+                    tattr = accent_attr
+                elif age > 0.3:
+                    tattr = base_attr
+                else:
+                    tattr = base_dim_attr
+                try:
+                    stdscr.addstr(ty, tx, tch, tattr)
+                except curses.error:
+                    pass
+
+        # Draw bodies
+        color_map = {
+            'bright': bright_attr,
+            'accent': accent_attr,
+            'soft': soft_attr,
+            'base': base_dim_attr,
+        }
+        body_chars = {2.0: "\u25c9", 1.0: "\u25cf", 0.5: "\u2022"}
+        for b in bodies:
+            bx = int(b['x'] * w)
+            by = int(b['y'] * h)
+            if 1 <= by <= h - 2 and 0 <= bx <= w - 2:
+                mass = b['mass']
+                bch = body_chars.get(mass, "\u2022")
+                battr = color_map.get(b['c'], base_dim_attr)
+                try:
+                    stdscr.addstr(by, bx, bch, battr)
+                except curses.error:
+                    pass
+
+
+# ── Standing Waves: 2D resonant membrane modes ───────────────────────────────
+
+class StandingWavesPlugin(ThemePlugin):
+    """Superposition of 2D sinusoidal resonant membrane modes."""
+    name = "standing-waves"
+
+    def __init__(self):
+        self._modes = None
+
+    def build_nodes(self, w, h, cx, cy, count, rng):
+        return []
+
+    def _init_modes(self):
+        self._modes = [
+            {'m': 1, 'n': 2, 'A': 0.8, 'phi': 0.0,  'omega': math.sqrt(5) * 0.06},
+            {'m': 3, 'n': 1, 'A': 0.6, 'phi': 1.0,  'omega': math.sqrt(10) * 0.06},
+            {'m': 2, 'n': 3, 'A': 0.5, 'phi': 2.1,  'omega': math.sqrt(13) * 0.06},
+        ]
+
+    def draw_extras(self, stdscr, state, color_pairs):
+        w = state.width
+        h = state.height
+        f = state.frame
+        intensity = state.intensity_multiplier
+        rng = state.rng
+
+        if self._modes is None:
+            self._init_modes()
+
+        modes = self._modes
+
+        # Decay amplitudes
+        for mode in modes:
+            mode['A'] *= 0.9997
+
+        # Add new mode on intensity spike
+        if intensity > 0.8 and rng.random() < 0.1 and len(modes) < 8:
+            m = rng.randint(1, 5)
+            n = rng.randint(1, 5)
+            modes.append({
+                'm': m, 'n': n, 'A': 0.7,
+                'phi': rng.uniform(0, math.tau),
+                'omega': math.sqrt(m * m + n * n) * 0.06,
+            })
+
+        # Remove dead modes
+        self._modes = [mode for mode in modes if mode['A'] >= 0.01]
+        modes = self._modes
+
+        if not modes:
+            self._init_modes()
+            modes = self._modes
+
+        bright_attr = curses.color_pair(color_pairs["bright"]) | curses.A_BOLD
+        accent_attr = curses.color_pair(color_pairs["accent"])
+        soft_attr = curses.color_pair(color_pairs["soft"])
+        base_dim_attr = curses.color_pair(color_pairs["base"]) | curses.A_DIM
+
+        block_chars = "\u2588\u2593\u2592\u2591"
+
+        for y in range(1, h - 1):
+            ny = y / max(h - 1, 1)
+            for x in range(0, w - 1):
+                nx = x / max(w - 1, 1)
+                v = 0.0
+                for mode in modes:
+                    v += (mode['A'] *
+                          math.sin(mode['m'] * math.pi * nx) *
+                          math.sin(mode['n'] * math.pi * ny) *
+                          math.cos(mode['omega'] * f + mode['phi']))
+
+                v_norm = (v + 2) / 4.0
+                v_norm = max(0.0, min(1.0, v_norm))
+                v_norm_adj = v_norm * intensity
+
+                if abs(v_norm - 0.5) < 0.04:
+                    # Node line (zero crossing)
+                    ch = "\u00b7"
+                    attr = base_dim_attr
+                elif v_norm_adj > 0.75:
+                    ch = block_chars[0]
+                    attr = bright_attr
+                elif v_norm_adj > 0.6:
+                    ch = block_chars[1]
+                    attr = accent_attr
+                elif v_norm_adj > 0.4:
+                    ch = block_chars[2]
+                    attr = soft_attr
+                elif v_norm_adj > 0.25:
+                    ch = block_chars[3]
+                    attr = base_dim_attr
+                else:
+                    ch = " "
+                    attr = base_dim_attr
+
+                try:
+                    stdscr.addstr(y, x, ch, attr)
+                except curses.error:
+                    pass
+
+
+# ── Registration ──────────────────────────────────────────────────────────────
+
+register(StarfallV2Plugin())
+register(QuasarV2Plugin())
+register(SupernovaV2Plugin())
+register(SolV2Plugin())
+register(TerraV2Plugin())
+register(BinaryStarV2Plugin())
+register(FractalEnginePlugin())
+register(NBodyPlugin())
+register(StandingWavesPlugin())

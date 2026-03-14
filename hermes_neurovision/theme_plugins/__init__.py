@@ -66,6 +66,14 @@ def _load_all() -> None:
         from hermes_neurovision.theme_plugins import cosmic_new  # noqa: F401
     except ImportError:
         pass
+    try:
+        from hermes_neurovision.theme_plugins import ascii_fields  # noqa: F401
+    except ImportError:
+        pass
+    try:
+        from hermes_neurovision.theme_plugins import redesigned  # noqa: F401
+    except ImportError:
+        pass
 
 
 _load_all()

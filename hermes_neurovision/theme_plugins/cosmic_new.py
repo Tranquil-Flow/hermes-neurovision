@@ -12,9 +12,9 @@ from hermes_neurovision.theme_plugins import register
 # ── Quasar ───────────────────────────────────────────────────────────────────
 
 class QuasarPlugin(ThemePlugin):
-    """Relativistic jet from an active galactic nucleus."""
+    """Relativistic jet from an active galactic nucleus (legacy implementation)."""
 
-    name = "quasar"
+    name = "legacy-quasar"
 
     # Internal layout metadata
     _disk_count: int = 0
@@ -188,9 +188,9 @@ class QuasarPlugin(ThemePlugin):
 # ── Supernova ─────────────────────────────────────────────────────────────────
 
 class SupernovaPlugin(ThemePlugin):
-    """Expanding shockwave explosion that loops."""
+    """Expanding shockwave explosion that loops (legacy implementation)."""
 
-    name = "supernova"
+    name = "legacy-supernova"
 
     _rings: list = []
     _ring_radii_base: list = []
@@ -336,9 +336,9 @@ class SupernovaPlugin(ThemePlugin):
 # ── Sol ───────────────────────────────────────────────────────────────────────
 
 class SolPlugin(ThemePlugin):
-    """The Sun's surface — convection cells and solar flares."""
+    """The Sun's surface — convection cells and solar flares (legacy implementation)."""
 
-    name = "sol"
+    name = "legacy-sol"
 
     _cell_centers: list = []
     _cell_map: list = []  # list of (cell_idx, node_idx, base_angle)
@@ -537,9 +537,9 @@ class SolPlugin(ThemePlugin):
 # ── Terra ─────────────────────────────────────────────────────────────────────
 
 class TerraPlugin(ThemePlugin):
-    """Earth from orbit — continents, atmosphere, orbiting satellites."""
+    """Earth from orbit — continents, atmosphere, orbiting satellites (legacy implementation)."""
 
-    name = "terra"
+    name = "legacy-terra"
 
     _earth_r_x: float = 0.0
     _earth_r_y: float = 0.0
@@ -767,9 +767,9 @@ class TerraPlugin(ThemePlugin):
 # ── Binary Star ───────────────────────────────────────────────────────────────
 
 class BinaryStarPlugin(ThemePlugin):
-    """Two stars orbiting each other around their shared center of mass."""
+    """Two stars orbiting each other around their shared center of mass (legacy implementation)."""
 
-    name = "binary-star"
+    name = "legacy-binary-star"
 
     _inner_a: int = 0
     _outer_a: int = 0

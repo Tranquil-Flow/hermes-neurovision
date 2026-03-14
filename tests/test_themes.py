@@ -2,9 +2,14 @@ from hermes_neurovision.themes import THEMES, ThemeConfig, build_theme_config
 
 
 def test_all_theme_names_are_defined():
-    assert len(THEMES) == 45
+    assert len(THEMES) == 55
     assert "neural-sky" in THEMES
     assert "black-hole" in THEMES
+    assert "synaptic-plasma" in THEMES
+    assert "pulse-matrix" in THEMES
+    assert "fractal-engine" in THEMES
+    assert "n-body" in THEMES
+    assert "standing-waves" in THEMES
 
 
 def test_build_theme_config_returns_config():
@@ -14,7 +19,18 @@ def test_build_theme_config_returns_config():
 
 
 def test_all_themes_can_be_built():
+    # Full-screen ASCII field themes intentionally have background_density=0
+    full_screen_themes = {
+        "synaptic-plasma", "oracle", "cellular-cortex", "reaction-field",
+        "stellar-weave", "life-colony", "aurora-bands", "waveform-scope",
+        "lissajous-mind", "pulse-matrix",
+        # Redesigned cosmic themes (v2) — also full-screen field renderers
+        "starfall", "quasar", "supernova", "sol", "terra", "binary-star",
+        # Extreme field themes
+        "fractal-engine", "n-body", "standing-waves",
+    }
     for name in THEMES:
         config = build_theme_config(name)
         assert config.name == name
-        assert config.background_density > 0
+        if name not in full_screen_themes:
+            assert config.background_density > 0

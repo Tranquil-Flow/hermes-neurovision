@@ -411,8 +411,8 @@ class SatelliteOrbitPlugin(ThemePlugin):
 
 
 class StarfallPlugin(ThemePlugin):
-    """Meteor shower."""
-    name = "starfall"
+    """Meteor shower (legacy implementation)."""
+    name = "legacy-starfall"
 
     def build_nodes(self, w, h, cx, cy, count, rng):
         nodes = []
