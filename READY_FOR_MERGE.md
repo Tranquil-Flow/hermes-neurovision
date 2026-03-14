@@ -93,7 +93,6 @@ hermes-neurovision --gallery --seconds 1 ✓
 - ✓ QUICKSTART.md - Export/import examples
 - ✓ pyproject.toml - Version 0.1.1, package name
 - ✓ RELEASE_NOTES_v0.1.1.md - User-facing release notes
-- ✓ MIGRATION_v0.1.1.md - Upgrade instructions
 - ✓ VERSION_COMPATIBILITY.md - Version strategy
 - ✓ PLAN_v0.1.2.md - Future features
 - ✓ V0.1.1_IMPLEMENTATION_COMPLETE.md - Technical summary
@@ -122,7 +121,6 @@ Paths change:
 - `~/.hermes/vision/` → `~/.hermes/neurovision/`
 - `~/.hermes/hooks/hermes-vision/` → `~/.hermes/hooks/hermes-neurovision/`
 
-See MIGRATION_v0.1.1.md for full details.
 
 ## Backward Compatibility
 
@@ -144,17 +142,16 @@ See MIGRATION_v0.1.1.md for full details.
 - hermes_neurovision/import_theme.py
 - tests/test_export_import.py
 - VERSION_COMPATIBILITY.md
-- MIGRATION_v0.1.1.md
 - RELEASE_NOTES_v0.1.1.md
 
-**Modified Files** (major):
+### Modified Files (major):
 - hermes_neurovision/cli.py (export/import commands)
 - hermes_neurovision/themes.py (runtime configs)
 - hermes_neurovision/theme_plugins/__init__.py (runtime plugins)
-- README.md (export/import section)
-- CHANGELOG.md (v0.1.1 entry)
+- README.md (export/import section, version 0.1.1)
+- CHANGELOG.md (v0.1.1 entry, first public release note)
 - QUICKSTART.md (export/import examples)
-- pyproject.toml (version 0.1.1, rename)
+- pyproject.toml (version 0.1.1, hermes-neurovision name)
 
 **Renamed**:
 - hermes_vision/ → hermes_neurovision/ (all Python files)

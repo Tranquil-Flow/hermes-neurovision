@@ -36,24 +36,22 @@ hermes-neurovision --list-themes
 - **Version Safety**: Compatibility checking with graceful degradation
 - **Security**: Warnings and confirmation for custom plugin code
 
-### Package Rename
+### Package Name
 
-**BREAKING CHANGE**: Renamed from `hermes-vision` to `hermes-neurovision`
+Official package name: **hermes-neurovision**
 
-**Why?**
-- More descriptive name
-- Better reflects the "neuro" visualization concept
-- Cleaner branding
+**Why this name?**
+- Descriptive: "neurovision" captures the neural network visualization concept
+- Distinctive: Different from generic "vision" (computer vision)
+- On-brand: Aligns with "Neurovisualizer" branding
 
-**Migration required**: See [MIGRATION_v0.1.1.md](MIGRATION_v0.1.1.md)
-
-Quick migration:
+**Installation:**
 ```bash
-pip uninstall hermes-vision
 pip install -e .
-# Old: hermes-vision
-# New: hermes-neurovision
+hermes-neurovision --gallery
 ```
+
+**Note**: This is the first public release - no migration needed!
 
 ## 🎨 Theme Examples
 
@@ -122,7 +120,7 @@ Custom plugin themes contain Python code. Hermes Neurovision:
 
 - [README.md](README.md) - Main documentation
 - [QUICKSTART.md](QUICKSTART.md) - 60-second setup
-- [MIGRATION_v0.1.1.md](MIGRATION_v0.1.1.md) - Upgrade guide
+
 - [VERSION_COMPATIBILITY.md](VERSION_COMPATIBILITY.md) - Version strategy
 - [PLAN_v0.1.2.md](PLAN_v0.1.2.md) - Future plans (sliders!)
 - [V0.1.1_IMPLEMENTATION_COMPLETE.md](V0.1.1_IMPLEMENTATION_COMPLETE.md) - Implementation details

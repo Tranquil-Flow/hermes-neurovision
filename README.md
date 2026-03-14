@@ -5,6 +5,7 @@
 A beautiful living neural network that reacts to your AI agent's activity in real-time. Watch as tool calls become traveling packets, memory updates spawn new nodes, and token usage creates pulsating waves across cosmic visualizations.
 
 ![Version](https://img.shields.io/badge/version-0.1.1-blue)
+![First Public Release](https://img.shields.io/badge/release-first%20public-green)
 ![Python](https://img.shields.io/badge/python-3.10+-green)
 ![Tests](https://img.shields.io/badge/tests-63%20passing-brightgreen)
 ![Dependencies](https://img.shields.io/badge/dependencies-stdlib%20only-orange)

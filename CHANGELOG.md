@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.1] - 2026-03-14
 
+**First Public Release** 🎉
+
 ### Added
 - **Theme Export/Import System**: Share themes as portable .hvtheme files
   - `--export THEME` command to export any theme
@@ -20,20 +22,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Runtime Theme Registration**: Import themes without code installation
   - Runtime config registry for imported theme parameters
   - Runtime plugin registry for imported custom plugins
+- **AI-Assisted Theme Design**: Agents can design custom themes via skill system
 - **Documentation**:
   - `VERSION_COMPATIBILITY.md` - Version strategy
   - `PLAN_v0.1.2.md` - Future slider features
   - `V0.1.1_IMPLEMENTATION_COMPLETE.md` - Implementation summary
-  - `RENAME_ASSESSMENT.md` - Potential rename to hermes-neurovision
+  - `RELEASE_NOTES_v0.1.1.md` - User-facing release notes
 
 ### Changed
+- **Package name**: Now officially `hermes-neurovision` (more descriptive)
+- **CLI command**: `hermes-neurovision` (was `hermes-vision` in development)
 - CLI `--theme` argument now accepts any string (not limited to built-in themes)
+- Config paths: `~/.hermes/neurovision/` (was `~/.hermes/vision/` in development)
 - Version bumped to 0.1.1
 
 ### Fixed
 - Plugin execution namespace now includes required imports (ThemePlugin, Particle, math)
 
 ## [0.1.0] - 2026-03-14
+
+**Internal Development Release** (not published)
 
 ### Added
 - **42 Animated Themes** across 8 categories (Cosmic, Nature, Industrial, Whimsical, Hostile, Exotic, Mechanical, and Originals)
