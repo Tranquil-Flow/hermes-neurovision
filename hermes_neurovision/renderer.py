@@ -191,7 +191,8 @@ class Renderer:
 
     def _draw_overlay(self, state: "ThemeState", gallery_index: int, gallery_total: int, end_time: Optional[float]) -> None:
         title = f" Hermes Neurovisualizer // {state.config.name} "
-        version = "v0.1.0"
+        from hermes_neurovision import __version__
+        version = f"v{__version__}"
         footer = " q quit  n next  p prev  space pause "
         if gallery_total > 1:
             footer = f" theme {gallery_index + 1}/{gallery_total} |" + footer

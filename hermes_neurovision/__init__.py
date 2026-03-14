@@ -1,3 +1,7 @@
 """Hermes Vision — Terminal neurovisualizer for Hermes Agent."""
 
-__version__ = "0.1.0"
+from importlib.metadata import version, PackageNotFoundError
+try:
+    __version__ = version("hermes-neurovision")
+except PackageNotFoundError:
+    __version__ = "unknown"
