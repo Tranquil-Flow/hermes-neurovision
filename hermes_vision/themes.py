@@ -83,7 +83,15 @@ class ThemeConfig:
     palette: Tuple[int, int, int, int] = (curses.COLOR_CYAN, curses.COLOR_BLUE, curses.COLOR_WHITE, curses.COLOR_MAGENTA)
 
 
+# Runtime registry for imported themes
+_runtime_configs = {}
+
+
 def build_theme_config(name: str) -> ThemeConfig:
+    # Check runtime configs first (for imported themes)
+    if name in _runtime_configs:
+        return _runtime_configs[name]
+    
     configs = {
         # ── Originals ────────────────────────────────────────────
         "neural-sky": ThemeConfig(name, "Neural Sky", "*", 0.030, 0.10, 0.40, 0.32, (0.04, 0.08), 0.10, 0.4, 3, palette=(curses.COLOR_CYAN, curses.COLOR_BLUE, curses.COLOR_WHITE, curses.COLOR_MAGENTA)),

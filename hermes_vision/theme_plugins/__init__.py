@@ -7,6 +7,9 @@ from hermes_vision.plugin import ThemePlugin
 # Plugin registry — populated by imports below
 _PLUGINS: dict[str, ThemePlugin] = {}
 
+# Runtime registry for imported theme plugins
+_runtime_plugins: dict[str, ThemePlugin] = {}
+
 
 def register(plugin: ThemePlugin) -> ThemePlugin:
     """Register a plugin instance by its name."""
@@ -16,6 +19,9 @@ def register(plugin: ThemePlugin) -> ThemePlugin:
 
 def get_plugin(name: str) -> ThemePlugin:
     """Get plugin for a theme name, falling back to base plugin."""
+    # Check runtime plugins first (for imported themes)
+    if name in _runtime_plugins:
+        return _runtime_plugins[name]
     return _PLUGINS.get(name, ThemePlugin())
 
 
