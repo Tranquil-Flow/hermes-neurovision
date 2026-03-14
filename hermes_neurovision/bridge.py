@@ -46,13 +46,15 @@ _MAPPING = {
     "file_written":      ("packet",     0.4, "soft",    "random_edge"),
     "web_search":        ("pulse",      0.5, "accent",  "center"),
     "image_generated":   ("burst",      0.7, "bright",  "random_node"),
-    "active_session":    ("pulse",      0.3, "soft",    "center"),
-    "message_added":     ("packet",     0.3, "soft",    "random_edge"),
-    "trajectory_logged": ("pulse",      0.4, "soft",    "random_node"),
-    "trajectory_failed": ("flash",      0.8, "warning", "random_node"),
-    "session_duration":  ("pulse",      0.5, "accent",  "all"),
-    "tool_burst":        ("burst",      0.9, "bright",  "center"),
-    "tool_chain":        ("packet",     0.7, "accent",  "random_edge"),
+    "active_session":    ("wake",       0.6, "accent",  "all"),
+    "message_added":     ("packet",     0.6, "accent",  "random_edge"),
+    "trajectory_logged":      ("pulse",      0.4, "soft",    "random_node"),
+    "trajectory_failed":      ("flash",      0.8, "warning", "random_node"),
+    "session_duration":       ("pulse",      0.5, "accent",  "all"),
+    "tool_burst":             ("burst",      0.9, "bright",  "center"),
+    "tool_chain":             ("packet",     0.7, "accent",  "random_edge"),
+    "delegate_task_started":  ("spawn_node", 1.0, "bright",  "new"),
+    "delegate_task_done":     ("burst",      0.9, "bright",  "center"),
 }
 
 

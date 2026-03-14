@@ -20,6 +20,7 @@ SOURCE_COLORS = {
     "aegis": "yellow",
     "custom": "green",
     "trajectories": "cyan",
+    "docker": "green",
 }
 
 
@@ -101,6 +102,12 @@ def _format_event(ev: VisionEvent) -> str:
         tool = data.get("tool_name", "?")
         count = data.get("repeat_count", 0)
         return f"[{ts}] Tool chain: {tool} x{count}"
+    elif ev.kind == "delegate_task_started":
+        name = data.get("container", "?")
+        return f"[{ts}] delegate:started [{name[:24]}]"
+    elif ev.kind == "delegate_task_done":
+        name = data.get("container", "?")
+        return f"[{ts}] delegate:done [{name[:24]}]"
     else:
         return f"[{ts}] {ev.kind}"
 

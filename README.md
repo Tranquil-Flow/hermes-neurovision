@@ -313,7 +313,7 @@ No additional configuration needed - just install and run!
 - **[QUICKSTART.md](QUICKSTART.md)** - 60-second setup guide
 - **[AUTOLAUNCH.md](AUTOLAUNCH.md)** - Auto-launch setup & testing
 - **[CHANGELOG.md](CHANGELOG.md)** - Version history
-- **[PLAN_v0.1.2.md](PLAN_v0.1.2.md)** - Upcoming features (interactive theme editor)
+- **[PLAN_v0.1.3.md](PLAN_v0.1.2.md)** - Upcoming features (interactive theme editor)
 
 ---
 

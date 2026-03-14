@@ -1,8 +1,8 @@
-# Hermes Neurovision v0.1.2 Plan
+# Hermes Neurovision v0.1.3 Plan
 
 ## Overview
 
-v0.1.2 focuses on interactive parameter adjustment via sliders/keyboard controls in the CLI.
+v0.1.3 focuses on interactive parameter adjustment via sliders/keyboard controls in the CLI.
 
 ## Core Feature: Interactive Theme Editor
 

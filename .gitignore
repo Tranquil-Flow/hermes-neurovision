@@ -44,3 +44,4 @@ Thumbs.db
 *.pyc
 .env
 *.mov
+.claude/
