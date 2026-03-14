@@ -32,14 +32,25 @@ def main():
     # Step 2: Install package
     current += 1
     print_step(current, total_steps, "Installing hermes-neurovision package...")
+    
+    # Try with --user and --break-system-packages for macOS
+    install_args = [sys.executable, "-m", "pip", "install", "-e", ".", "--user", "--break-system-packages"]
+    
     try:
-        subprocess.run(
-            [sys.executable, "-m", "pip", "install", "-e", "."],
-            check=True,
-            capture_output=True
-        )
-        print("✅ Package installed")
-    except subprocess.CalledProcessError as e:
+        result = subprocess.run(install_args, capture_output=True, text=True)
+        if result.returncode == 0:
+            print("✅ Package installed")
+        else:
+            # Try without --break-system-packages if that flag doesn't work
+            print("⚠️  Trying alternate install method...")
+            install_args = [sys.executable, "-m", "pip", "install", "-e", ".", "--user"]
+            result = subprocess.run(install_args, capture_output=True, text=True)
+            if result.returncode == 0:
+                print("✅ Package installed")
+            else:
+                print(f"❌ Installation failed: {result.stderr}")
+                sys.exit(1)
+    except Exception as e:
         print(f"❌ Installation failed: {e}")
         sys.exit(1)
     
@@ -63,9 +74,14 @@ def main():
     os.makedirs(config_dir, exist_ok=True)
     print(f"✅ Config directory: {config_dir}")
     
-    # Step 5: Test installation
+    # Step 5: Test installation and provide PATH fix
     current += 1
     print_step(current, total_steps, "Testing installation...")
+    
+    # Detect where the script was installed
+    python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
+    user_bin = os.path.expanduser(f"~/Library/Python/{python_version}/bin")
+    
     try:
         result = subprocess.run(
             ["hermes-neurovision", "--help"],
@@ -76,11 +92,15 @@ def main():
         if result.returncode == 0:
             print("✅ CLI command works")
         else:
-            print("⚠️  CLI may need PATH adjustment")
-            print(f"   Try: export PATH=\"$HOME/.local/bin:$PATH\"")
+            raise FileNotFoundError("Not in PATH")
     except (subprocess.TimeoutExpired, FileNotFoundError):
-        print("⚠️  Command 'hermes-neurovision' not found in PATH")
-        print(f"   You may need to add to PATH or use: python3 -m hermes_neurovision.cli")
+        print("⚠️  Command 'hermes-neurovision' not in PATH")
+        print(f"\\n   The command is installed in: {user_bin}")
+        print(f"\\n   🔧 FIX: Add to your PATH by running:")
+        print(f"\\n   echo 'export PATH=\\\"{user_bin}:$PATH\\\"' >> ~/.zshrc")
+        print(f"   source ~/.zshrc")
+        print(f"\\n   OR use directly:")
+        print(f"   python3 -m hermes_neurovision --gallery")
     
     # Done!
     print("\n" + "=" * 60)
