@@ -4,7 +4,7 @@
 
 A beautiful living neural network that reacts to your AI agent's activity in real-time. Watch as tool calls become traveling packets, memory updates spawn new nodes, and token usage creates pulsating waves across cosmic visualizations.
 
-![Version](https://img.shields.io/badge/version-0.1.0-blue)
+![Version](https://img.shields.io/badge/version-0.1.1-blue)
 ![Python](https://img.shields.io/badge/python-3.10+-green)
 ![Tests](https://img.shields.io/badge/tests-63%20passing-brightgreen)
 ![Dependencies](https://img.shields.io/badge/dependencies-stdlib%20only-orange)
@@ -20,6 +20,7 @@ A beautiful living neural network that reacts to your AI agent's activity in rea
 📝 **Log Overlay** - Color-coded event stream with fading text  
 🌓 **Daemon Mode** - Gallery when idle, live when active  
 🚀 **Auto-Launch** - Opens automatically with cron jobs  
+💾 **Theme Export/Import** - Share custom themes as .hvtheme files  
 ⚡ **Pure Stdlib** - Zero external dependencies  
 🧪 **63 Tests** - 100% passing, production-ready  
 🎭 **Plugin System** - Extensible theme architecture  
@@ -270,6 +271,39 @@ Create `~/.hermes/vision/config.json`:
   "launch_command": "hermes-vision --daemon --logs"
 }
 ```
+
+### Theme Export/Import (NEW in v0.1.1)
+
+Share custom themes as portable `.hvtheme` files:
+
+```bash
+# Export a theme
+hermes-vision --export neural-sky --author "YourName"
+
+# Preview a theme before importing
+hermes-vision --import mytheme.hvtheme --preview
+
+# Import a theme
+hermes-vision --import mytheme.hvtheme
+
+# List all imported themes
+hermes-vision --list-themes
+
+# Use an imported theme
+hermes-vision --theme mytheme
+```
+
+**Theme Types:**
+- **Config-only**: Just parameter tweaks (safe, no code)
+- **Custom plugin**: Includes Python code (requires confirmation)
+
+**Use Cases:**
+- Share themes with the community
+- Backup your custom themes
+- Have AI agents design themes for you
+- Download themes from others
+
+See `V0.1.1_IMPLEMENTATION_COMPLETE.md` for full details.
 
 ### Integration with Hermes Agent
 

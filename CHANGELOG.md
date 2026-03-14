@@ -5,6 +5,34 @@ All notable changes to Hermes Vision will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-03-14
+
+### Added
+- **Theme Export/Import System**: Share themes as portable .hvtheme files
+  - `--export THEME` command to export any theme
+  - `--import FILE` command to import themes
+  - `--preview` flag to preview themes before installing
+  - `--list-themes` command to show all imported themes
+  - Theme registry tracking imported themes
+  - Version compatibility checking with graceful degradation
+  - Security warnings and confirmation for custom plugin themes
+  - Metadata support (author, description, timestamp)
+- **Runtime Theme Registration**: Import themes without code installation
+  - Runtime config registry for imported theme parameters
+  - Runtime plugin registry for imported custom plugins
+- **Documentation**:
+  - `VERSION_COMPATIBILITY.md` - Version strategy
+  - `PLAN_v0.1.2.md` - Future slider features
+  - `V0.1.1_IMPLEMENTATION_COMPLETE.md` - Implementation summary
+  - `RENAME_ASSESSMENT.md` - Potential rename to hermes-neurovision
+
+### Changed
+- CLI `--theme` argument now accepts any string (not limited to built-in themes)
+- Version bumped to 0.1.1
+
+### Fixed
+- Plugin execution namespace now includes required imports (ThemePlugin, Particle, math)
+
 ## [0.1.0] - 2026-03-14
 
 ### Added
@@ -19,6 +47,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Maze Runner completely redesigned as "Shifting Dimensional Maze" with reality tears and phasing portals
   - Bonfire visualization with large, visible flames
   - Circuit Board with components spread across entire screen
+- **Live Event Monitoring**: Monitors state.db, memories, cron, trajectories, aegis, custom events
+- **Gallery Mode**: Browse all 42 themes with auto-rotation
+- **Daemon Mode**: Gallery when idle, switches to live mode when agent is active
+- **Log Overlay**: Color-coded event stream with fading text
+- **Auto-Launch**: Opens automatically with cron jobs
+- **Hook System**: Gateway hook integration for event capture
 
 ### Changed
 - **Black Hole moved to #1 position** (first theme in gallery)
@@ -57,5 +91,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 34 event types
 - 8 visual effects (packet, pulse, burst, flash, spawn_node, wake, cool_down, dim)
 
+[0.1.1]: https://github.com/NousResearch/hermes-vision/releases/tag/v0.1.1
 [0.1.0]: https://github.com/NousResearch/hermes-vision/releases/tag/v0.1.0
 [0.0.1]: https://github.com/NousResearch/hermes-vision/releases/tag/v0.0.1
