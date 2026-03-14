@@ -136,7 +136,7 @@ def _run_gallery(args):
     
     try:
         curses.wrapper(run_gallery_wrapper)
-    except SystemExit:
+    except (SystemExit, KeyboardInterrupt):
         pass
     
     # If user selected a theme with 's', launch live mode with it
@@ -177,7 +177,10 @@ def _run_live(args):
                       end_after=args.seconds, show_logs=args.logs)
         app.run()
 
-    curses.wrapper(run_curses)
+    try:
+        curses.wrapper(run_curses)
+    except KeyboardInterrupt:
+        pass
 
 
 def _run_daemon(args):
@@ -213,4 +216,7 @@ def _run_daemon(args):
         app = DaemonApp(stdscr, themes, args.theme_seconds, poller, bridge, log_overlay, show_logs=args.logs)
         app.run()
 
-    curses.wrapper(run_curses)
+    try:
+        curses.wrapper(run_curses)
+    except KeyboardInterrupt:
+        pass
