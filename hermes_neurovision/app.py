@@ -162,9 +162,9 @@ class LiveApp:
             self._handle_input()
             self.state.step()
 
-            # Poll every ~20 frames (1 second at 50ms/frame)
+            # Poll every ~5 frames (0.25 seconds at 50ms/frame)
             self._poll_counter += 1
-            if self._poll_counter >= 20:
+            if self._poll_counter >= 5:
                 self._poll_counter = 0
                 events = self.poller.poll()
                 if events:
@@ -266,7 +266,7 @@ class DaemonApp:
 
     def _make_gallery_state(self, theme_name: str) -> ThemeState:
         h, w = self.stdscr.getmaxyx()
-        return ThemeState(build_theme_config(theme_name), w, h, seed=(hash(theme_name) & 0xFFFF), quiet=self.quiet)
+        return ThemeState(build_theme_config(theme_name), w, h, seed=(hash(theme_name) & 0xFFFF), quiet=False)
 
     def _make_live_state(self) -> ThemeState:
         h, w = self.stdscr.getmaxyx()
@@ -282,7 +282,7 @@ class DaemonApp:
             
             # Poll for events every ~20 frames (1 second)
             self._poll_counter += 1
-            if self._poll_counter >= 20:
+            if self._poll_counter >= 5:
                 self._poll_counter = 0
                 events = self.poller.poll()
                 
