@@ -76,6 +76,8 @@ class ThemeState:
     flash_until: float = 0.0
     flash_color_key: str = "warning"
 
+    quiet: bool = False  # suppress passive spawning; only react to explicit events
+
     MAX_DYNAMIC_NODES = 64
 
     def __post_init__(self) -> None:
@@ -270,6 +272,8 @@ class ThemeState:
                 star[1] = self.rng.uniform(1, max(2, self.height - 2))
 
     def _spawn_packets(self) -> None:
+        if self.quiet:
+            return
         if not self.edges:
             return
         packet_budget = self.plugin.packet_budget()
@@ -291,12 +295,13 @@ class ThemeState:
         self.packets = alive[-12:]
 
     def _spawn_particles(self) -> None:
-        if self.rng.random() < self.config.pulse_rate and self.nodes:
-            nx, ny = self.rng.choice(self.nodes)
-            self.pulses.append((nx, ny, 0.0))
+        if not self.quiet:
+            if self.rng.random() < self.config.pulse_rate and self.nodes:
+                nx, ny = self.rng.choice(self.nodes)
+                self.pulses.append((nx, ny, 0.0))
 
         base_chance = self.plugin.particle_base_chance()
-        if self.rng.random() > base_chance:
+        if self.quiet or self.rng.random() > base_chance:
             return
 
         # Try plugin particle first

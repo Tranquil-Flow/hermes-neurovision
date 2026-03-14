@@ -134,7 +134,7 @@ class GalleryApp:
 class LiveApp:
     """Live mode — polls events and maps them to visual triggers."""
 
-    def __init__(self, stdscr: "curses._CursesWindow", theme_name: str, poller, bridge, log_overlay, end_after: Optional[float] = None, show_logs: bool = False) -> None:
+    def __init__(self, stdscr: "curses._CursesWindow", theme_name: str, poller, bridge, log_overlay, end_after: Optional[float] = None, show_logs: bool = False, quiet: bool = False) -> None:
         self.stdscr = stdscr
         self.theme_name = theme_name
         self.poller = poller
@@ -144,7 +144,7 @@ class LiveApp:
         self.end_after = end_after
         self.renderer = Renderer(stdscr)
         h, w = stdscr.getmaxyx()
-        self.state = ThemeState(build_theme_config(theme_name), w, h, seed=hash(theme_name) & 0xFFFF)
+        self.state = ThemeState(build_theme_config(theme_name), w, h, seed=hash(theme_name) & 0xFFFF, quiet=quiet)
         self._last_event_time = time.time()
         self._idle_threshold = 10.0
         self._poll_counter = 0
@@ -236,7 +236,7 @@ class LiveApp:
 class DaemonApp:
     """Daemon mode — gallery when idle, switches to live on events."""
 
-    def __init__(self, stdscr: "curses._CursesWindow", themes: Sequence[str], theme_seconds: float, poller, bridge, log_overlay, show_logs: bool = False) -> None:
+    def __init__(self, stdscr: "curses._CursesWindow", themes: Sequence[str], theme_seconds: float, poller, bridge, log_overlay, show_logs: bool = False, quiet: bool = False) -> None:
         self.stdscr = stdscr
         self.themes = list(themes)
         self.theme_seconds = max(1.0, theme_seconds)
@@ -244,6 +244,7 @@ class DaemonApp:
         self.bridge = bridge
         self.log_overlay = log_overlay
         self.show_logs = show_logs
+        self.quiet = quiet
         self.renderer = Renderer(stdscr)
         
         # Gallery state
@@ -265,11 +266,11 @@ class DaemonApp:
 
     def _make_gallery_state(self, theme_name: str) -> ThemeState:
         h, w = self.stdscr.getmaxyx()
-        return ThemeState(build_theme_config(theme_name), w, h, seed=(hash(theme_name) & 0xFFFF))
+        return ThemeState(build_theme_config(theme_name), w, h, seed=(hash(theme_name) & 0xFFFF), quiet=self.quiet)
 
     def _make_live_state(self) -> ThemeState:
         h, w = self.stdscr.getmaxyx()
-        return ThemeState(build_theme_config(self.selected_theme_name), w, h, seed=hash(self.selected_theme_name) & 0xFFFF)
+        return ThemeState(build_theme_config(self.selected_theme_name), w, h, seed=hash(self.selected_theme_name) & 0xFFFF, quiet=self.quiet)
 
     def run(self) -> None:
         curses.curs_set(0)

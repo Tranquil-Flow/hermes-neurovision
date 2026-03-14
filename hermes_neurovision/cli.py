@@ -25,6 +25,7 @@ def parse_args(argv=None):
     parser.add_argument("--auto-exit", action="store_true", help="Exit 30s after last event")
     parser.add_argument("--seconds", type=float, default=None, help="Exit after N seconds (testing)")
     parser.add_argument("--no-aegis", action="store_true", help="Skip Aegis source")
+    parser.add_argument("--quiet", action="store_true", help="Suppress passive animation — only react to real agent events")
     
     # Export/Import
     parser.add_argument("--export", metavar="THEME", help="Export theme to .hvtheme file")
@@ -174,7 +175,7 @@ def _run_live(args):
 
     def run_curses(stdscr):
         app = LiveApp(stdscr, args.theme, poller, bridge, log_overlay,
-                      end_after=args.seconds, show_logs=args.logs)
+                      end_after=args.seconds, show_logs=args.logs, quiet=args.quiet)
         app.run()
 
     try:
@@ -213,7 +214,7 @@ def _run_daemon(args):
     themes = list(THEMES)
 
     def run_curses(stdscr):
-        app = DaemonApp(stdscr, themes, args.theme_seconds, poller, bridge, log_overlay, show_logs=args.logs)
+        app = DaemonApp(stdscr, themes, args.theme_seconds, poller, bridge, log_overlay, show_logs=args.logs, quiet=args.quiet)
         app.run()
 
     try:
