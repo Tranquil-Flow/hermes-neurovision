@@ -2,7 +2,7 @@ from hermes_neurovision.themes import THEMES, ThemeConfig, build_theme_config
 
 
 def test_all_theme_names_are_defined():
-    assert len(THEMES) == 55
+    assert len(THEMES) == 58
     assert "neural-sky" in THEMES
     assert "black-hole" in THEMES
     assert "synaptic-plasma" in THEMES
@@ -10,6 +10,9 @@ def test_all_theme_names_are_defined():
     assert "fractal-engine" in THEMES
     assert "n-body" in THEMES
     assert "standing-waves" in THEMES
+    assert "clifford-attractor" in THEMES
+    assert "barnsley-fern" in THEMES
+    assert "flow-field" in THEMES
 
 
 def test_build_theme_config_returns_config():
@@ -28,6 +31,12 @@ def test_all_themes_can_be_built():
         "starfall", "quasar", "supernova", "sol", "terra", "binary-star",
         # Extreme field themes
         "fractal-engine", "n-body", "standing-waves",
+        # Redesigned originals + nature (v2)
+        "black-hole", "neural-sky", "storm-core", "moonwire", "rootsong",
+        "stormglass", "spiral-galaxy",
+        "deep-abyss", "storm-sea", "dark-forest", "mountain-stars", "beach-lighthouse",
+        # Experimental
+        "clifford-attractor", "barnsley-fern", "flow-field",
     }
     for name in THEMES:
         config = build_theme_config(name)

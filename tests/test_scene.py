@@ -3,7 +3,8 @@ from hermes_neurovision.scene import ThemeState, Particle, Packet
 
 
 def test_theme_state_builds_scene():
-    config = build_theme_config("neural-sky")
+    # Use a theme that still uses the traditional node-based graph rendering
+    config = build_theme_config("electric-mycelium")
     state = ThemeState(config, 100, 30, seed=42)
     assert len(state.nodes) > 0
     assert len(state.edges) > 0
@@ -11,7 +12,7 @@ def test_theme_state_builds_scene():
 
 
 def test_theme_state_step_advances_frame():
-    config = build_theme_config("neural-sky")
+    config = build_theme_config("electric-mycelium")
     state = ThemeState(config, 100, 30, seed=42)
     assert state.frame == 0
     state.step()
@@ -19,7 +20,7 @@ def test_theme_state_step_advances_frame():
 
 
 def test_theme_state_resize():
-    config = build_theme_config("neural-sky")
+    config = build_theme_config("electric-mycelium")
     state = ThemeState(config, 100, 30, seed=42)
     old_nodes = len(state.nodes)
     state.resize(200, 60)
@@ -65,7 +66,7 @@ class FakeTrigger:
 
 
 def test_apply_trigger_packet():
-    config = build_theme_config("neural-sky")
+    config = build_theme_config("electric-mycelium")
     state = ThemeState(config, 100, 30, seed=42)
     before = len(state.packets)
     state.apply_trigger(FakeTrigger("packet", target="random_edge"))
@@ -73,7 +74,7 @@ def test_apply_trigger_packet():
 
 
 def test_apply_trigger_burst():
-    config = build_theme_config("neural-sky")
+    config = build_theme_config("electric-mycelium")
     state = ThemeState(config, 100, 30, seed=42)
     before = len(state.particles)
     state.apply_trigger(FakeTrigger("burst", intensity=0.8))
@@ -81,7 +82,7 @@ def test_apply_trigger_burst():
 
 
 def test_apply_trigger_pulse():
-    config = build_theme_config("neural-sky")
+    config = build_theme_config("electric-mycelium")
     state = ThemeState(config, 100, 30, seed=42)
     before = len(state.pulses)
     state.apply_trigger(FakeTrigger("pulse"))
@@ -89,21 +90,21 @@ def test_apply_trigger_pulse():
 
 
 def test_apply_trigger_wake():
-    config = build_theme_config("neural-sky")
+    config = build_theme_config("electric-mycelium")
     state = ThemeState(config, 100, 30, seed=42)
     state.apply_trigger(FakeTrigger("wake"))
     assert state._intensity_target == 1.0
 
 
 def test_apply_trigger_cool_down():
-    config = build_theme_config("neural-sky")
+    config = build_theme_config("electric-mycelium")
     state = ThemeState(config, 100, 30, seed=42)
     state.apply_trigger(FakeTrigger("cool_down"))
     assert state._intensity_target == 0.3
 
 
 def test_apply_trigger_spawn_node():
-    config = build_theme_config("neural-sky")
+    config = build_theme_config("electric-mycelium")
     state = ThemeState(config, 100, 30, seed=42)
     before = len(state.nodes)
     state.apply_trigger(FakeTrigger("spawn_node", target="new"))
