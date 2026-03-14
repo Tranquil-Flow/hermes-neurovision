@@ -243,8 +243,17 @@ def _register_theme_config(theme_name: str, title: str, config_dict: Dict[str, A
 
 def _register_plugin(theme_name: str, plugin_code: str, class_name: str) -> None:
     """Register plugin at runtime."""
-    # Execute plugin code in namespace
-    namespace = {}
+    # Import necessary items for plugin code
+    from hermes_vision.plugin import ThemePlugin
+    from hermes_vision.scene import Particle
+    import math
+    
+    # Execute plugin code in namespace with required imports
+    namespace = {
+        'ThemePlugin': ThemePlugin,
+        'Particle': Particle,
+        'math': math,
+    }
     exec(plugin_code, namespace)
     
     # Get plugin class
