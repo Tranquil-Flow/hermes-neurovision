@@ -116,7 +116,7 @@ def _try_auto_launch() -> None:
         pass  # Fail silently - never crash the gateway
 
 
-def handle(event_type: str, context: dict) -> None:
+async def handle(event_type: str, context: dict) -> None:
     """Append event as JSON line. Called by Hermes gateway hook system."""
     os.makedirs(os.path.dirname(_EVENTS_PATH), exist_ok=True)
 
@@ -132,7 +132,7 @@ def handle(event_type: str, context: dict) -> None:
             f.write(json.dumps(entry) + "\n")
     except OSError:
         pass  # Never crash the gateway
-    
+
     # Then attempt auto-launch if conditions are met
     try:
         if _should_auto_launch(event_type, context):

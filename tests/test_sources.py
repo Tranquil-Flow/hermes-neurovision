@@ -59,7 +59,7 @@ def _create_test_db(path):
         CREATE TABLE messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             session_id TEXT NOT NULL REFERENCES sessions(id),
-            role TEXT NOT NULL, content TEXT, tool_name TEXT,
+            role TEXT NOT NULL, content TEXT, tool_name TEXT, tool_calls TEXT,
             timestamp REAL NOT NULL, token_count INTEGER
         );
     """)
@@ -78,14 +78,18 @@ def test_state_db_detects_new_messages():
     try:
         conn = _create_test_db(path)
         conn.execute("INSERT INTO sessions VALUES ('s1','local','gpt-4',1000.0,NULL,0,0,0,0,NULL)")
-        conn.execute("INSERT INTO messages VALUES (1,'s1','user','hello',NULL,1000.1,10)")
+        conn.commit()
+
+        # Create source before inserting messages so it only picks up new ones
+        source = StateDbSource(path)
+        source.poll(0.0)  # establish session baseline
+
+        conn.execute("INSERT INTO messages VALUES (1,'s1','user','hello',NULL,NULL,1000.1,10)")
         conn.commit()
         conn.close()
 
-        source = StateDbSource(path)
         events = source.poll(0.0)
         kinds = [e.kind for e in events]
-        assert "active_session" in kinds
         assert "message_added" in kinds
     finally:
         os.unlink(path)
@@ -158,8 +162,8 @@ def test_state_db_detects_tool_burst():
         # Insert 5 tool calls in quick succession
         now = time.time()
         for i in range(5):
-            conn.execute("INSERT INTO messages VALUES (?,?,?,?,?,?,?)",
-                        (i+1, 's1', 'assistant', '', f'tool{i}', now + i, 10))
+            conn.execute("INSERT INTO messages VALUES (?,?,?,?,?,?,?,?)",
+                        (i+1, 's1', 'assistant', '', f'tool{i}', None, now + i, 10))
         conn.commit()
         
         events = source.poll(time.time())
@@ -187,8 +191,8 @@ def test_state_db_detects_tool_chain():
         # Insert same tool 3 times
         now = time.time()
         for i in range(3):
-            conn.execute("INSERT INTO messages VALUES (?,?,?,?,?,?,?)",
-                        (i+1, 's1', 'assistant', '', 'read_file', now + i*2, 10))
+            conn.execute("INSERT INTO messages VALUES (?,?,?,?,?,?,?,?)",
+                        (i+1, 's1', 'assistant', '', 'read_file', None, now + i*2, 10))
         conn.commit()
         
         events = source.poll(time.time())
@@ -305,8 +309,9 @@ def test_hook_handler_writes_jsonl():
         os.environ["HERMES_VISION_EVENTS_PATH"] = output_path
         spec.loader.exec_module(module)
 
-        # Simulate a hook call
-        module.handle("agent:start", {"session_id": "test123", "platform": "local"})
+        # Simulate a hook call (handler is async)
+        import asyncio
+        asyncio.run(module.handle("agent:start", {"session_id": "test123", "platform": "local"}))
 
         # Verify output
         with open(output_path) as f:

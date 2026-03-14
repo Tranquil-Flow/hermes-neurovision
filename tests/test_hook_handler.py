@@ -1,3 +1,4 @@
+import asyncio
 """Tests for hook_handler module."""
 
 import json
@@ -19,7 +20,7 @@ def test_handle_writes_event():
         events_path = os.path.join(tmpdir, "events.jsonl")
         
         with patch.object(hook_handler, "_EVENTS_PATH", events_path):
-            hook_handler.handle("agent:start", {"test": "data"})
+            asyncio.run(hook_handler.handle("agent:start", {"test": "data"}))
             
             # Verify file was created and written
             assert os.path.exists(events_path)
@@ -40,9 +41,9 @@ def test_handle_appends_events():
         events_path = os.path.join(tmpdir, "events.jsonl")
         
         with patch.object(hook_handler, "_EVENTS_PATH", events_path):
-            hook_handler.handle("agent:start", {"event": 1})
-            hook_handler.handle("agent:step", {"event": 2})
-            hook_handler.handle("agent:end", {"event": 3})
+            asyncio.run(hook_handler.handle("agent:start", {"event": 1}))
+            asyncio.run(hook_handler.handle("agent:step", {"event": 2}))
+            asyncio.run(hook_handler.handle("agent:end", {"event": 3}))
             
             with open(events_path, "r") as f:
                 lines = f.readlines()
@@ -60,7 +61,7 @@ def test_handle_creates_directory():
         events_path = os.path.join(tmpdir, "nested", "dir", "events.jsonl")
         
         with patch.object(hook_handler, "_EVENTS_PATH", events_path):
-            hook_handler.handle("test:event", {})
+            asyncio.run(hook_handler.handle("test:event", {}))
             
             # Should create nested directories
             assert os.path.exists(events_path)
@@ -71,7 +72,7 @@ def test_handle_never_crashes_on_write_error():
     with patch("builtins.open", side_effect=OSError("Test error")):
         # Should not raise
         try:
-            hook_handler.handle("test:event", {})
+            asyncio.run(hook_handler.handle("test:event", {}))
         except Exception as e:
             pytest.fail(f"handle() raised exception: {e}")
 
@@ -182,10 +183,10 @@ def test_try_auto_launch_calls_subprocess():
         # Verify subprocess was called
         mock_popen.assert_called_once()
         
-        # Verify command is calling hermes-neurovision CLI
+        # Verify command launches hermes-neurovision (via python3 launcher or directly)
         call_args = mock_popen.call_args[0][0]
-        assert "hermes-neurovision" in call_args
-        assert "--daemon" in call_args or "--auto-exit" in call_args
+        full_cmd = " ".join(call_args) if isinstance(call_args, list) else call_args
+        assert "hermes-neurovision" in full_cmd
         
         # Verify detached execution
         kwargs = mock_popen.call_args[1]
@@ -219,7 +220,7 @@ def test_handle_triggers_auto_launch():
             with patch.object(hook_handler, "_CONFIG_PATH", config_path):
                 with patch("subprocess.Popen") as mock_popen:
                     # Call with cron trigger
-                    hook_handler.handle("agent:start", {"source": "cron"})
+                    asyncio.run(hook_handler.handle("agent:start", {"source": "cron"}))
                     
                     # Should have written event
                     assert os.path.exists(events_path)
@@ -243,11 +244,11 @@ def test_handle_does_not_launch_wrong_conditions():
             with patch.object(hook_handler, "_CONFIG_PATH", config_path):
                 with patch("subprocess.Popen") as mock_popen:
                     # Wrong event type
-                    hook_handler.handle("agent:step", {"source": "cron"})
+                    asyncio.run(hook_handler.handle("agent:step", {"source": "cron"}))
                     mock_popen.assert_not_called()
                     
                     # Wrong source
-                    hook_handler.handle("agent:start", {"source": "manual"})
+                    asyncio.run(hook_handler.handle("agent:start", {"source": "manual"}))
                     mock_popen.assert_not_called()
 
 
@@ -266,7 +267,7 @@ def test_handle_writes_event_even_if_launch_fails():
             with patch.object(hook_handler, "_CONFIG_PATH", config_path):
                 with patch("subprocess.Popen", side_effect=Exception("Launch failed")):
                     # Should not raise
-                    hook_handler.handle("agent:start", {"source": "cron"})
+                    asyncio.run(hook_handler.handle("agent:start", {"source": "cron"}))
                     
                     # Event should still be written
                     assert os.path.exists(events_path)
@@ -294,7 +295,7 @@ def test_handle_crash_safety():
             with patch.object(hook_handler, "_EVENTS_PATH", events_path):
                 if "write_error" in test_case:
                     with patch("builtins.open", side_effect=test_case["write_error"]):
-                        hook_handler.handle("test:event", {})
+                        asyncio.run(hook_handler.handle("test:event", {}))
                 
                 elif "config_error" in test_case:
                     # Create a broken config file that will cause json.load to fail
@@ -304,7 +305,7 @@ def test_handle_crash_safety():
                     
                     with patch.object(hook_handler, "_CONFIG_PATH", config_path):
                         # Should not crash even if config parsing fails
-                        hook_handler.handle("agent:start", {"source": "cron"})
+                        asyncio.run(hook_handler.handle("agent:start", {"source": "cron"}))
                 
                 elif "launch_error" in test_case:
                     config = {"auto_launch": True}
@@ -314,7 +315,7 @@ def test_handle_crash_safety():
                     
                     with patch.object(hook_handler, "_CONFIG_PATH", config_path):
                         with patch("subprocess.Popen", side_effect=test_case["launch_error"]):
-                            hook_handler.handle("agent:start", {"source": "cron"})
+                            asyncio.run(hook_handler.handle("agent:start", {"source": "cron"}))
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
 import time
@@ -101,12 +102,21 @@ class StateDbSource:
 
     def _poll_messages(self, conn, events):
         rows = conn.execute(
-            "SELECT id, session_id, role, tool_name, timestamp FROM messages WHERE id > ? ORDER BY id",
+            "SELECT id, session_id, role, tool_name, tool_calls, timestamp FROM messages WHERE id > ? ORDER BY id",
             (self._last_message_id,)
         ).fetchall()
 
         for row in rows:
             self._last_message_id = row["id"]
+            # Extract tool name: prefer tool_name column, fall back to parsing tool_calls JSON
+            tool_name = row["tool_name"] or ""
+            if not tool_name and row["tool_calls"]:
+                try:
+                    calls = json.loads(row["tool_calls"])
+                    if calls and isinstance(calls, list):
+                        tool_name = calls[0].get("function", {}).get("name", "")
+                except (json.JSONDecodeError, (AttributeError, KeyError, IndexError)):
+                    pass
             events.append(VisionEvent(
                 timestamp=row["timestamp"], source="state_db",
                 kind="message_added", severity="info",
@@ -114,7 +124,7 @@ class StateDbSource:
                     "message_id": row["id"],
                     "session_id": row["session_id"],
                     "role": row["role"],
-                    "tool_name": row["tool_name"],
+                    "tool_name": tool_name,
                 },
             ))
 
