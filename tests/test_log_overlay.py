@@ -14,18 +14,26 @@ def test_log_overlay_add_event():
 
 def test_log_overlay_fading():
     overlay = LogOverlay(max_lines=10)
-    old_time = time.time() - 5.0  # 5 seconds ago
-    ev = VisionEvent(old_time, "agent", "tool_call", "info", {"tool_name": "web_search"})
-    overlay.add_event(ev)
-    lines = overlay.get_visible_lines(time.time())
-    # Should still be visible (< 8s) but dimmed (> 3s)
-    assert len(lines) == 1
-    assert lines[0][1] == "dim"
+    now = time.time()
+    # Fresh (< 15s) → bold
+    ev_fresh = VisionEvent(now - 5.0, "agent", "tool_call", "info", {"tool_name": "web_search"})
+    overlay.add_event(ev_fresh)
+    # Mid-age (15-40s) → normal
+    ev_mid = VisionEvent(now - 20.0, "agent", "tool_call", "info", {"tool_name": "read"})
+    overlay.add_event(ev_mid)
+    # Old (40-60s) → dim
+    ev_old = VisionEvent(now - 50.0, "agent", "tool_call", "info", {"tool_name": "write"})
+    overlay.add_event(ev_old)
+    lines = overlay.get_visible_lines(now)
+    assert len(lines) == 3
+    assert lines[0][1] == "bold"
+    assert lines[1][1] == "normal"
+    assert lines[2][1] == "dim"
 
 
 def test_log_overlay_expiry():
     overlay = LogOverlay(max_lines=10)
-    old_time = time.time() - 10.0  # 10 seconds ago
+    old_time = time.time() - 61.0  # 61 seconds ago — past the 60s expiry
     ev = VisionEvent(old_time, "agent", "tool_call", "info", {})
     overlay.add_event(ev)
     lines = overlay.get_visible_lines(time.time())

@@ -203,8 +203,9 @@ class LiveApp:
             attr = curses.color_pair(color_map.get(color, 3))
             if brightness == "bold":
                 attr |= curses.A_BOLD
-            else:
+            elif brightness == "dim":
                 attr |= curses.A_DIM
+            # "normal" — no modifier, just the color
             try:
                 self.stdscr.addstr(y, 1, text[:w - 2], attr)
             except curses.error:
@@ -386,8 +387,9 @@ class DaemonApp:
             attr = curses.color_pair(color_map.get(color, 3))
             if brightness == "bold":
                 attr |= curses.A_BOLD
-            else:
+            elif brightness == "dim":
                 attr |= curses.A_DIM
+            # "normal" — no modifier, just the color
             try:
                 self.stdscr.addstr(y, 1, text[:w - 2], attr)
             except curses.error:

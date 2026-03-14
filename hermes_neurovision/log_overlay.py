@@ -8,8 +8,9 @@ from typing import List, Tuple
 
 from hermes_neurovision.events import VisionEvent
 
-FADE_AFTER = 6.0    # seconds before dimming (configurable)
-EXPIRE_AFTER = 15.0  # seconds before removal (configurable)
+EXPIRE_AFTER = 60.0   # seconds before removal
+_STAGE_NORMAL = 15.0  # bold → normal after 15s
+_STAGE_DIM    = 40.0  # normal → dim after 40s
 
 SOURCE_COLORS = {
     "agent": "cyan",
@@ -105,7 +106,7 @@ def _format_event(ev: VisionEvent) -> str:
 
 
 class LogOverlay:
-    def __init__(self, max_lines: int = 20):
+    def __init__(self, max_lines: int = 60):
         self._lines: List[LogLine] = []
         self._max_lines = max_lines
 
@@ -118,12 +119,18 @@ class LogOverlay:
             self._lines = self._lines[-self._max_lines:]
 
     def get_visible_lines(self, now: float) -> List[Tuple[str, str, str]]:
-        """Returns list of (text, brightness, color) tuples. brightness is 'bold' or 'dim'."""
+        """Returns list of (text, brightness, color) tuples.
+        brightness is 'bold' (0-15s), 'normal' (15-40s), or 'dim' (40-60s)."""
         visible = []
         for line in self._lines:
             age = now - line.timestamp
             if age >= EXPIRE_AFTER:
                 continue
-            brightness = "dim" if age >= FADE_AFTER else "bold"
+            if age < _STAGE_NORMAL:
+                brightness = "bold"
+            elif age < _STAGE_DIM:
+                brightness = "normal"
+            else:
+                brightness = "dim"
             visible.append((line.text, brightness, line.color))
         return visible[-self._max_lines:]
