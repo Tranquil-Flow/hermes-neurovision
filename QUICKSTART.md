@@ -96,6 +96,15 @@ hermes-neurovision --logs
 
 # Daemon with specific theme
 hermes-neurovision --daemon --theme moonwire
+
+# Export a theme (NEW in v0.1.1)
+hermes-neurovision --export neural-sky --author "YourName"
+
+# Import a theme (NEW in v0.1.1)
+hermes-neurovision --import mytheme.hvtheme
+
+# List imported themes
+hermes-neurovision --list-themes
 ```
 
 ---
