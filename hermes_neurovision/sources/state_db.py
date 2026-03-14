@@ -65,8 +65,18 @@ class StateDbSource:
         return events
 
     def _poll_active_session(self, conn, events):
+        # Pick the session with the most recent message activity, not just the most recently started.
+        # This handles cases where an older session is still actively processing.
         row = conn.execute(
-            "SELECT id, model FROM sessions WHERE ended_at IS NULL ORDER BY started_at DESC LIMIT 1"
+            """
+            SELECT s.id, s.model, s.started_at, MAX(m.id) AS last_msg_id
+            FROM sessions s
+            LEFT JOIN messages m ON m.session_id = s.id
+            WHERE s.ended_at IS NULL
+            GROUP BY s.id, s.model, s.started_at
+            ORDER BY last_msg_id DESC NULLS LAST, s.started_at DESC
+            LIMIT 1
+            """
         ).fetchone()
 
         if row is None:
@@ -115,7 +125,7 @@ class StateDbSource:
                     calls = json.loads(row["tool_calls"])
                     if calls and isinstance(calls, list):
                         tool_name = calls[0].get("function", {}).get("name", "")
-                except (json.JSONDecodeError, (AttributeError, KeyError, IndexError)):
+                except (json.JSONDecodeError, AttributeError, KeyError, IndexError):
                     pass
             events.append(VisionEvent(
                 timestamp=row["timestamp"], source="state_db",
