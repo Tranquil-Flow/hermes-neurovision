@@ -73,6 +73,10 @@ THEMES: Tuple[str, ...] = (
     "fractal-engine",
     "n-body",
     "standing-waves",
+    # ── Experimental (3) ─────────────────────────────────────────────
+    "clifford-attractor",
+    "barnsley-fern",
+    "flow-field",
 )
 
 FRAME_DELAY = 0.05
@@ -182,8 +186,26 @@ def build_theme_config(name: str) -> ThemeConfig:
         "lissajous-mind":  ThemeConfig(name, "Lissajous Mind", "\u25c8", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_MAGENTA, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_BLUE)),
         "pulse-matrix":    ThemeConfig(name, "Pulse Matrix", "\u00b7", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_BLUE, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_MAGENTA)),
         # ── Extreme Fields ────────────────────────────────────────────
-        "fractal-engine":  ThemeConfig(name, "Fractal Engine", "\u2588", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_BLUE, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_MAGENTA)),
-        "n-body":          ThemeConfig(name, "N-Body",         "\u25c9", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_BLUE, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_YELLOW)),
-        "standing-waves":  ThemeConfig(name, "Standing Waves", "\u2592", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_MAGENTA, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_BLUE)),
+        "fractal-engine":  ThemeConfig(name, "Fractal Engine",   "\u2588", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_BLUE, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_MAGENTA)),
+        "n-body":          ThemeConfig(name, "N-Body",           "\u25c9", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_BLUE, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_YELLOW)),
+        "standing-waves":  ThemeConfig(name, "Standing Waves",   "\u2592", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_MAGENTA, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_BLUE)),
+        # ── Experimental ─────────────────────────────────────────────
+        "clifford-attractor": ThemeConfig(name, "Clifford Attractor", "\u00b7", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_MAGENTA, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_BLUE)),
+        "barnsley-fern":      ThemeConfig(name, "Barnsley Fern",      ":",     0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_GREEN, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_YELLOW)),
+        "flow-field":         ThemeConfig(name, "Flow Field",         "\u25cf", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_CYAN, curses.COLOR_MAGENTA, curses.COLOR_WHITE, curses.COLOR_BLUE)),
+        # ── Legacy: Originals (original node-based implementations) ──
+        "legacy-neural-sky":    ThemeConfig(name, "Neural Sky (Legacy)",    "*",      0.030, 0.10, 0.40, 0.32, (0.04, 0.08), 0.10, 0.4, 3, palette=(curses.COLOR_CYAN, curses.COLOR_BLUE, curses.COLOR_WHITE, curses.COLOR_MAGENTA)),
+        "legacy-storm-core":    ThemeConfig(name, "Storm Core (Legacy)",    "x",      0.024, 0.18, 0.52, 0.42, (0.06, 0.10), 0.12, 0.35, 3, palette=(curses.COLOR_BLUE, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_YELLOW)),
+        "legacy-moonwire":      ThemeConfig(name, "Moonwire (Legacy)",      "\u2022", 0.026, 0.04, 0.16, 0.20, (0.02, 0.05), 0.07, 0.48, 2, palette=(curses.COLOR_WHITE, curses.COLOR_BLUE, curses.COLOR_CYAN, curses.COLOR_MAGENTA)),
+        "legacy-rootsong":      ThemeConfig(name, "Rootsong (Legacy)",      ":",      0.014, 0.02, 0.14, 0.28, (0.03, 0.06), 0.10, 0.66, 2, palette=(curses.COLOR_GREEN, curses.COLOR_YELLOW, curses.COLOR_WHITE, curses.COLOR_CYAN)),
+        "legacy-stormglass":    ThemeConfig(name, "Stormglass (Legacy)",    "+",      0.032, 0.08, 0.30, 0.34, (0.04, 0.08), 0.12, 0.58, 3, palette=(curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_BLUE, curses.COLOR_MAGENTA)),
+        "legacy-spiral-galaxy": ThemeConfig(name, "Spiral Galaxy (Legacy)", "\u2726", 0.040, 0.00, 0.10, 0.26, (0.02, 0.05), 0.07, 0.62, 3, palette=(curses.COLOR_BLUE, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_MAGENTA)),
+        "legacy-black-hole":    ThemeConfig(name, "Black Hole (Legacy)",    "\u00b7", 0.036, 0.00, 0.06, 0.18, (0.02, 0.04), 0.05, 0.74, 2, palette=(curses.COLOR_BLUE, curses.COLOR_MAGENTA, curses.COLOR_WHITE, curses.COLOR_YELLOW)),
+        # ── Legacy: Nature ────────────────────────────────────────────
+        "legacy-deep-abyss":       ThemeConfig(name, "Deep Abyss (Legacy)",       "\u2727", 0.018, 0.02, 0.20, 0.22, (0.03, 0.06), 0.08, 0.50, 3, palette=(curses.COLOR_BLUE, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_GREEN)),
+        "legacy-storm-sea":        ThemeConfig(name, "Storm Sea (Legacy)",        "~",      0.028, 0.15, 0.48, 0.36, (0.05, 0.09), 0.10, 0.40, 3, palette=(curses.COLOR_BLUE, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_YELLOW)),
+        "legacy-dark-forest":      ThemeConfig(name, "Dark Forest (Legacy)",      "\u25c9", 0.022, 0.04, 0.14, 0.26, (0.03, 0.06), 0.08, 0.55, 3, palette=(curses.COLOR_GREEN, curses.COLOR_YELLOW, curses.COLOR_WHITE, curses.COLOR_CYAN)),
+        "legacy-mountain-stars":   ThemeConfig(name, "Mountain Stars (Legacy)",   "\u2726", 0.045, 0.00, 0.06, 0.20, (0.02, 0.04), 0.06, 0.60, 3, palette=(curses.COLOR_WHITE, curses.COLOR_CYAN, curses.COLOR_BLUE, curses.COLOR_MAGENTA)),
+        "legacy-beach-lighthouse": ThemeConfig(name, "Beach Lighthouse (Legacy)", "\u00b7", 0.020, 0.03, 0.12, 0.18, (0.02, 0.04), 0.06, 0.45, 2, palette=(curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_YELLOW, curses.COLOR_BLUE)),
     }
     return configs[name]

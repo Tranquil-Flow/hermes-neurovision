@@ -11,7 +11,7 @@ from hermes_neurovision.theme_plugins import register
 
 class NeuralSkyPlugin(ThemePlugin):
     """Default theme — all base behavior."""
-    name = "neural-sky"
+    name = "legacy-neural-sky"
 
 
 class ElectricMyceliumPlugin(ThemePlugin):
@@ -21,7 +21,7 @@ class ElectricMyceliumPlugin(ThemePlugin):
 
 class MoonwirePlugin(ThemePlugin):
     """Ring layout with moon."""
-    name = "moonwire"
+    name = "legacy-moonwire"
 
     def build_nodes(self, w, h, cx, cy, count, rng):
         usable_w = max(12.0, w - 8.0)
@@ -58,7 +58,7 @@ class MoonwirePlugin(ThemePlugin):
 
 class RootsongPlugin(ThemePlugin):
     """Tree root structure."""
-    name = "rootsong"
+    name = "legacy-rootsong"
 
     def build_nodes(self, w, h, cx, cy, count, rng):
         usable_w = max(12.0, w - 8.0)
@@ -168,7 +168,7 @@ class CathedralCircuitPlugin(ThemePlugin):
 
 class StormCorePlugin(ThemePlugin):
     """Storm bands with lightning."""
-    name = "storm-core"
+    name = "legacy-storm-core"
 
     def build_nodes(self, w, h, cx, cy, count, rng):
         usable_h = max(6.0, h - 6.0)
@@ -222,7 +222,7 @@ class StormCorePlugin(ThemePlugin):
 
 class StormglassPlugin(ThemePlugin):
     """Glass refraction effect."""
-    name = "stormglass"
+    name = "legacy-stormglass"
 
     def pulse_style(self):
         return "diamond"
@@ -256,7 +256,7 @@ class HybridPlugin(ThemePlugin):
 
 class SpiralGalaxyPlugin(ThemePlugin):
     """3-arm spiral galaxy."""
-    name = "spiral-galaxy"
+    name = "legacy-spiral-galaxy"
 
     def build_nodes(self, w, h, cx, cy, count, rng):
         usable_w = max(12.0, w - 8.0)
@@ -382,7 +382,7 @@ class SpiralGalaxyPlugin(ThemePlugin):
 
 class BlackHolePlugin(ThemePlugin):
     """Black hole with accretion disk."""
-    name = "black-hole"
+    name = "legacy-black-hole"
 
     def build_nodes(self, w, h, cx, cy, count, rng):
         usable_w = max(12.0, w - 8.0)

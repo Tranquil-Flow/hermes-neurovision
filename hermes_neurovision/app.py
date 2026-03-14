@@ -21,13 +21,14 @@ class GalleryApp:
         self.theme_index = 0
         self.paused = False
         self.locked = False
+        self.quiet = False
         self.selected_theme = None
         self.state = self._make_state(self.themes[self.theme_index])
         self.switch_at = time.time() + self.theme_seconds if len(self.themes) > 1 else float("inf")
 
     def _make_state(self, theme_name: str) -> ThemeState:
         h, w = self.stdscr.getmaxyx()
-        return ThemeState(build_theme_config(theme_name), w, h, seed=(hash(theme_name) & 0xFFFF))
+        return ThemeState(build_theme_config(theme_name), w, h, seed=(hash(theme_name) & 0xFFFF), quiet=self.quiet)
 
     def run(self) -> None:
         curses.curs_set(0)
@@ -63,9 +64,19 @@ class GalleryApp:
             except curses.error:
                 pass
 
+        # Top-right: QUIET indicator
+        if self.quiet:
+            qtext = " QUIET "
+            try:
+                self.stdscr.addstr(0, w - len(qtext) - (len(" LOCKED ") + 2 if self.locked else 1),
+                                   qtext, curses.color_pair(2) | curses.A_BOLD)
+            except curses.error:
+                pass
+
         # Bottom: single consolidated footer with all hints
+        quiet_flag = " [QUIET]" if self.quiet else ""
         # Left side: navigation + controls
-        left = f" theme {self.theme_index + 1}/{len(self.themes)} | q quit  n/p nav  space pause"
+        left = f" theme {self.theme_index + 1}/{len(self.themes)}{quiet_flag} | Q quit  ←/→ nav  q quiet  space pause"
         # Right side: selection hints
         right = "enter lock  s use theme "
         gap = w - len(left) - len(right) - 1
@@ -91,14 +102,14 @@ class GalleryApp:
             ch = self.stdscr.getch()
             if ch == -1:
                 return
-            if ch in (ord("q"), ord("Q")):
-                if self.selected_theme:
-                    # Exit to launch live mode with selected theme
-                    raise SystemExit(0)
+            if ch == ord("Q"):
                 raise SystemExit(0)
-            if ch in (ord("n"), curses.KEY_RIGHT):
+            elif ch == ord("q"):
+                self.quiet = not self.quiet
+                self.state.quiet = self.quiet
+            if ch in (curses.KEY_RIGHT, ord("n")):
                 self._advance_theme(1)
-            elif ch in (ord("p"), curses.KEY_LEFT):
+            elif ch in (curses.KEY_LEFT, ord("p")):
                 self._advance_theme(-1)
             elif ch == ord(" "):
                 self.paused = not self.paused
@@ -402,12 +413,18 @@ class DaemonApp:
             ch = self.stdscr.getch()
             if ch == -1:
                 return
-            if ch in (ord("q"), ord("Q")):
+            if ch == ord("Q"):
                 raise SystemExit(0)
+            elif ch == ord("q"):
+                self.quiet = not self.quiet
+                if self.gallery_state:
+                    self.gallery_state.quiet = self.quiet
+                if self.live_state:
+                    self.live_state.quiet = self.quiet
             if ch == ord("l"):
                 self.show_logs = not self.show_logs
             if self.mode == "gallery":
-                if ch in (ord("n"), curses.KEY_RIGHT):
+                if ch in (curses.KEY_RIGHT, ord("n")):
                     self._advance_theme(1)
-                elif ch in (ord("p"), curses.KEY_LEFT):
+                elif ch in (curses.KEY_LEFT, ord("p")):
                     self._advance_theme(-1)

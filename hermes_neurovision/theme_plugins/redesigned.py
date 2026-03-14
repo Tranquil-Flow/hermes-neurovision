@@ -609,12 +609,17 @@ class FractalEnginePlugin(ThemePlugin):
     """Real-time Mandelbrot set zoom — iterative ASCII rendering."""
     name = "fractal-engine"
 
+    # Zoom targets: interesting Mandelbrot coordinates to zoom into
+    _TARGETS = [
+        (-0.7269, 0.1889),   # classic spiral
+        (-0.1592,  1.0317),  # spiraling tendril
+        ( 0.3750,  0.1055),  # seahorse valley
+        (-1.1786,  0.0),     # antenna tip
+    ]
+
     def __init__(self):
-        self._zoom = 3.5
-        self._cx = -0.7
-        self._cy = 0.0
-        self._target_cx = -0.7269
-        self._target_cy = 0.1889
+        self._target_idx = 0
+        self._cycle_start_frame = 0
 
     def build_nodes(self, w, h, cx, cy, count, rng):
         return []
@@ -623,15 +628,23 @@ class FractalEnginePlugin(ThemePlugin):
         w = state.width
         h = state.height
         intensity = state.intensity_multiplier
+        f = state.frame
 
-        # Zoom in
-        self._zoom *= 0.992
-        if self._zoom < 0.0001:
-            self._zoom = 3.5
+        # 400-frame zoom cycle: zoom from 3.5 → 0.0003 then reset
+        CYCLE = 400
+        phase = (f - self._cycle_start_frame) % CYCLE
+        if phase == 0 and f != self._cycle_start_frame:
+            self._cycle_start_frame = f
+            self._target_idx = (self._target_idx + 1) % len(self._TARGETS)
+            phase = 0
 
-        t = max(0.0, 1 - self._zoom / 3.5)
-        view_cx = self._cx + (self._target_cx - self._cx) * t
-        view_cy = self._cy + (self._target_cy - self._cy) * t
+        t = phase / CYCLE  # 0 → 1
+        zoom = 3.5 * (1.0 - t) ** 2.2 + 0.0003  # fast initial zoom, slow near target
+
+        target_cx, target_cy = self._TARGETS[self._target_idx]
+        start_cx, start_cy = -0.7, 0.0
+        view_cx = start_cx + (target_cx - start_cx) * t
+        view_cy = start_cy + (target_cy - start_cy) * t
 
         bright_attr = curses.color_pair(color_pairs["bright"]) | curses.A_BOLD
         accent_attr = curses.color_pair(color_pairs["accent"])

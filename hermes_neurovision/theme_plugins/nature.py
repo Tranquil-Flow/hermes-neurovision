@@ -12,7 +12,7 @@ from hermes_neurovision.theme_plugins import register
 class DeepAbyssPlugin(ThemePlugin):
     """Bioluminescent deep ocean — scattered organisms, bubble drift, hydrothermal vent."""
 
-    name = "deep-abyss"
+    name = "legacy-deep-abyss"
 
     def build_nodes(self, w, h, cx, cy, count, rng):
         nodes = []
@@ -87,7 +87,7 @@ class DeepAbyssPlugin(ThemePlugin):
 class StormSeaPlugin(ThemePlugin):
     """Violent ocean surface — wave curves across screen, diagonal rain, spray particles."""
 
-    name = "storm-sea"
+    name = "legacy-storm-sea"
 
     def build_nodes(self, w, h, cx, cy, count, rng):
         # 3-4 wave CURVES across screen — each is a sine wave with different amplitude/phase
@@ -181,7 +181,7 @@ class StormSeaPlugin(ThemePlugin):
 class DarkForestPlugin(ThemePlugin):
     """Dense canopy with fireflies — 8-12 tree trunks filling screen, falling leaves, ground terrain."""
 
-    name = "dark-forest"
+    name = "legacy-dark-forest"
 
     def build_nodes(self, w, h, cx, cy, count, rng):
         nodes = []
@@ -284,7 +284,7 @@ class DarkForestPlugin(ThemePlugin):
 class MountainStarsPlugin(ThemePlugin):
     """Silhouetted peaks under starfield — constellations, shooting stars, mountain silhouette."""
 
-    name = "mountain-stars"
+    name = "legacy-mountain-stars"
 
     def build_nodes(self, w, h, cx, cy, count, rng):
         # Constellation patterns in upper 60% only
@@ -400,7 +400,7 @@ class MountainStarsPlugin(ThemePlugin):
 class BeachLighthousePlugin(ThemePlugin):
     """Calm shore with sweeping beam — sea nodes, wave foam, rotating light beam."""
 
-    name = "beach-lighthouse"
+    name = "legacy-beach-lighthouse"
 
     def build_nodes(self, w, h, cx, cy, count, rng):
         # Sparse nodes in upper 60% (sea area)
