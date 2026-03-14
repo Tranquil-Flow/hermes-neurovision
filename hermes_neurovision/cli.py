@@ -4,9 +4,39 @@ from __future__ import annotations
 
 import argparse
 import curses
+import json
+import os
 import sys
 
 from hermes_neurovision.themes import THEMES, DEFAULT_THEME_SECONDS
+
+_CONFIG_PATH = os.path.expanduser("~/.hermes/neurovision/config.json")
+
+
+def _load_default_theme() -> str:
+    """Return saved default theme, or 'neural-sky' if none saved."""
+    try:
+        with open(_CONFIG_PATH) as f:
+            return json.load(f).get("default_theme", "neural-sky")
+    except (OSError, json.JSONDecodeError, KeyError):
+        return "neural-sky"
+
+
+def _save_default_theme(theme: str) -> None:
+    """Persist the default theme to config."""
+    try:
+        os.makedirs(os.path.dirname(_CONFIG_PATH), exist_ok=True)
+        data = {}
+        try:
+            with open(_CONFIG_PATH) as f:
+                data = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            pass
+        data["default_theme"] = theme
+        with open(_CONFIG_PATH, "w") as f:
+            json.dump(data, f, indent=2)
+    except OSError:
+        pass
 
 
 def parse_args(argv=None):
@@ -19,7 +49,7 @@ def parse_args(argv=None):
     mode.add_argument("--gallery", action="store_true", help="Theme rotation screensaver")
     mode.add_argument("--daemon", action="store_true", help="Gallery when idle, live when active")
 
-    parser.add_argument("--theme", default="neural-sky", help="Theme to use")
+    parser.add_argument("--theme", default=None, help="Theme to use (default: last selected, or neural-sky)")
     parser.add_argument("--theme-seconds", type=float, default=DEFAULT_THEME_SECONDS, help="Seconds per theme in gallery/daemon")
     parser.add_argument("--logs", action="store_true", help="Enable log overlay")
     parser.add_argument("--auto-exit", action="store_true", help="Exit 30s after last event")
@@ -43,6 +73,8 @@ def parse_args(argv=None):
 
 def main(argv=None):
     args = parse_args(argv)
+    if args.theme is None:
+        args.theme = _load_default_theme()
     
     # Handle export
     if args.export:
@@ -140,9 +172,9 @@ def _run_gallery(args):
     except (SystemExit, KeyboardInterrupt):
         pass
     
-    # If user selected a theme with 's', launch live mode with it
+    # If user selected a theme with 's', save it and launch live mode
     if gallery_app and gallery_app.selected_theme:
-        print(f"Launching live mode with theme: {gallery_app.selected_theme}")
+        _save_default_theme(gallery_app.selected_theme)
         args.theme = gallery_app.selected_theme
         _run_live(args)
 
@@ -158,6 +190,7 @@ def _run_live(args):
     from hermes_neurovision.sources.cron import CronSource
     from hermes_neurovision.sources.aegis import AegisSource
     from hermes_neurovision.sources.trajectories import TrajectoriesSource
+    from hermes_neurovision.sources.docker_tasks import DockerTaskSource
 
     sources = [
         CustomSource().poll,
@@ -165,6 +198,7 @@ def _run_live(args):
         MemoriesSource().poll,
         CronSource().poll,
         TrajectoriesSource().poll,
+        DockerTaskSource().poll,
     ]
     if not args.no_aegis:
         sources.append(AegisSource().poll)
@@ -195,6 +229,7 @@ def _run_daemon(args):
     from hermes_neurovision.sources.cron import CronSource
     from hermes_neurovision.sources.aegis import AegisSource
     from hermes_neurovision.sources.trajectories import TrajectoriesSource
+    from hermes_neurovision.sources.docker_tasks import DockerTaskSource
 
     sources = [
         CustomSource().poll,
@@ -202,6 +237,7 @@ def _run_daemon(args):
         MemoriesSource().poll,
         CronSource().poll,
         TrajectoriesSource().poll,
+        DockerTaskSource().poll,
     ]
     if not args.no_aegis:
         sources.append(AegisSource().poll)
