@@ -52,32 +52,31 @@ class GalleryApp:
     def _draw_with_indicators(self) -> None:
         """Draw scene with lock and selection indicators."""
         h, w = self.stdscr.getmaxyx()
-        self.renderer.draw(self.state, self.theme_index, len(self.themes), 
+        self.renderer.draw(self.state, self.theme_index, len(self.themes),
                           time.time() + (self.end_after or 0) if self.end_after else None)
-        
-        # Draw status indicators on a black background to prevent flashing
+
         # Top-right: LOCKED indicator
         if self.locked:
             text = " LOCKED "
             try:
-                # Clear the area first with black background
-                for i in range(len(text)):
-                    self.stdscr.addch(0, w - len(text) - 1 + i, ' ', curses.color_pair(0))
                 self.stdscr.addstr(0, w - len(text) - 1, text, curses.color_pair(5) | curses.A_BOLD)
             except curses.error:
                 pass
-        
-        # Bottom-left: hint for staying on current theme
-        lock_hint = " Enter to stay on current "
+
+        # Bottom: single consolidated footer with all hints
+        # Left side: navigation + controls
+        left = f" theme {self.theme_index + 1}/{len(self.themes)} | q quit  n/p nav  space pause"
+        # Right side: selection hints
+        right = "enter lock  s use theme "
+        gap = w - len(left) - len(right) - 1
+        if gap < 2:
+            # Narrow terminal — just show the essentials
+            footer = left[:w - 2]
+        else:
+            footer = left + " " * gap + right
+
         try:
-            self.stdscr.addstr(h - 1, 1, lock_hint, curses.color_pair(2) | curses.A_DIM)
-        except curses.error:
-            pass
-        
-        # Bottom-right: selection hint
-        select_hint = " 's' to select for live "
-        try:
-            self.stdscr.addstr(h - 1, w - len(select_hint) - 1, select_hint, curses.color_pair(2) | curses.A_DIM)
+            self.stdscr.addstr(h - 1, 1, footer[:max(0, w - 2)], curses.color_pair(2) | curses.A_DIM)
         except curses.error:
             pass
 

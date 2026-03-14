@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 import random
 from dataclasses import dataclass, field
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from hermes_vision.themes import ThemeConfig, STAR_CHARS, PACKET_CHARS
 
@@ -19,6 +19,7 @@ class Particle:
     life: float
     max_life: float
     char: str
+    frames: Optional[List[str]] = None
 
     def step(self) -> bool:
         self.x += self.vx
@@ -26,6 +27,9 @@ class Particle:
         self.vx *= 0.99
         self.vy *= 0.99
         self.life -= 1.0
+        if self.frames:
+            frame_idx = int(self.max_life - self.life) % len(self.frames)
+            self.char = self.frames[frame_idx]
         return self.life > 0
 
     @property
@@ -63,7 +67,7 @@ class ThemeState:
     pulses: List[Tuple[float, float, float]] = field(default_factory=list)
     frame: int = 0
     rng: random.Random = field(init=False)
-    
+
     # Intensity control for event reactions
     intensity_multiplier: float = 0.6
     _intensity_target: float = 0.6
@@ -71,11 +75,13 @@ class ThemeState:
     _dynamic_nodes: List[int] = field(default_factory=list)
     flash_until: float = 0.0
     flash_color_key: str = "warning"
-    
+
     MAX_DYNAMIC_NODES = 64
 
     def __post_init__(self) -> None:
         self.rng = random.Random(self.seed)
+        from hermes_vision.theme_plugins import get_plugin
+        self.plugin = get_plugin(self.config.name)
         self._build_scene()
 
     def resize(self, width: int, height: int) -> None:
@@ -112,121 +118,31 @@ class ThemeState:
     def _build_nodes(self, w: int, h: int) -> None:
         cx = w / 2.0
         cy = h / 2.0
+        count = max(8, min(40, int((w * h) / 140)))
+
+        # Try plugin first
+        custom = self.plugin.build_nodes(w, h, cx, cy, count, self.rng)
+        if custom is not None:
+            self.nodes = custom[:max(10, min(len(custom), 56))]
+            return
+
+        # Default cluster logic
         usable_h = max(6.0, h - 6.0)
         usable_w = max(12.0, w - 8.0)
         nodes: List[Tuple[float, float]] = []
-        count = max(8, min(40, int((w * h) / 140)))
-
-        if self.config.galaxy_mode:
-            # 3 distinct spiral arms with varied density
-            arms = 3
-            disc_radius = min(usable_w, usable_h) * 0.44
-            
-            # Distribute nodes by arm with varying density
-            arm_distributions = [0.40, 0.35, 0.25]  # Asymmetric arms add realism
-            nodes_per_arm = [int(count * ratio) for ratio in arm_distributions]
-            
-            for arm_idx in range(arms):
-                arm_nodes = nodes_per_arm[arm_idx]
-                for i in range(arm_nodes):
-                    ratio = i / max(1, arm_nodes - 1)
-                    base_angle = arm_idx * (math.tau / arms)
-                    # Increased twist for more dramatic spiral
-                    twist = ratio * math.tau * 1.8
-                    angle = base_angle + twist
-                    
-                    # Vary radius with some randomness for natural look
-                    radius = disc_radius * (0.12 + ratio * 0.88)
-                    radius *= self.rng.uniform(0.85, 1.12)
-                    
-                    # Add slight randomness perpendicular to arm
-                    perp_offset = self.rng.uniform(-0.9, 0.9)
-                    x = cx + math.cos(angle) * radius + math.cos(angle + math.pi/2) * perp_offset
-                    y = cy + math.sin(angle) * radius + math.sin(angle + math.pi/2) * perp_offset
-                    nodes.append((x, y))
-            
-            # Bright galactic core
-            core_nodes = max(6, count // 6)
-            for i in range(core_nodes):
-                angle = (math.tau * i) / core_nodes
-                radius = disc_radius * self.rng.uniform(0.02, 0.10)
-                nodes.append((cx + math.cos(angle) * radius, cy + math.sin(angle) * radius))
-            
-            # Central bulge
-            nodes.append((cx, cy))
-        elif self.config.black_hole_mode:
-            # Inner event horizon ring (spins fastest)
-            inner_count = 8
-            radius_x = usable_w * 0.12
-            radius_y = usable_h * 0.14
-            for i in range(inner_count):
-                a = (math.tau * i) / inner_count
-                nodes.append((cx + math.cos(a) * radius_x, cy + math.sin(a) * radius_y))
-            
-            # Middle accretion disk ring
-            mid_count = max(12, count // 2)
-            radius_x = usable_w * 0.22
-            radius_y = usable_h * 0.26
-            for i in range(mid_count):
-                a = (math.tau * i) / mid_count
-                wobble = 1.0 + math.sin(i * 0.9) * 0.08
-                nodes.append((cx + math.cos(a) * radius_x * wobble, cy + math.sin(a) * radius_y * wobble))
-            
-            # Outer ring (slower)
-            outer_count = max(6, count // 3)
-            for i in range(outer_count):
-                a = (math.tau * i) / outer_count + 0.4
-                nodes.append((cx + math.cos(a) * usable_w * 0.32, cy + math.sin(a) * usable_h * 0.38))
-            
-            # Singularity at center
-            nodes.append((cx, cy))
-        elif self.config.ring_mode:
-            radius_x = usable_w * 0.28
-            radius_y = usable_h * 0.30
-            for i in range(count):
-                a = (math.tau * i) / count
-                nodes.append((cx + math.cos(a) * radius_x, cy + math.sin(a) * radius_y))
-            nodes.append((cx, cy))
-        elif self.config.cathedral_mode:
-            cols = max(4, min(8, w // 14))
-            rows = max(3, min(7, h // 6))
-            for row in range(rows):
-                for col in range(cols):
-                    x = 6 + col * (usable_w / max(1, cols - 1))
-                    y = 3 + row * (usable_h / max(1, rows - 1))
-                    arch = math.sin((col / max(1, cols - 1)) * math.pi) * 2.5
-                    nodes.append((x, y + arch))
-        elif self.config.root_mode:
-            trunk_x = cx
-            for row in range(max(8, h // 3)):
-                y = 2 + row * (usable_h / max(1, (h // 3) - 1))
-                sway = math.sin(row * 0.7) * 2.0
-                nodes.append((trunk_x + sway, y))
-                branch_span = 4 + row * 0.9
-                if row > 1:
-                    nodes.append((trunk_x - branch_span, y + self.rng.uniform(-1.0, 1.0)))
-                    nodes.append((trunk_x + branch_span, y + self.rng.uniform(-1.0, 1.0)))
-        elif self.config.storm_mode:
-            bands = max(3, h // 7)
-            for band in range(bands):
-                y = 2 + band * (usable_h / max(1, bands - 1))
-                for _ in range(max(3, w // 18)):
-                    x = self.rng.uniform(4, w - 5)
-                    nodes.append((x, y + self.rng.uniform(-1.5, 1.5)))
-        else:
-            clusters = max(2, self.config.cluster_count)
-            centers = []
-            for i in range(clusters):
-                a = (math.tau * i) / clusters + self.rng.uniform(-0.2, 0.2)
-                r = min(usable_w, usable_h) * self.rng.uniform(0.15, 0.32)
-                centers.append((cx + math.cos(a) * r, cy + math.sin(a) * r * 0.7))
-            per_cluster = max(4, count // clusters)
-            for mx, my in centers:
-                for _ in range(per_cluster):
-                    nodes.append((
-                        mx + self.rng.uniform(-usable_w * 0.10, usable_w * 0.10),
-                        my + self.rng.uniform(-usable_h * 0.10, usable_h * 0.10),
-                    ))
+        clusters = max(2, self.config.cluster_count)
+        centers = []
+        for i in range(clusters):
+            a = (math.tau * i) / clusters + self.rng.uniform(-0.2, 0.2)
+            r = min(usable_w, usable_h) * self.rng.uniform(0.15, 0.32)
+            centers.append((cx + math.cos(a) * r, cy + math.sin(a) * r * 0.7))
+        per_cluster = max(4, count // clusters)
+        for mx, my in centers:
+            for _ in range(per_cluster):
+                nodes.append((
+                    mx + self.rng.uniform(-usable_w * 0.10, usable_w * 0.10),
+                    my + self.rng.uniform(-usable_h * 0.10, usable_h * 0.10),
+                ))
 
         self.nodes = nodes[: max(10, min(len(nodes), 56))]
 
@@ -235,6 +151,8 @@ class ThemeState:
         if not self.nodes:
             self.edges = []
             return
+
+        keep = self.plugin.edge_keep_count()
 
         for idx, node in enumerate(self.nodes):
             distances = []
@@ -245,39 +163,11 @@ class ThemeState:
                 dy = node[1] - other[1]
                 distances.append((dx * dx + dy * dy, jdx))
             distances.sort(key=lambda item: item[0])
-            keep = 2 if self.config.storm_mode else 3
-            if self.config.cathedral_mode:
-                keep = 4
             for _, jdx in distances[:keep]:
                 edge = tuple(sorted((idx, jdx)))
                 edges.add(edge)
 
-        if self.config.ring_mode:
-            for idx in range(len(self.nodes) - 1):
-                edges.add(tuple(sorted((idx, (idx + 1) % (len(self.nodes) - 1)))))
-                edges.add(tuple(sorted((idx, len(self.nodes) - 1))))
-
-        if self.config.galaxy_mode:
-            center_idx = len(self.nodes) - 1
-            for idx in range(len(self.nodes) - 2):
-                if idx + 3 < len(self.nodes) - 1:
-                    edges.add(tuple(sorted((idx, idx + 3))))
-                if idx % 4 == 0:
-                    edges.add(tuple(sorted((idx, center_idx))))
-
-        if self.config.black_hole_mode:
-            center_idx = len(self.nodes) - 1
-            ring_nodes = max(1, len(self.nodes) - 1)
-            for idx in range(ring_nodes):
-                edges.add(tuple(sorted((idx, (idx + 1) % ring_nodes))))
-                if idx % 2 == 0:
-                    edges.add(tuple(sorted((idx, center_idx))))
-
-        if self.config.root_mode:
-            for idx in range(len(self.nodes) - 3):
-                edges.add(tuple(sorted((idx, idx + 1))))
-                if idx + 3 < len(self.nodes) and idx % 2 == 0:
-                    edges.add(tuple(sorted((idx, idx + 3))))
+        self.plugin.build_edges_extra(self.nodes, edges)
 
         self.edges = sorted(edges)
 
@@ -289,52 +179,10 @@ class ThemeState:
         else:
             self.intensity_multiplier = self._intensity_target
 
-    def _step_node_animation(self) -> None:
-        """Animate nodes for black hole spinning effect."""
-        if not self.config.black_hole_mode or not self.nodes:
-            return
-        
-        cx = self.width / 2.0
-        cy = self.height / 2.0
-        
-        # Animate inner ring (fastest rotation)
-        inner_count = 8
-        for i in range(min(inner_count, len(self.nodes))):
-            dx = self.nodes[i][0] - cx
-            dy = self.nodes[i][1] - cy
-            radius = math.hypot(dx, dy)
-            angle = math.atan2(dy, dx)
-            # Fast rotation for event horizon
-            angle += 0.08  # ~4.5 degrees per frame
-            self.nodes[i] = (cx + math.cos(angle) * radius, cy + math.sin(angle) * radius)
-        
-        # Animate middle ring (medium rotation)
-        mid_start = inner_count
-        mid_count = max(12, (len(self.nodes) - inner_count - 1) // 2)
-        for i in range(mid_start, min(mid_start + mid_count, len(self.nodes) - 1)):
-            dx = self.nodes[i][0] - cx
-            dy = self.nodes[i][1] - cy
-            radius = math.hypot(dx, dy)
-            angle = math.atan2(dy, dx)
-            # Medium rotation for accretion disk
-            angle += 0.04  # ~2.3 degrees per frame
-            self.nodes[i] = (cx + math.cos(angle) * radius, cy + math.sin(angle) * radius)
-        
-        # Animate outer ring (slowest rotation)
-        outer_start = mid_start + mid_count
-        for i in range(outer_start, len(self.nodes) - 1):
-            dx = self.nodes[i][0] - cx
-            dy = self.nodes[i][1] - cy
-            radius = math.hypot(dx, dy)
-            angle = math.atan2(dy, dx)
-            # Slow rotation for outer ring
-            angle += 0.02  # ~1.1 degrees per frame
-            self.nodes[i] = (cx + math.cos(angle) * radius, cy + math.sin(angle) * radius)
-
     def apply_trigger(self, trigger) -> None:
         """Apply a VisualTrigger to the scene state."""
         import time as _time
-        
+
         effect = trigger.effect
         intensity = trigger.intensity
 
@@ -381,21 +229,21 @@ class ThemeState:
 
         elif effect == "wake":
             self._intensity_target = 1.0
-            self._intensity_rate = 0.15  # fast ramp up
+            self._intensity_rate = 0.15
 
         elif effect == "cool_down":
             self._intensity_target = 0.3
-            self._intensity_rate = 0.05  # slow fade
+            self._intensity_rate = 0.05
 
         elif effect == "dim":
             self.intensity_multiplier = max(0.2, self.intensity_multiplier - 0.2)
-            self._intensity_target = 0.6  # recover to base
+            self._intensity_target = 0.6
             self._intensity_rate = 0.08
 
     def step(self) -> None:
         self._step_intensity()
         self.frame += 1
-        self._step_node_animation()
+        self.plugin.step_nodes(self.nodes, self.frame, self.width, self.height)
         self._step_stars()
         self._spawn_packets()
         self._step_packets()
@@ -406,53 +254,25 @@ class ThemeState:
     def _step_stars(self) -> None:
         drift = self.config.star_drift
         for star in self.stars:
-            if self.config.galaxy_mode:
-                cx = self.width / 2.0
-                cy = self.height / 2.0
-                dx = star[0] - cx
-                dy = star[1] - cy
-                radius = max(1.0, math.hypot(dx, dy))
-                angle = math.atan2(dy, dx) + 0.0045 * star[2] / max(1.0, radius * 0.08)
-                radius = radius * (0.9996 + math.sin(self.frame * 0.01 + star[3]) * 0.0008)
-                star[0] = cx + math.cos(angle) * radius
-                star[1] = cy + math.sin(angle) * radius
-            elif self.config.black_hole_mode:
-                cx = self.width / 2.0
-                cy = self.height / 2.0
-                dx = star[0] - cx
-                dy = star[1] - cy
-                radius = math.hypot(dx, dy)
-                angle = math.atan2(dy, dx) + 0.010 * star[2]
-                radius = radius * (0.996 - 0.0015 * star[2])
-                if radius < 3.0:
-                    reset_angle = self.rng.uniform(0, math.tau)
-                    reset_radius = min(self.width, self.height) * self.rng.uniform(0.34, 0.48)
-                    star[0] = cx + math.cos(reset_angle) * reset_radius * 1.8
-                    star[1] = cy + math.sin(reset_angle) * reset_radius * 0.6
-                    continue
-                star[0] = cx + math.cos(angle) * radius * 1.15
-                star[1] = cy + math.sin(angle) * radius * 0.42
+            if self.plugin.step_star(star, self.frame, self.width, self.height, self.rng):
+                # Plugin handled star movement
+                pass
             else:
                 star[0] -= drift * star[2]
-            if self.config.storm_mode:
-                star[0] -= 0.08 * star[2]
+
+            self.plugin.step_star_post(star, self.frame, self.width, self.height, self.rng)
+
             if star[0] < 0:
                 star[0] = self.width - 2
                 star[1] = self.rng.uniform(1, max(2, self.height - 2))
             elif star[0] >= self.width - 1 or star[1] < 1 or star[1] >= self.height - 1:
                 star[0] = self.rng.uniform(1, max(2, self.width - 2))
                 star[1] = self.rng.uniform(1, max(2, self.height - 2))
-            if self.config.glass_mode:
-                star[1] += math.sin(self.frame * 0.03 + star[0] * 0.1) * 0.02
 
     def _spawn_packets(self) -> None:
         if not self.edges:
             return
-        packet_budget = 6 if self.config.hybrid_mode else 4
-        if self.config.galaxy_mode:
-            packet_budget = 5
-        elif self.config.black_hole_mode:
-            packet_budget = 3
+        packet_budget = self.plugin.packet_budget()
         if len(self.packets) >= packet_budget:
             return
         if self.rng.random() > self.config.packet_rate:
@@ -475,54 +295,25 @@ class ThemeState:
             nx, ny = self.rng.choice(self.nodes)
             self.pulses.append((nx, ny, 0.0))
 
-        base_chance = 0.05 if self.config.storm_mode else 0.028
-        if self.config.galaxy_mode:
-            base_chance = 0.022
-        elif self.config.black_hole_mode:
-            base_chance = 0.018
+        base_chance = self.plugin.particle_base_chance()
         if self.rng.random() > base_chance:
             return
 
-        if self.config.storm_mode:
-            x = self.rng.uniform(2, max(3, self.width - 3))
-            y = self.rng.uniform(1, max(2, self.height / 2))
-            vx = self.rng.uniform(-0.10, 0.10)
-            vy = self.rng.uniform(0.12, 0.26)
-            char = self.rng.choice("'|/\\")
-        elif self.config.root_mode:
-            x = self.width / 2 + self.rng.uniform(-4, 4)
-            y = self.height - 3
-            vx = self.rng.uniform(-0.12, 0.12)
-            vy = self.rng.uniform(-0.22, -0.08)
-            char = self.rng.choice(",.;`")
-        elif self.config.galaxy_mode:
-            angle = self.rng.uniform(0, math.tau)
-            radius = min(self.width, self.height) * self.rng.uniform(0.10, 0.26)
-            x = self.width / 2 + math.cos(angle) * radius
-            y = self.height / 2 + math.sin(angle) * radius
-            speed = self.rng.uniform(0.025, 0.06)
-            vx = -math.sin(angle) * speed
-            vy = math.cos(angle) * speed
-            char = self.rng.choice(".:*")
-        elif self.config.black_hole_mode:
-            angle = self.rng.uniform(0, math.tau)
-            radius = min(self.width, self.height) * self.rng.uniform(0.18, 0.34)
-            x = self.width / 2 + math.cos(angle) * radius * 1.6
-            y = self.height / 2 + math.sin(angle) * radius * 0.48
-            vx = -math.cos(angle) * self.rng.uniform(0.04, 0.08)
-            vy = -math.sin(angle) * self.rng.uniform(0.02, 0.05)
-            char = self.rng.choice(".:·")
-        else:
-            x, y = self.rng.choice(self.nodes)
-            vx = self.rng.uniform(-0.14, 0.14)
-            vy = self.rng.uniform(-0.10, 0.10)
-            char = self.rng.choice(".:*+")
+        # Try plugin particle first
+        custom = self.plugin.spawn_particle(self.width, self.height, self.nodes, self.rng)
+        if custom is not None:
+            self.particles.append(custom)
+            return
 
-        life = self.rng.randint(7, 14)
-        if self.config.galaxy_mode:
-            life = self.rng.randint(8, 16)
-        elif self.config.black_hole_mode:
-            life = self.rng.randint(6, 12)
+        # Default particle
+        if not self.nodes:
+            return
+        x, y = self.rng.choice(self.nodes)
+        vx = self.rng.uniform(-0.14, 0.14)
+        vy = self.rng.uniform(-0.10, 0.10)
+        char = self.rng.choice(".:*+")
+        lo, hi = self.plugin.particle_life_range()
+        life = self.rng.randint(lo, hi)
         self.particles.append(Particle(x, y, vx, vy, life, life, char))
 
     def _step_particles(self) -> None:
@@ -534,19 +325,10 @@ class ThemeState:
         self.particles = next_particles[-64:]
 
     def _step_pulses(self) -> None:
+        growth, limit_ratio = self.plugin.pulse_params()
+        limit = max(self.width, self.height) * limit_ratio
         next_pulses = []
         for x, y, radius in self.pulses:
-            growth = 0.28
-            limit = max(self.width, self.height) * 0.16
-            if self.config.storm_mode:
-                growth = 0.34
-                limit = max(self.width, self.height) * 0.18
-            elif self.config.galaxy_mode:
-                growth = 0.24
-                limit = max(self.width, self.height) * 0.14
-            elif self.config.black_hole_mode:
-                growth = 0.18
-                limit = max(self.width, self.height) * 0.10
             radius += growth
             if radius < limit:
                 next_pulses.append((x, y, radius))

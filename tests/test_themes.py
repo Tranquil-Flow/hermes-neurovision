@@ -2,7 +2,7 @@ from hermes_vision.themes import THEMES, ThemeConfig, build_theme_config
 
 
 def test_all_theme_names_are_defined():
-    assert len(THEMES) == 10
+    assert len(THEMES) == 45
     assert "neural-sky" in THEMES
     assert "black-hole" in THEMES
 

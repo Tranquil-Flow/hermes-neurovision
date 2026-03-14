@@ -1,19 +1,20 @@
-# 🌌 Hermes Vision
+# 🌌 Hermes Neurovisualizer
 
 **Terminal neurovisualizer for Hermes Agent**
 
-A beautiful living neural network that reacts to your AI agent's activity in real-time. Watch as tool calls become traveling packets, memory updates spawn new nodes, and token usage creates pulsating waves across a cosmic visualization.
+A beautiful living neural network that reacts to your AI agent's activity in real-time. Watch as tool calls become traveling packets, memory updates spawn new nodes, and token usage creates pulsating waves across cosmic visualizations.
 
-![Version](https://img.shields.io/badge/version-0.2.0-blue)
+![Version](https://img.shields.io/badge/version-0.1.0-blue)
 ![Python](https://img.shields.io/badge/python-3.10+-green)
 ![Tests](https://img.shields.io/badge/tests-63%20passing-brightgreen)
 ![Dependencies](https://img.shields.io/badge/dependencies-stdlib%20only-orange)
+![License](https://img.shields.io/badge/license-MIT-green)
 
 ---
 
 ## ✨ Features
 
-🎨 **10 Animated Themes** - From neural networks to cosmic spirals  
+🎨 **42 Animated Themes** - From cosmic phenomena to industrial machinery  
 🔴 **Live Event Visualization** - See your agent's activity in real-time  
 📊 **7 Data Sources** - Monitors sessions, tools, memory, cron, security  
 📝 **Log Overlay** - Color-coded event stream with fading text  
@@ -21,6 +22,7 @@ A beautiful living neural network that reacts to your AI agent's activity in rea
 🚀 **Auto-Launch** - Opens automatically with cron jobs  
 ⚡ **Pure Stdlib** - Zero external dependencies  
 🧪 **63 Tests** - 100% passing, production-ready  
+🎭 **Plugin System** - Extensible theme architecture  
 
 ---
 
@@ -111,18 +113,69 @@ hermes-vision --seconds 10
 
 ## 🎨 Themes
 
-Browse them all with `hermes-vision --gallery`:
+42 animated themes across 8 categories. Browse with `hermes-vision --gallery`:
 
-1. **neural-sky** - Classic cyan/blue network (default)
-2. **electric-mycelium** - Green organic growth patterns
-3. **cathedral-circuit** - Architectural blue structures
-4. **storm-core** - Chaotic energy storms
-5. **hybrid** - Multi-color dynamic blend
-6. **moonwire** - Minimal silver elegance
-7. **rootsong** - Earth-tone organic growth
-8. **stormglass** - Aqua crystalline structures
-9. **spiral-galaxy** - 3-arm cosmic spiral ✨
-10. **black-hole** - Rotating singularity ✨
+### Originals (7)
+1. **black-hole** ⭐ - Rotating singularity with event horizon
+2. **neural-sky** - Classic cyan/blue network (default live theme)
+3. **storm-core** - Chaotic energy storms
+4. **moonwire** - Minimal silver elegance
+5. **rootsong** - Earth-tone organic growth
+6. **stormglass** - Aqua crystalline structures
+7. **spiral-galaxy** - 3-arm cosmic spiral
+
+### Nature (5)
+- **deep-abyss** - Ocean depths with bioluminescence
+- **storm-sea** - Turbulent waters
+- **dark-forest** - Mysterious woodland
+- **mountain-stars** - Alpine night sky
+- **beach-lighthouse** ⭐ - Coastal waves with sweeping beam
+
+### Cosmic (4)
+- **aurora-borealis** ⭐ - Constellation patterns in northern lights
+- **nebula-nursery** - Stellar birth clouds
+- **binary-rain** ⭐ - Matrix-style code with cloud layer
+- **wormhole** - Tunnel through spacetime
+
+### Industrial (4)
+- **liquid-metal** - Molten flow patterns
+- **factory-floor** ⭐ - Assembly line with sparks
+- **pipe-hell** ⭐ - Plumbing nightmare
+- **oil-slick** - Rainbow surface tension
+
+### Whimsical (5)
+- **campfire** ⭐ - Large bonfire with embers
+- **aquarium** - Tropical fish tank
+- **circuit-board** ⭐ - PCB close-up
+- **lava-lamp** - Hypnotic blobs
+- **firefly-field** - Bioluminescent meadow
+
+### Hostile (2)
+- **noxious-fumes** - Toxic gas clouds
+- **maze-runner** ⭐ - Shifting dimensional portals
+
+### Exotic (5)
+- **neon-rain** - Cyberpunk downpour
+- **volcanic** - Lava flows
+- **crystal-cave** - Geode interior
+- **spider-web** - Silk patterns
+- **snow-globe** - Winter scene
+
+### Mechanical/Retro (5)
+- **clockwork** ⭐ - Giant swinging pendulum
+- **coral-reef** - Underwater ecosystem
+- **ant-colony** - Foraging patterns
+- **satellite-orbit** - Space station paths
+- **starfall** - Meteor shower
+
+### Cosmic Advanced (5)
+- **quasar** - Supermassive black hole jets
+- **supernova** - Star explosion
+- **sol** - Solar surface
+- **terra** - Earth from space
+- **binary-star** - Twin suns orbit
+
+⭐ = Enhanced in v0.1.0
 
 ---
 
@@ -325,7 +378,9 @@ Inspired by the Moonsong vision of beautiful, useful tools
 
 ## 📜 License
 
-See project license for details.
+MIT License - See [LICENSE](LICENSE) for details.
+
+Copyright (c) 2026 Nous Research
 
 ---
 
