@@ -183,52 +183,40 @@ hermes-neurovision --seconds 10
 
 ---
 
-## 📊 What It Monitors
+## 📊 How It Works
 
-Hermes Neurovision tracks 34 event types across 7 data sources:
+The neural network is not decorative — every visual change is triggered by a real event from your running Hermes Agent. The network is always animated as a baseline, but specific agent actions cause specific visual responses.
 
-### Agent Activity
-- Sessions starting/ending
-- Tool calls and completions
-- Token usage (proportional visual intensity)
-- Model switches
-- Thinking states
+### Data Sources (polled every second)
 
-### Memory Operations
-- New memories created
-- Memories accessed
-- Memory count changes
+| Source | File/DB | What it watches |
+|--------|---------|-----------------|
+| **Agent state** | `~/.hermes/state.db` | Sessions, messages, tool calls, token usage |
+| **Gateway hook** | `~/.hermes/neurovision/events.jsonl` | Agent start/stop, session lifecycle |
+| **Memories** | `~/.hermes/memories/` | Files created or modified |
+| **Cron jobs** | `~/.hermes/cron/` | Scheduled job execution |
+| **Trajectories** | `~/.hermes/logs/` | Success/failure logs |
+| **Aegis** (optional) | `~/.hermes-aegis/audit.jsonl` | Security events |
 
-### Scheduled Jobs
-- Cron jobs executing
-- Jobs completing/failing
+### Agent Actions → Visual Effects
 
-### Security (Optional)
-- Threats blocked
-- Secrets detected/redacted
-- Rate anomalies
+| What Hermes Does | What You See |
+|-----------------|--------------|
+| Session starts | **Wake** — entire network surges in brightness |
+| Tool call executes | **Packet** — glyph travels along an edge |
+| Message added to context | **Pulse** — expanding ring from a node |
+| Memory is created | **Spawn node** — new node appears in the network |
+| Task or session ends | **Burst** — particle explosion, then **Cool down** |
+| Token usage increases | Network **intensity scales** proportionally |
+| Error or security threat | **Flash** — all edges change color |
+| Thinking/processing state | **Dim** — temporary brightness reduction |
+| 5+ tool calls in 10s | **Tool burst** — cascade of rapid packets |
+| Same tool used 3× in a row | **Tool chain** — sustained packet stream |
+| Session running 5+ minutes | **Duration pulse** — periodic intensity wave |
 
-### Learning
-- Trajectory logs (success/failure)
-- Tool usage patterns (bursts & chains)
-- Session duration milestones
+### Log Overlay
 
----
-
-## 🎯 Visual Effects
-
-Events trigger one of 8 visual effects:
-
-| Effect | Description | Example Trigger |
-|--------|-------------|-----------------|
-| **packet** | Glyph travels along edge | Tool call |
-| **pulse** | Expanding ring from node | Message added |
-| **burst** | Particle explosion | Task completed |
-| **flash** | All edges change color | Error or threat |
-| **spawn_node** | New node appears | Memory created |
-| **wake** | Global intensity surge | Agent starts |
-| **cool_down** | Global intensity fade | Agent ends |
-| **dim** | Temporary reduction | Thinking state |
+Run with `--logs` (or press `l`) to see a live text stream of every event as it arrives — timestamps, event types, and source. This makes it easy to verify the visuals are responding to your actual agent activity.
 
 ---
 

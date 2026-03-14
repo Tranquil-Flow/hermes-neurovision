@@ -15,7 +15,7 @@ DEFAULT_PATH = os.path.expanduser("~/.hermes/state.db")
 class StateDbSource:
     def __init__(self, path: str = DEFAULT_PATH):
         self._path = path
-        self._last_message_id: int = 0
+        self._last_message_id: int = self._get_current_max_message_id(path)
         self._active_session_id: Optional[str] = None
         self._last_model: Optional[str] = None
         self._last_tokens: Tuple[int, int] = (0, 0)
@@ -26,6 +26,21 @@ class StateDbSource:
         self._tool_history: List[Tuple[str, float]] = []  # (tool_name, timestamp)
         self._last_tool_name: Optional[str] = None
         self._tool_repeat_count: int = 0
+
+    @staticmethod
+    def _get_current_max_message_id(path: str) -> int:
+        """Initialize to current max message ID so we only pick up new messages."""
+        if not os.path.exists(path):
+            return 0
+        try:
+            conn = sqlite3.connect(path, timeout=1.0)
+            try:
+                row = conn.execute("SELECT MAX(id) FROM messages").fetchone()
+                return row[0] or 0
+            finally:
+                conn.close()
+        except (sqlite3.Error, OSError):
+            return 0
 
     def poll(self, since: float) -> List[VisionEvent]:
         if not os.path.exists(self._path):
