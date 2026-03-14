@@ -1,8 +1,8 @@
-# Renaming hermes-vision to hermes-neurovision
+# Renaming hermes-neurovision to hermes-neurovision
 
 ## Assessment
 
-**Current Name**: hermes-vision
+**Current Name**: hermes-neurovision
 **Proposed Name**: hermes-neurovision
 
 **Difficulty**: Medium (546 occurrences across 76 files)
@@ -17,24 +17,24 @@
 ## Files That Need Changing
 
 ### Critical (Package Structure)
-1. **Directory name**: `hermes_vision/` → `hermes_neurovision/`
+1. **Directory name**: `hermes_neurovision/` → `hermes_neurovision/`
 2. **pyproject.toml**: Package name, script entry point
-3. **All Python imports**: `from hermes_vision` → `from hermes_neurovision`
+3. **All Python imports**: `from hermes_neurovision` → `from hermes_neurovision`
 
 ### User-Facing
 4. **README.md**: All occurrences
-5. **CLI command**: `hermes-vision` → `hermes-neurovision`
-6. **File paths**: `~/.hermes/vision/` → `~/.hermes/neurovision/`
-7. **Hook path**: `~/.hermes/hooks/hermes-vision/` → `~/.hermes/hooks/hermes-neurovision/`
+5. **CLI command**: `hermes-neurovision` → `hermes-neurovision`
+6. **File paths**: `~/.hermes/neurovision/` → `~/.hermes/neurovision/`
+7. **Hook path**: `~/.hermes/hooks/hermes-neurovision/` → `~/.hermes/hooks/hermes-neurovision/`
 
 ### Documentation
 8. **All .md files**: References throughout
-9. **Skill documentation**: hermes-vision-theme-design skill
+9. **Skill documentation**: hermes-neurovision-theme-design skill
 10. **.hvtheme format**: Maybe keep as-is for compatibility?
 
 ### Git/GitHub
 11. **Repository name**: Would need GitHub rename
-12. **Tags**: v0.1.0 already tagged as hermes-vision
+12. **Tags**: v0.1.0 already tagged as hermes-neurovision
 13. **URLs**: All links would need updating
 
 ## Risk Assessment
@@ -47,7 +47,7 @@
 ### Medium Risk
 - CLI command name (users would need to reinstall)
 - Hook paths (existing installations would break)
-- File format (.hvtheme references hermes_vision_version)
+- File format (.hvtheme references hermes_neurovision_version)
 
 ### High Risk
 - Git history (but preserved with rename)
@@ -82,7 +82,7 @@
 
 **Time**: ~4-5 hours (with migration)
 
-### Option 3: Keep hermes-vision
+### Option 3: Keep hermes-neurovision
 **Pros**:
 - No work needed
 - No breaking changes
@@ -96,8 +96,8 @@
 
 1. **Package Structure** (~30 min)
    ```bash
-   git mv hermes_vision hermes_neurovision
-   find . -type f -name "*.py" -exec sed -i 's/hermes_vision/hermes_neurovision/g' {} +
+   git mv hermes_neurovision hermes_neurovision
+   find . -type f -name "*.py" -exec sed -i 's/hermes_neurovision/hermes_neurovision/g' {} +
    ```
 
 2. **Project Config** (~10 min)
@@ -106,7 +106,7 @@
    - Update all other .md files
 
 3. **User Paths** (~20 min)
-   - Update all references to ~/.hermes/vision/ → ~/.hermes/neurovision/
+   - Update all references to ~/.hermes/neurovision/ → ~/.hermes/neurovision/
    - Update hook paths
    - Update import/export code
 
@@ -116,11 +116,11 @@
 
 5. **File Format** (~20 min)
    - Decision: Keep .hvtheme or change to .hvntheme?
-   - Update hermes_vision_version → hermes_neurovision_version
+   - Update hermes_neurovision_version → hermes_neurovision_version
    - Or keep as-is for compatibility
 
 6. **Skill Update** (~30 min)
-   - Update hermes-vision-theme-design skill
+   - Update hermes-neurovision-theme-design skill
    - Update all references
    - Update examples
 
@@ -145,11 +145,11 @@
 
 Keep `.hvtheme` extension for compatibility, but:
 - Change internal field: `hermes_neurovision_version`
-- Keep backwards compatibility with `hermes_vision_version`
+- Keep backwards compatibility with `hermes_neurovision_version`
 
 ## Migration Checklist
 
-- [ ] Rename directory: hermes_vision → hermes_neurovision
+- [ ] Rename directory: hermes_neurovision → hermes_neurovision
 - [ ] Update all Python imports
 - [ ] Update pyproject.toml
 - [ ] Update README.md and all docs

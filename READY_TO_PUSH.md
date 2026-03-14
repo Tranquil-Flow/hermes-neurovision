@@ -1,4 +1,4 @@
-# ✅ Hermes Vision v0.1.0 - Ready to Push
+# ✅ Hermes Neurovision v0.1.0 - Ready to Push
 
 ## Status: READY FOR GITHUB
 
@@ -24,7 +24,7 @@ All authorship has been corrected and the repository is prepared for release.
 - License: MIT
 
 ### Git Status
-- Remote configured: https://github.com/Tranquil-Flow/hermes-vision.git
+- Remote configured: https://github.com/Tranquil-Flow/hermes-neurovision.git
 - Working directory: Clean
 - Tag v0.1.0: Created and points to 727257c
 
@@ -37,7 +37,7 @@ All authorship has been corrected and the repository is prepared for release.
 Go to: https://github.com/new
 
 Settings:
-- Repository name: `hermes-vision`
+- Repository name: `hermes-neurovision`
 - Description: `Terminal neurovisualizer for Hermes Agent - 42 animated themes`
 - Public visibility
 - **DO NOT initialize** with README, .gitignore, or license
@@ -47,7 +47,7 @@ Click "Create repository"
 ### Step 2: Push to GitHub
 
 ```bash
-cd /workspace/Projects/hermes-vision
+cd /workspace/Projects/hermes-neurovision
 
 # Push main branch
 git push -u origin main
@@ -58,7 +58,7 @@ git push origin v0.1.0
 
 ### Step 3: Create Release
 
-1. Go to: https://github.com/Tranquil-Flow/hermes-vision/releases/new
+1. Go to: https://github.com/Tranquil-Flow/hermes-neurovision/releases/new
 2. Select tag: `v0.1.0`
 3. Release title: `v0.1.0 - The Visualization Expansion`
 4. Description: Copy from `GITHUB_RELEASE.md` (the markdown template section)
@@ -68,8 +68,8 @@ git push origin v0.1.0
 
 Test installation:
 ```bash
-pip install git+https://github.com/Tranquil-Flow/hermes-vision.git@v0.1.0
-hermes-vision --gallery
+pip install git+https://github.com/Tranquil-Flow/hermes-neurovision.git@v0.1.0
+hermes-neurovision --gallery
 ```
 
 ---

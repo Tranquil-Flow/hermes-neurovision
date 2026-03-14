@@ -5,7 +5,7 @@ import os
 import tempfile
 import time
 
-from hermes_vision.sources.custom import poll as custom_poll, CustomSource
+from hermes_neurovision.sources.custom import poll as custom_poll, CustomSource
 
 
 def test_custom_source_empty_file():
@@ -44,7 +44,7 @@ def test_custom_source_missing_file():
 
 
 import sqlite3
-from hermes_vision.sources.state_db import StateDbSource
+from hermes_neurovision.sources.state_db import StateDbSource
 
 
 def _create_test_db(path):
@@ -203,7 +203,7 @@ def test_state_db_detects_tool_chain():
         os.unlink(path)
 
 
-from hermes_vision.sources.memories import MemoriesSource
+from hermes_neurovision.sources.memories import MemoriesSource
 
 
 def test_memories_source_no_dir():
@@ -226,7 +226,7 @@ def test_memories_source_detects_new_file():
         assert "memory_created" in kinds
 
 
-from hermes_vision.sources.cron import CronSource
+from hermes_neurovision.sources.cron import CronSource
 
 
 def test_cron_source_no_dir():
@@ -254,7 +254,7 @@ def test_cron_source_detects_lock():
         assert "cron_executing" in kinds
 
 
-from hermes_vision.sources.aegis import AegisSource
+from hermes_neurovision.sources.aegis import AegisSource
 
 
 def test_aegis_source_no_dir():
@@ -297,7 +297,7 @@ def test_hook_handler_writes_jsonl():
         import importlib.util
         spec = importlib.util.spec_from_file_location(
             "hook_handler",
-            os.path.join(os.path.dirname(__file__), "..", "hermes_vision", "sources", "hook_handler.py")
+            os.path.join(os.path.dirname(__file__), "..", "hermes_neurovision", "sources", "hook_handler.py")
         )
         module = importlib.util.module_from_spec(spec)
 
@@ -319,7 +319,7 @@ def test_hook_handler_writes_jsonl():
         del os.environ["HERMES_VISION_EVENTS_PATH"]
 
 
-from hermes_vision.sources.trajectories import TrajectoriesSource
+from hermes_neurovision.sources.trajectories import TrajectoriesSource
 
 
 def test_trajectories_source_no_files():

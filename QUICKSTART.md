@@ -1,4 +1,4 @@
-# ⚡ Hermes Vision - 60 Second Setup
+# ⚡ Hermes Neurovision - 60 Second Setup
 
 ## For First-Time Users
 
@@ -6,17 +6,17 @@
 # 1. Install (choose one method)
 
 # Method A - Automated (recommended)
-cd ~/Projects/hermes-vision
+cd ~/Projects/hermes-neurovision
 python3 setup.py
 
 # Method B - Manual  
 pip install -e .
-mkdir -p ~/.hermes/hooks/hermes-vision
-cp hermes_vision/sources/hook_handler.py ~/.hermes/hooks/hermes-vision/handler.py
-cp hermes_vision/sources/HOOK.yaml ~/.hermes/hooks/hermes-vision/HOOK.yaml
+mkdir -p ~/.hermes/hooks/hermes-neurovision
+cp hermes_neurovision/sources/hook_handler.py ~/.hermes/hooks/hermes-neurovision/handler.py
+cp hermes_neurovision/sources/HOOK.yaml ~/.hermes/hooks/hermes-neurovision/HOOK.yaml
 
 # 2. Run it!
-hermes-vision --gallery
+hermes-neurovision --gallery
 
 # 3. Browse themes with 'n' key
 # 4. Lock your favorite with 'Enter'
@@ -30,7 +30,7 @@ That's it! 🎉
 ## Gallery Mode Workflow
 
 ```bash
-hermes-vision --gallery
+hermes-neurovision --gallery
 ```
 
 1. **Browse**: Press `n` or `p` to cycle through 10 themes
@@ -45,7 +45,7 @@ Bottom hints show what keys to press!
 ## Live Mode (Event Monitoring)
 
 ```bash
-hermes-vision
+hermes-neurovision
 ```
 
 - Automatically reacts to Hermes Agent activity
@@ -58,7 +58,7 @@ hermes-vision
 ## Daemon Mode (Best of Both)
 
 ```bash
-hermes-vision --daemon --logs
+hermes-neurovision --daemon --logs
 ```
 
 - Starts as beautiful gallery screensaver
@@ -72,12 +72,12 @@ hermes-vision --daemon --logs
 
 ```bash
 # Enable auto-launch
-echo '{"auto_launch": true}' > ~/.hermes/vision/config.json
+echo '{"auto_launch": true}' > ~/.hermes/neurovision/config.json
 
 # Test the launcher
-python3 hermes_vision/launcher.py --test-launch
+python3 hermes_neurovision/launcher.py --test-launch
 
-# Should open a new terminal window with hermes-vision running!
+# Should open a new terminal window with hermes-neurovision running!
 ```
 
 ---
@@ -86,16 +86,16 @@ python3 hermes_vision/launcher.py --test-launch
 
 ```bash
 # Quick test (runs for 10 seconds)
-hermes-vision --seconds 10
+hermes-neurovision --seconds 10
 
 # Specific theme
-hermes-vision --theme spiral-galaxy
+hermes-neurovision --theme spiral-galaxy
 
 # With logs from start
-hermes-vision --logs
+hermes-neurovision --logs
 
 # Daemon with specific theme
-hermes-vision --daemon --theme moonwire
+hermes-neurovision --daemon --theme moonwire
 ```
 
 ---
@@ -147,7 +147,7 @@ Daemon Mode:
 
 ## Pro Tips
 
-💡 **Always-on monitoring:** Run `hermes-vision --daemon` in a dedicated tmux pane  
+💡 **Always-on monitoring:** Run `hermes-neurovision --daemon` in a dedicated tmux pane  
 💡 **Browse themes:** Use `--gallery` to find your favorite, then use it in live/daemon  
 💡 **Debug events:** Enable `--logs` to see what events are triggering effects  
 💡 **Auto-launch:** Great for scheduled agent tasks - visualization opens automatically  
@@ -167,7 +167,7 @@ Daemon Mode:
 **Time from clone to running: ~60 seconds** ⚡
 
 ```bash
-cd ~/Projects/hermes-vision && python3 setup.py && hermes-vision --gallery
+cd ~/Projects/hermes-neurovision && python3 setup.py && hermes-neurovision --gallery
 ```
 
 That's all you need! 🚀

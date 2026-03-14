@@ -1,4 +1,4 @@
-# Hermes Vision - Enhancement Plan
+# Hermes Neurovision - Enhancement Plan
 
 ## Phase 1: UX Improvements (Immediate)
 
@@ -74,7 +74,7 @@
 ### 2.5 Auto-launch on Agent:Start
 **Implementation:**
 - Modify hook_handler.py
-- On agent:start event, spawn hermes-vision in background
+- On agent:start event, spawn hermes-neurovision in background
 - Detect platform (tmux/terminal/iTerm)
 - Launch with --auto-exit (closes after 30s idle)
 - Complex: needs to check if already running

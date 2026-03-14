@@ -1,4 +1,4 @@
-# Hermes Vision Implementation Plan
+# Hermes Neurovision Implementation Plan
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.10+ stdlib only (curses, sqlite3, json, os, math, random, dataclasses, argparse, time, pathlib)
 
-**Spec:** `docs/superpowers/specs/2026-03-13-hermes-vision-design.md`
+**Spec:** `docs/superpowers/specs/2026-03-13-hermes-neurovision-design.md`
 
 **Existing code to extract from:** `~/Desktop/neurovisualizer.py`
 
@@ -18,23 +18,23 @@
 
 | File | Responsibility | Source |
 |---|---|---|
-| `pyproject.toml` | Package metadata, `hermes-vision` CLI entry point | New |
-| `hermes_vision/__init__.py` | Package init, version | New |
-| `hermes_vision/themes.py` | ThemeConfig dataclass + 10 theme definitions | Extract from neurovisualizer.py lines 85-737 |
-| `hermes_vision/scene.py` | Particle, Packet, ThemeState — all simulation logic | Extract from neurovisualizer.py lines 40-456 |
-| `hermes_vision/renderer.py` | Curses Renderer — all drawing code | Extract from neurovisualizer.py lines 459-721 |
-| `hermes_vision/events.py` | VisionEvent dataclass + EventPoller | New |
-| `hermes_vision/bridge.py` | VisualTrigger dataclass + event-to-visual mapping | New |
-| `hermes_vision/log_overlay.py` | LogOverlay — fading scrolling text over visuals | New |
-| `hermes_vision/app.py` | GalleryApp + LiveApp orchestrators | Partially extract from neurovisualizer.py lines 740-845, extend |
-| `hermes_vision/cli.py` | argparse entry point | New |
-| `hermes_vision/sources/__init__.py` | Source module init | New |
-| `hermes_vision/sources/custom.py` | JSONL file tailer for `~/.hermes/vision/events.jsonl` | New |
-| `hermes_vision/sources/state_db.py` | SQLite poller for `~/.hermes/state.db` | New |
-| `hermes_vision/sources/memories.py` | Filesystem watcher for `~/.hermes/memories/` | New |
-| `hermes_vision/sources/cron.py` | Cron job status poller from `~/.hermes/cron/` | New |
-| `hermes_vision/sources/aegis.py` | Optional Aegis audit trail tailer | New |
-| `hermes_vision/sources/hook_handler.py` | Standalone gateway hook — writes events to JSONL | New |
+| `pyproject.toml` | Package metadata, `hermes-neurovision` CLI entry point | New |
+| `hermes_neurovision/__init__.py` | Package init, version | New |
+| `hermes_neurovision/themes.py` | ThemeConfig dataclass + 10 theme definitions | Extract from neurovisualizer.py lines 85-737 |
+| `hermes_neurovision/scene.py` | Particle, Packet, ThemeState — all simulation logic | Extract from neurovisualizer.py lines 40-456 |
+| `hermes_neurovision/renderer.py` | Curses Renderer — all drawing code | Extract from neurovisualizer.py lines 459-721 |
+| `hermes_neurovision/events.py` | VisionEvent dataclass + EventPoller | New |
+| `hermes_neurovision/bridge.py` | VisualTrigger dataclass + event-to-visual mapping | New |
+| `hermes_neurovision/log_overlay.py` | LogOverlay — fading scrolling text over visuals | New |
+| `hermes_neurovision/app.py` | GalleryApp + LiveApp orchestrators | Partially extract from neurovisualizer.py lines 740-845, extend |
+| `hermes_neurovision/cli.py` | argparse entry point | New |
+| `hermes_neurovision/sources/__init__.py` | Source module init | New |
+| `hermes_neurovision/sources/custom.py` | JSONL file tailer for `~/.hermes/neurovision/events.jsonl` | New |
+| `hermes_neurovision/sources/state_db.py` | SQLite poller for `~/.hermes/state.db` | New |
+| `hermes_neurovision/sources/memories.py` | Filesystem watcher for `~/.hermes/memories/` | New |
+| `hermes_neurovision/sources/cron.py` | Cron job status poller from `~/.hermes/cron/` | New |
+| `hermes_neurovision/sources/aegis.py` | Optional Aegis audit trail tailer | New |
+| `hermes_neurovision/sources/hook_handler.py` | Standalone gateway hook — writes events to JSONL | New |
 | `tests/test_events.py` | Tests for VisionEvent + EventPoller | New |
 | `tests/test_bridge.py` | Tests for VisualTrigger mapping | New |
 | `tests/test_sources.py` | Tests for each source poller | New |
@@ -49,7 +49,7 @@
 
 **Files:**
 - Create: `pyproject.toml`
-- Create: `hermes_vision/__init__.py`
+- Create: `hermes_neurovision/__init__.py`
 
 - [ ] **Step 1: Create pyproject.toml**
 
@@ -59,19 +59,19 @@ requires = ["setuptools>=64"]
 build-backend = "setuptools.backends._legacy:_Backend"
 
 [project]
-name = "hermes-vision"
+name = "hermes-neurovision"
 version = "0.1.0"
 description = "Terminal neurovisualizer for Hermes Agent"
 requires-python = ">=3.10"
 
 [project.scripts]
-hermes-vision = "hermes_vision.cli:main"
+hermes-neurovision = "hermes_neurovision.cli:main"
 ```
 
 - [ ] **Step 2: Create __init__.py**
 
 ```python
-"""Hermes Vision — Terminal neurovisualizer for Hermes Agent."""
+"""Hermes Neurovision — Terminal neurovisualizer for Hermes Agent."""
 
 __version__ = "0.1.0"
 ```
@@ -79,25 +79,25 @@ __version__ = "0.1.0"
 - [ ] **Step 3: Create empty test and source directories**
 
 ```bash
-mkdir -p ~/Projects/hermes-vision/tests
-mkdir -p ~/Projects/hermes-vision/hermes_vision/sources
-touch ~/Projects/hermes-vision/tests/__init__.py
-touch ~/Projects/hermes-vision/hermes_vision/sources/__init__.py
+mkdir -p ~/Projects/hermes-neurovision/tests
+mkdir -p ~/Projects/hermes-neurovision/hermes_neurovision/sources
+touch ~/Projects/hermes-neurovision/tests/__init__.py
+touch ~/Projects/hermes-neurovision/hermes_neurovision/sources/__init__.py
 ```
 
 - [ ] **Step 4: Commit**
 
 ```bash
-cd ~/Projects/hermes-vision
+cd ~/Projects/hermes-neurovision
 git init
-git add pyproject.toml hermes_vision/__init__.py hermes_vision/sources/__init__.py tests/__init__.py
-git commit -m "chore: scaffold hermes-vision project"
+git add pyproject.toml hermes_neurovision/__init__.py hermes_neurovision/sources/__init__.py tests/__init__.py
+git commit -m "chore: scaffold hermes-neurovision project"
 ```
 
 ### Task 2: Extract themes.py
 
 **Files:**
-- Create: `hermes_vision/themes.py`
+- Create: `hermes_neurovision/themes.py`
 - Reference: `~/Desktop/neurovisualizer.py` lines 25-36 (THEMES tuple), 85-106 (ThemeConfig), 724-737 (build_theme_config)
 
 - [ ] **Step 1: Write test for theme loading**
@@ -105,7 +105,7 @@ git commit -m "chore: scaffold hermes-vision project"
 Create `tests/test_themes.py`:
 
 ```python
-from hermes_vision.themes import THEMES, ThemeConfig, build_theme_config
+from hermes_neurovision.themes import THEMES, ThemeConfig, build_theme_config
 
 
 def test_all_theme_names_are_defined():
@@ -130,14 +130,14 @@ def test_all_themes_can_be_built():
 - [ ] **Step 2: Run test to verify it fails**
 
 ```bash
-cd ~/Projects/hermes-vision && python -m pytest tests/test_themes.py -v
+cd ~/Projects/hermes-neurovision && python -m pytest tests/test_themes.py -v
 ```
 
-Expected: FAIL — `ModuleNotFoundError: No module named 'hermes_vision.themes'`
+Expected: FAIL — `ModuleNotFoundError: No module named 'hermes_neurovision.themes'`
 
 - [ ] **Step 3: Extract ThemeConfig and build_theme_config from neurovisualizer.py**
 
-Create `hermes_vision/themes.py` by extracting:
+Create `hermes_neurovision/themes.py` by extracting:
 - The `THEMES` tuple (line 25-36)
 - The `ThemeConfig` dataclass (lines 85-106)
 - The `build_theme_config` function (lines 724-737)
@@ -148,7 +148,7 @@ Important: `ThemeConfig` uses `curses.COLOR_*` constants in its palette field de
 - [ ] **Step 4: Run tests to verify they pass**
 
 ```bash
-cd ~/Projects/hermes-vision && python -m pytest tests/test_themes.py -v
+cd ~/Projects/hermes-neurovision && python -m pytest tests/test_themes.py -v
 ```
 
 Expected: All 3 tests PASS
@@ -156,14 +156,14 @@ Expected: All 3 tests PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add hermes_vision/themes.py tests/test_themes.py
+git add hermes_neurovision/themes.py tests/test_themes.py
 git commit -m "feat: extract theme definitions from neurovisualizer"
 ```
 
 ### Task 3: Extract scene.py
 
 **Files:**
-- Create: `hermes_vision/scene.py`
+- Create: `hermes_neurovision/scene.py`
 - Reference: `~/Desktop/neurovisualizer.py` lines 40-456 (Particle, Packet, ThemeState)
 
 - [ ] **Step 1: Write test for scene simulation**
@@ -171,8 +171,8 @@ git commit -m "feat: extract theme definitions from neurovisualizer"
 Create `tests/test_scene.py`:
 
 ```python
-from hermes_vision.themes import build_theme_config
-from hermes_vision.scene import ThemeState, Particle, Packet
+from hermes_neurovision.themes import build_theme_config
+from hermes_neurovision.scene import ThemeState, Particle, Packet
 
 
 def test_theme_state_builds_scene():
@@ -220,7 +220,7 @@ def test_packet_step_advances_progress():
 
 
 def test_all_themes_simulate_without_error():
-    from hermes_vision.themes import THEMES
+    from hermes_neurovision.themes import THEMES
     for name in THEMES:
         config = build_theme_config(name)
         state = ThemeState(config, 80, 24, seed=42)
@@ -231,19 +231,19 @@ def test_all_themes_simulate_without_error():
 - [ ] **Step 2: Run test to verify it fails**
 
 ```bash
-cd ~/Projects/hermes-vision && python -m pytest tests/test_scene.py -v
+cd ~/Projects/hermes-neurovision && python -m pytest tests/test_scene.py -v
 ```
 
 Expected: FAIL — `ModuleNotFoundError`
 
 - [ ] **Step 3: Extract scene classes from neurovisualizer.py**
 
-Create `hermes_vision/scene.py` by extracting:
+Create `hermes_neurovision/scene.py` by extracting:
 - `Particle` dataclass (lines 46-67)
 - `Packet` dataclass (lines 70-79)
 - `ThemeState` dataclass (lines 109-456) — all simulation logic
 
-Change imports: `from hermes_vision.themes import ThemeConfig, STAR_CHARS, PACKET_CHARS, PULSE_CHARS`
+Change imports: `from hermes_neurovision.themes import ThemeConfig, STAR_CHARS, PACKET_CHARS, PULSE_CHARS`
 
 Important extraction notes:
 - The original `neurovisualizer.py` already has `self.rng = random.Random(self.seed)` in `__post_init__` — preserve this.
@@ -283,7 +283,7 @@ Call `self._step_intensity()` at the start of `step()`.
 - [ ] **Step 4: Run tests to verify they pass**
 
 ```bash
-cd ~/Projects/hermes-vision && python -m pytest tests/test_scene.py -v
+cd ~/Projects/hermes-neurovision && python -m pytest tests/test_scene.py -v
 ```
 
 Expected: All 8 tests PASS
@@ -291,14 +291,14 @@ Expected: All 8 tests PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add hermes_vision/scene.py tests/test_scene.py
+git add hermes_neurovision/scene.py tests/test_scene.py
 git commit -m "feat: extract scene simulation from neurovisualizer"
 ```
 
 ### Task 4: Extract renderer.py
 
 **Files:**
-- Create: `hermes_vision/renderer.py`
+- Create: `hermes_neurovision/renderer.py`
 - Reference: `~/Desktop/neurovisualizer.py` lines 459-721 (Renderer class)
 
 - [ ] **Step 1: Write test for renderer initialization**
@@ -306,18 +306,18 @@ git commit -m "feat: extract scene simulation from neurovisualizer"
 Create `tests/test_renderer.py`:
 
 ```python
-from hermes_vision.renderer import Renderer
+from hermes_neurovision.renderer import Renderer
 
 
 def test_renderer_edge_glyph_horizontal():
-    from hermes_vision.themes import build_theme_config
+    from hermes_neurovision.themes import build_theme_config
     config = build_theme_config("neural-sky")
     glyph = Renderer._edge_glyph(10.0, 1.0, config)
     assert glyph == "─"
 
 
 def test_renderer_edge_glyph_vertical():
-    from hermes_vision.themes import build_theme_config
+    from hermes_neurovision.themes import build_theme_config
     config = build_theme_config("neural-sky")
     glyph = Renderer._edge_glyph(1.0, 10.0, config)
     assert glyph == "│"
@@ -338,18 +338,18 @@ Note: We can only test static/utility methods without a curses window. The main 
 - [ ] **Step 2: Run test to verify it fails**
 
 ```bash
-cd ~/Projects/hermes-vision && python -m pytest tests/test_renderer.py -v
+cd ~/Projects/hermes-neurovision && python -m pytest tests/test_renderer.py -v
 ```
 
 Expected: FAIL
 
 - [ ] **Step 3: Extract Renderer from neurovisualizer.py**
 
-Create `hermes_vision/renderer.py` by extracting:
+Create `hermes_neurovision/renderer.py` by extracting:
 - `Renderer` class (lines 459-721)
 
-Change imports: `from hermes_vision.themes import ThemeConfig, STAR_CHARS, PULSE_CHARS`
-Add import: `from hermes_vision.scene import ThemeState`
+Change imports: `from hermes_neurovision.themes import ThemeConfig, STAR_CHARS, PULSE_CHARS`
+Add import: `from hermes_neurovision.scene import ThemeState`
 
 The renderer stays mostly unchanged. It receives a `ThemeState` and draws it.
 
@@ -358,7 +358,7 @@ The `draw()` method signature is: `draw(self, state: ThemeState, gallery_index: 
 - [ ] **Step 4: Run tests to verify they pass**
 
 ```bash
-cd ~/Projects/hermes-vision && python -m pytest tests/test_renderer.py -v
+cd ~/Projects/hermes-neurovision && python -m pytest tests/test_renderer.py -v
 ```
 
 Expected: All 4 tests PASS
@@ -366,14 +366,14 @@ Expected: All 4 tests PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add hermes_vision/renderer.py tests/test_renderer.py
+git add hermes_neurovision/renderer.py tests/test_renderer.py
 git commit -m "feat: extract curses renderer from neurovisualizer"
 ```
 
 ### Task 5: Extract app.py — Gallery mode
 
 **Files:**
-- Create: `hermes_vision/app.py`
+- Create: `hermes_neurovision/app.py`
 - Reference: `~/Desktop/neurovisualizer.py` lines 740-845 (GalleryApp)
 
 - [ ] **Step 1: Write test for GalleryApp construction**
@@ -381,12 +381,12 @@ git commit -m "feat: extract curses renderer from neurovisualizer"
 Create `tests/test_app.py`:
 
 ```python
-from hermes_vision.app import GalleryApp
+from hermes_neurovision.app import GalleryApp
 
 
 def test_gallery_app_headless_runs():
     """Test that the headless gallery runs for a few frames without error."""
-    from hermes_vision.themes import THEMES
+    from hermes_neurovision.themes import THEMES
     result = GalleryApp.run_headless(themes=list(THEMES), seconds=0.5, theme_seconds=0.2)
     assert result["frames"] > 0
     assert result["themes_shown"] >= 1
@@ -395,15 +395,15 @@ def test_gallery_app_headless_runs():
 - [ ] **Step 2: Run test to verify it fails**
 
 ```bash
-cd ~/Projects/hermes-vision && python -m pytest tests/test_app.py -v
+cd ~/Projects/hermes-neurovision && python -m pytest tests/test_app.py -v
 ```
 
 Expected: FAIL
 
 - [ ] **Step 3: Create app.py with GalleryApp**
 
-Create `hermes_vision/app.py` extracting `GalleryApp` from neurovisualizer.py lines 740-793. Adapt:
-- Import from `hermes_vision.themes`, `hermes_vision.scene`, `hermes_vision.renderer`
+Create `hermes_neurovision/app.py` extracting `GalleryApp` from neurovisualizer.py lines 740-793. Adapt:
+- Import from `hermes_neurovision.themes`, `hermes_neurovision.scene`, `hermes_neurovision.renderer`
 - Add `run_headless` class method (extracted from `run_headless` function, lines 815-838)
 - The curses `run()` method stays as-is
 
@@ -418,7 +418,7 @@ class GalleryApp:
     @classmethod
     def run_headless(cls, themes, seconds, theme_seconds=8.0):
         """Run without curses for testing. Returns stats dict."""
-        from hermes_vision.themes import build_theme_config, FRAME_DELAY
+        from hermes_neurovision.themes import build_theme_config, FRAME_DELAY
         frame_count = max(1, int(seconds / FRAME_DELAY))
         state = ThemeState(build_theme_config(themes[0]), 100, 30, seed=hash(themes[0]) & 0xFFFF)
         theme_index = 0
@@ -438,7 +438,7 @@ class GalleryApp:
 - [ ] **Step 4: Run tests to verify they pass**
 
 ```bash
-cd ~/Projects/hermes-vision && python -m pytest tests/test_app.py -v
+cd ~/Projects/hermes-neurovision && python -m pytest tests/test_app.py -v
 ```
 
 Expected: PASS
@@ -446,19 +446,19 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add hermes_vision/app.py tests/test_app.py
+git add hermes_neurovision/app.py tests/test_app.py
 git commit -m "feat: extract gallery app with headless mode"
 ```
 
 ### Task 6: Create cli.py — Gallery mode working end-to-end
 
 **Files:**
-- Create: `hermes_vision/cli.py`
+- Create: `hermes_neurovision/cli.py`
 
 - [ ] **Step 1: Create cli.py with argparse and gallery mode**
 
 ```python
-"""Hermes Vision CLI entry point."""
+"""Hermes Neurovision CLI entry point."""
 
 from __future__ import annotations
 
@@ -466,12 +466,12 @@ import argparse
 import curses
 import sys
 
-from hermes_vision.themes import THEMES, DEFAULT_THEME_SECONDS
+from hermes_neurovision.themes import THEMES, DEFAULT_THEME_SECONDS
 
 
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(
-        prog="hermes-vision",
+        prog="hermes-neurovision",
         description="Terminal neurovisualizer for Hermes Agent",
     )
     mode = parser.add_mutually_exclusive_group()
@@ -506,7 +506,7 @@ def main(argv=None):
 
 
 def _run_gallery(args):
-    from hermes_vision.app import GalleryApp
+    from hermes_neurovision.app import GalleryApp
 
     if not sys.stdin.isatty() or not sys.stdout.isatty():
         # Headless mode
@@ -525,7 +525,7 @@ def _run_gallery(args):
 - [ ] **Step 2: Test CLI headless mode**
 
 ```bash
-cd ~/Projects/hermes-vision && echo "" | python -m hermes_vision.cli --gallery --seconds 1
+cd ~/Projects/hermes-neurovision && echo "" | python -m hermes_neurovision.cli --gallery --seconds 1
 ```
 
 Expected: `headless: {frames: ..., themes_shown: ..., final_theme: ...}`
@@ -533,17 +533,17 @@ Expected: `headless: {frames: ..., themes_shown: ..., final_theme: ...}`
 - [ ] **Step 3: Test CLI interactive mode manually (quick smoke test)**
 
 ```bash
-cd ~/Projects/hermes-vision && python -m hermes_vision.cli --gallery --seconds 3
+cd ~/Projects/hermes-neurovision && python -m hermes_neurovision.cli --gallery --seconds 3
 ```
 
 Expected: Curses animation appears for 3 seconds, then exits cleanly.
 
-- [ ] **Step 4: Add `__main__.py` for `python -m hermes_vision` support**
+- [ ] **Step 4: Add `__main__.py` for `python -m hermes_neurovision` support**
 
-Create `hermes_vision/__main__.py`:
+Create `hermes_neurovision/__main__.py`:
 
 ```python
-from hermes_vision.cli import main
+from hermes_neurovision.cli import main
 
 main()
 ```
@@ -551,7 +551,7 @@ main()
 - [ ] **Step 5: Commit**
 
 ```bash
-git add hermes_vision/cli.py hermes_vision/__main__.py
+git add hermes_neurovision/cli.py hermes_neurovision/__main__.py
 git commit -m "feat: CLI entry point with gallery mode"
 ```
 
@@ -562,14 +562,14 @@ git commit -m "feat: CLI entry point with gallery mode"
 ### Task 7: Create events.py — VisionEvent + EventPoller
 
 **Files:**
-- Create: `hermes_vision/events.py`
+- Create: `hermes_neurovision/events.py`
 - Create: `tests/test_events.py`
 
 - [ ] **Step 1: Write tests for VisionEvent and EventPoller**
 
 ```python
 import time
-from hermes_vision.events import VisionEvent, EventPoller
+from hermes_neurovision.events import VisionEvent, EventPoller
 
 
 def test_vision_event_creation():
@@ -622,13 +622,13 @@ def test_event_poller_sorts_by_timestamp():
 - [ ] **Step 2: Run test to verify it fails**
 
 ```bash
-cd ~/Projects/hermes-vision && python -m pytest tests/test_events.py -v
+cd ~/Projects/hermes-neurovision && python -m pytest tests/test_events.py -v
 ```
 
 - [ ] **Step 3: Implement events.py**
 
 ```python
-"""Unified event model and poller for Hermes Vision."""
+"""Unified event model and poller for Hermes Neurovision."""
 
 from __future__ import annotations
 
@@ -675,20 +675,20 @@ class EventPoller:
 - [ ] **Step 4: Run tests to verify they pass**
 
 ```bash
-cd ~/Projects/hermes-vision && python -m pytest tests/test_events.py -v
+cd ~/Projects/hermes-neurovision && python -m pytest tests/test_events.py -v
 ```
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add hermes_vision/events.py tests/test_events.py
+git add hermes_neurovision/events.py tests/test_events.py
 git commit -m "feat: VisionEvent model and EventPoller"
 ```
 
 ### Task 8: Create sources/custom.py — JSONL tailer
 
 **Files:**
-- Create: `hermes_vision/sources/custom.py`
+- Create: `hermes_neurovision/sources/custom.py`
 - Create: `tests/test_sources.py`
 
 - [ ] **Step 1: Write test for JSONL tailer**
@@ -699,7 +699,7 @@ import os
 import tempfile
 import time
 
-from hermes_vision.sources.custom import poll as custom_poll, CustomSource
+from hermes_neurovision.sources.custom import poll as custom_poll, CustomSource
 
 
 def test_custom_source_empty_file():
@@ -740,7 +740,7 @@ def test_custom_source_missing_file():
 - [ ] **Step 2: Run test to verify it fails**
 
 ```bash
-cd ~/Projects/hermes-vision && python -m pytest tests/test_sources.py -v
+cd ~/Projects/hermes-neurovision && python -m pytest tests/test_sources.py -v
 ```
 
 - [ ] **Step 3: Implement sources/custom.py**
@@ -755,9 +755,9 @@ import os
 import time
 from typing import List
 
-from hermes_vision.events import VisionEvent
+from hermes_neurovision.events import VisionEvent
 
-DEFAULT_PATH = os.path.expanduser("~/.hermes/vision/events.jsonl")
+DEFAULT_PATH = os.path.expanduser("~/.hermes/neurovision/events.jsonl")
 
 # Map hook event_type strings to (source, kind) tuples
 EVENT_MAP = {
@@ -819,20 +819,20 @@ _default_source = CustomSource()
 - [ ] **Step 4: Run tests to verify they pass**
 
 ```bash
-cd ~/Projects/hermes-vision && python -m pytest tests/test_sources.py -v
+cd ~/Projects/hermes-neurovision && python -m pytest tests/test_sources.py -v
 ```
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add hermes_vision/sources/custom.py tests/test_sources.py
+git add hermes_neurovision/sources/custom.py tests/test_sources.py
 git commit -m "feat: custom JSONL event source"
 ```
 
 ### Task 9: Create sources/state_db.py — SQLite poller
 
 **Files:**
-- Create: `hermes_vision/sources/state_db.py`
+- Create: `hermes_neurovision/sources/state_db.py`
 - Append to: `tests/test_sources.py`
 
 The `state.db` schema:
@@ -849,7 +849,7 @@ Append to `tests/test_sources.py`:
 
 ```python
 import sqlite3
-from hermes_vision.sources.state_db import StateDbSource
+from hermes_neurovision.sources.state_db import StateDbSource
 
 
 def _create_test_db(path):
@@ -924,7 +924,7 @@ def test_state_db_detects_token_update():
 - [ ] **Step 2: Run tests to verify they fail**
 
 ```bash
-cd ~/Projects/hermes-vision && python -m pytest tests/test_sources.py::test_state_db_no_file tests/test_sources.py::test_state_db_detects_new_messages tests/test_sources.py::test_state_db_detects_token_update -v
+cd ~/Projects/hermes-neurovision && python -m pytest tests/test_sources.py::test_state_db_no_file tests/test_sources.py::test_state_db_detects_new_messages tests/test_sources.py::test_state_db_detects_token_update -v
 ```
 
 - [ ] **Step 3: Implement sources/state_db.py**
@@ -939,7 +939,7 @@ import sqlite3
 import time
 from typing import Dict, List, Optional, Tuple
 
-from hermes_vision.events import VisionEvent
+from hermes_neurovision.events import VisionEvent
 
 DEFAULT_PATH = os.path.expanduser("~/.hermes/state.db")
 
@@ -1051,20 +1051,20 @@ class StateDbSource:
 - [ ] **Step 4: Run tests to verify they pass**
 
 ```bash
-cd ~/Projects/hermes-vision && python -m pytest tests/test_sources.py -v
+cd ~/Projects/hermes-neurovision && python -m pytest tests/test_sources.py -v
 ```
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add hermes_vision/sources/state_db.py tests/test_sources.py
+git add hermes_neurovision/sources/state_db.py tests/test_sources.py
 git commit -m "feat: SQLite state.db event source"
 ```
 
 ### Task 10: Create sources/memories.py — Filesystem watcher
 
 **Files:**
-- Create: `hermes_vision/sources/memories.py`
+- Create: `hermes_neurovision/sources/memories.py`
 - Append to: `tests/test_sources.py`
 
 - [ ] **Step 1: Write tests**
@@ -1072,7 +1072,7 @@ git commit -m "feat: SQLite state.db event source"
 Append to `tests/test_sources.py`:
 
 ```python
-from hermes_vision.sources.memories import MemoriesSource
+from hermes_neurovision.sources.memories import MemoriesSource
 
 
 def test_memories_source_no_dir():
@@ -1108,7 +1108,7 @@ import os
 import time
 from typing import Dict, List
 
-from hermes_vision.events import VisionEvent
+from hermes_neurovision.events import VisionEvent
 
 DEFAULT_PATH = os.path.expanduser("~/.hermes/memories")
 
@@ -1164,20 +1164,20 @@ class MemoriesSource:
 - [ ] **Step 4: Run tests**
 
 ```bash
-cd ~/Projects/hermes-vision && python -m pytest tests/test_sources.py -v
+cd ~/Projects/hermes-neurovision && python -m pytest tests/test_sources.py -v
 ```
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add hermes_vision/sources/memories.py tests/test_sources.py
+git add hermes_neurovision/sources/memories.py tests/test_sources.py
 git commit -m "feat: memory filesystem event source"
 ```
 
 ### Task 11: Create sources/cron.py — Cron job status
 
 **Files:**
-- Create: `hermes_vision/sources/cron.py`
+- Create: `hermes_neurovision/sources/cron.py`
 - Append to: `tests/test_sources.py`
 
 - [ ] **Step 1: Write tests**
@@ -1185,7 +1185,7 @@ git commit -m "feat: memory filesystem event source"
 Append to `tests/test_sources.py`:
 
 ```python
-from hermes_vision.sources.cron import CronSource
+from hermes_neurovision.sources.cron import CronSource
 
 
 def test_cron_source_no_dir():
@@ -1227,7 +1227,7 @@ import os
 import time
 from typing import Dict, List
 
-from hermes_vision.events import VisionEvent
+from hermes_neurovision.events import VisionEvent
 
 DEFAULT_PATH = os.path.expanduser("~/.hermes/cron")
 
@@ -1286,20 +1286,20 @@ class CronSource:
 - [ ] **Step 4: Run tests**
 
 ```bash
-cd ~/Projects/hermes-vision && python -m pytest tests/test_sources.py -v
+cd ~/Projects/hermes-neurovision && python -m pytest tests/test_sources.py -v
 ```
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add hermes_vision/sources/cron.py tests/test_sources.py
+git add hermes_neurovision/sources/cron.py tests/test_sources.py
 git commit -m "feat: cron job event source"
 ```
 
 ### Task 12: Create sources/aegis.py — Optional audit trail
 
 **Files:**
-- Create: `hermes_vision/sources/aegis.py`
+- Create: `hermes_neurovision/sources/aegis.py`
 - Append to: `tests/test_sources.py`
 
 - [ ] **Step 1: Write tests**
@@ -1307,7 +1307,7 @@ git commit -m "feat: cron job event source"
 Append to `tests/test_sources.py`:
 
 ```python
-from hermes_vision.sources.aegis import AegisSource
+from hermes_neurovision.sources.aegis import AegisSource
 
 
 def test_aegis_source_no_dir():
@@ -1356,7 +1356,7 @@ import os
 import time
 from typing import List
 
-from hermes_vision.events import VisionEvent
+from hermes_neurovision.events import VisionEvent
 
 DEFAULT_PATH = os.path.expanduser("~/.hermes-aegis/audit.jsonl")
 
@@ -1418,22 +1418,22 @@ class AegisSource:
 - [ ] **Step 4: Run tests**
 
 ```bash
-cd ~/Projects/hermes-vision && python -m pytest tests/test_sources.py -v
+cd ~/Projects/hermes-neurovision && python -m pytest tests/test_sources.py -v
 ```
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add hermes_vision/sources/aegis.py tests/test_sources.py
+git add hermes_neurovision/sources/aegis.py tests/test_sources.py
 git commit -m "feat: optional Aegis audit trail event source"
 ```
 
 ### Task 13: Create sources/hook_handler.py — Gateway hook
 
 **Files:**
-- Create: `hermes_vision/sources/hook_handler.py`
+- Create: `hermes_neurovision/sources/hook_handler.py`
 
-This file is standalone — it runs inside the Hermes gateway process, not inside hermes-vision. It must not import from `hermes_vision`.
+This file is standalone — it runs inside the Hermes gateway process, not inside hermes-neurovision. It must not import from `hermes_neurovision`.
 
 - [ ] **Step 1: Write test for hook handler**
 
@@ -1448,7 +1448,7 @@ def test_hook_handler_writes_jsonl():
         import importlib.util
         spec = importlib.util.spec_from_file_location(
             "hook_handler",
-            os.path.join(os.path.dirname(__file__), "..", "hermes_vision", "sources", "hook_handler.py")
+            os.path.join(os.path.dirname(__file__), "..", "hermes_neurovision", "sources", "hook_handler.py")
         )
         module = importlib.util.module_from_spec(spec)
 
@@ -1476,14 +1476,14 @@ def test_hook_handler_writes_jsonl():
 
 ```python
 """
-Gateway hook handler for Hermes Vision.
+Gateway hook handler for Hermes Neurovision.
 
 This file is STANDALONE — it runs inside the Hermes gateway process.
-It must NOT import from hermes_vision or any non-stdlib package.
+It must NOT import from hermes_neurovision or any non-stdlib package.
 
 Install:
-    mkdir -p ~/.hermes/hooks/hermes-vision
-    cp this_file.py ~/.hermes/hooks/hermes-vision/handler.py
+    mkdir -p ~/.hermes/hooks/hermes-neurovision
+    cp this_file.py ~/.hermes/hooks/hermes-neurovision/handler.py
     # Create HOOK.yaml alongside it (see below)
 """
 
@@ -1493,7 +1493,7 @@ import time
 
 _EVENTS_PATH = os.environ.get(
     "HERMES_VISION_EVENTS_PATH",
-    os.path.expanduser("~/.hermes/vision/events.jsonl"),
+    os.path.expanduser("~/.hermes/neurovision/events.jsonl"),
 )
 
 
@@ -1516,11 +1516,11 @@ def handle(event_type: str, context: dict) -> None:
 
 - [ ] **Step 4: Create HOOK.yaml template**
 
-Create `hermes_vision/sources/HOOK.yaml`:
+Create `hermes_neurovision/sources/HOOK.yaml`:
 
 ```yaml
-name: hermes-vision
-description: Emits agent lifecycle events to the Hermes Vision neurovisualizer
+name: hermes-neurovision
+description: Emits agent lifecycle events to the Hermes Neurovision neurovisualizer
 events:
   - agent:start
   - agent:step
@@ -1533,13 +1533,13 @@ events:
 - [ ] **Step 5: Run tests**
 
 ```bash
-cd ~/Projects/hermes-vision && python -m pytest tests/test_sources.py -v
+cd ~/Projects/hermes-neurovision && python -m pytest tests/test_sources.py -v
 ```
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add hermes_vision/sources/hook_handler.py hermes_vision/sources/HOOK.yaml tests/test_sources.py
+git add hermes_neurovision/sources/hook_handler.py hermes_neurovision/sources/HOOK.yaml tests/test_sources.py
 git commit -m "feat: gateway hook handler for custom events"
 ```
 
@@ -1550,14 +1550,14 @@ git commit -m "feat: gateway hook handler for custom events"
 ### Task 14: Create bridge.py — Event to visual mapping
 
 **Files:**
-- Create: `hermes_vision/bridge.py`
+- Create: `hermes_neurovision/bridge.py`
 - Create: `tests/test_bridge.py`
 
 - [ ] **Step 1: Write tests**
 
 ```python
-from hermes_vision.bridge import Bridge, VisualTrigger
-from hermes_vision.events import VisionEvent
+from hermes_neurovision.bridge import Bridge, VisualTrigger
+from hermes_neurovision.events import VisionEvent
 import time
 
 
@@ -1613,7 +1613,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List
 
-from hermes_vision.events import VisionEvent
+from hermes_neurovision.events import VisionEvent
 
 
 @dataclass
@@ -1680,28 +1680,28 @@ class Bridge:
 - [ ] **Step 4: Run tests**
 
 ```bash
-cd ~/Projects/hermes-vision && python -m pytest tests/test_bridge.py -v
+cd ~/Projects/hermes-neurovision && python -m pytest tests/test_bridge.py -v
 ```
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add hermes_vision/bridge.py tests/test_bridge.py
+git add hermes_neurovision/bridge.py tests/test_bridge.py
 git commit -m "feat: event-to-visual bridge with full mapping table"
 ```
 
 ### Task 15: Create log_overlay.py
 
 **Files:**
-- Create: `hermes_vision/log_overlay.py`
+- Create: `hermes_neurovision/log_overlay.py`
 - Create: `tests/test_log_overlay.py`
 
 - [ ] **Step 1: Write tests**
 
 ```python
 import time
-from hermes_vision.log_overlay import LogOverlay
-from hermes_vision.events import VisionEvent
+from hermes_neurovision.log_overlay import LogOverlay
+from hermes_neurovision.events import VisionEvent
 
 
 def test_log_overlay_add_event():
@@ -1766,7 +1766,7 @@ import time
 from dataclasses import dataclass
 from typing import List, Tuple
 
-from hermes_vision.events import VisionEvent
+from hermes_neurovision.events import VisionEvent
 
 FADE_AFTER = 3.0    # seconds before dimming
 EXPIRE_AFTER = 8.0  # seconds before removal
@@ -1874,31 +1874,31 @@ class LogOverlay:
 - [ ] **Step 4: Run tests**
 
 ```bash
-cd ~/Projects/hermes-vision && python -m pytest tests/test_log_overlay.py -v
+cd ~/Projects/hermes-neurovision && python -m pytest tests/test_log_overlay.py -v
 ```
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add hermes_vision/log_overlay.py tests/test_log_overlay.py
+git add hermes_neurovision/log_overlay.py tests/test_log_overlay.py
 git commit -m "feat: fading log overlay for event display"
 ```
 
 ### Task 16: Wire up Live mode + apply_trigger in scene.py
 
 **Files:**
-- Modify: `hermes_vision/scene.py` — implement `apply_trigger()`
-- Modify: `hermes_vision/app.py` — add `LiveApp` class
-- Modify: `hermes_vision/renderer.py` — add log overlay rendering
-- Modify: `hermes_vision/cli.py` — wire up `--live` mode
+- Modify: `hermes_neurovision/scene.py` — implement `apply_trigger()`
+- Modify: `hermes_neurovision/app.py` — add `LiveApp` class
+- Modify: `hermes_neurovision/renderer.py` — add log overlay rendering
+- Modify: `hermes_neurovision/cli.py` — wire up `--live` mode
 
 - [ ] **Step 1: Add tests for apply_trigger**
 
 Append to `tests/test_scene.py`:
 
 ```python
-from hermes_vision.scene import ThemeState
-from hermes_vision.themes import build_theme_config
+from hermes_neurovision.scene import ThemeState
+from hermes_neurovision.themes import build_theme_config
 
 
 class FakeTrigger:
@@ -2038,7 +2038,7 @@ elif effect == "flash":
 - [ ] **Step 3: Run apply_trigger tests**
 
 ```bash
-cd ~/Projects/hermes-vision && python -m pytest tests/test_scene.py -v -k "apply_trigger"
+cd ~/Projects/hermes-neurovision && python -m pytest tests/test_scene.py -v -k "apply_trigger"
 ```
 
 Expected: All 6 apply_trigger tests PASS
@@ -2142,15 +2142,15 @@ Update `cli.py` `main()` to handle `--live`:
 
 ```python
 def _run_live(args):
-    from hermes_vision.app import LiveApp
-    from hermes_vision.events import EventPoller
-    from hermes_vision.bridge import Bridge
-    from hermes_vision.log_overlay import LogOverlay
-    from hermes_vision.sources.custom import CustomSource
-    from hermes_vision.sources.state_db import StateDbSource
-    from hermes_vision.sources.memories import MemoriesSource
-    from hermes_vision.sources.cron import CronSource
-    from hermes_vision.sources.aegis import AegisSource
+    from hermes_neurovision.app import LiveApp
+    from hermes_neurovision.events import EventPoller
+    from hermes_neurovision.bridge import Bridge
+    from hermes_neurovision.log_overlay import LogOverlay
+    from hermes_neurovision.sources.custom import CustomSource
+    from hermes_neurovision.sources.state_db import StateDbSource
+    from hermes_neurovision.sources.memories import MemoriesSource
+    from hermes_neurovision.sources.cron import CronSource
+    from hermes_neurovision.sources.aegis import AegisSource
 
     sources = [
         CustomSource().poll,
@@ -2187,13 +2187,13 @@ else:
 - [ ] **Step 6: Smoke test live mode**
 
 ```bash
-cd ~/Projects/hermes-vision && python -m hermes_vision --live --seconds 5
+cd ~/Projects/hermes-neurovision && python -m hermes_neurovision --live --seconds 5
 ```
 
 Expected: Neural network animation runs for 5 seconds, reading live data from state.db.
 
 ```bash
-cd ~/Projects/hermes-vision && python -m hermes_vision --live --logs --seconds 5
+cd ~/Projects/hermes-neurovision && python -m hermes_neurovision --live --logs --seconds 5
 ```
 
 Expected: Same, but with log overlay showing any detected events.
@@ -2201,7 +2201,7 @@ Expected: Same, but with log overlay showing any detected events.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add hermes_vision/scene.py hermes_vision/app.py hermes_vision/renderer.py hermes_vision/cli.py tests/test_scene.py
+git add hermes_neurovision/scene.py hermes_neurovision/app.py hermes_neurovision/renderer.py hermes_neurovision/cli.py tests/test_scene.py
 git commit -m "feat: live mode with event polling, bridge, and log overlay"
 ```
 
@@ -2218,30 +2218,30 @@ git commit -m "feat: live mode with event polling, bridge, and log overlay"
 - [ ] **Step 1: Install package in editable mode**
 
 ```bash
-cd ~/Projects/hermes-vision && pip install -e .
+cd ~/Projects/hermes-neurovision && pip install -e .
 ```
 
 - [ ] **Step 2: Test CLI entry point**
 
 ```bash
-hermes-vision --gallery --seconds 3
-hermes-vision --live --seconds 3
-hermes-vision --live --logs --seconds 3
+hermes-neurovision --gallery --seconds 3
+hermes-neurovision --live --seconds 3
+hermes-neurovision --live --logs --seconds 3
 ```
 
 - [ ] **Step 3: Install gateway hook**
 
 ```bash
-mkdir -p ~/.hermes/hooks/hermes-vision
-cp ~/Projects/hermes-vision/hermes_vision/sources/hook_handler.py ~/.hermes/hooks/hermes-vision/handler.py
-cp ~/Projects/hermes-vision/hermes_vision/sources/HOOK.yaml ~/.hermes/hooks/hermes-vision/HOOK.yaml
+mkdir -p ~/.hermes/hooks/hermes-neurovision
+cp ~/Projects/hermes-neurovision/hermes_neurovision/sources/hook_handler.py ~/.hermes/hooks/hermes-neurovision/handler.py
+cp ~/Projects/hermes-neurovision/hermes_neurovision/sources/HOOK.yaml ~/.hermes/hooks/hermes-neurovision/HOOK.yaml
 ```
 
 - [ ] **Step 4: Verify hook loads**
 
 Restart hermes gateway (or run a hermes command) and check for:
 ```
-[hooks] Loaded hook 'hermes-vision' for events: [...]
+[hooks] Loaded hook 'hermes-neurovision' for events: [...]
 ```
 
 - [ ] **Step 5: Commit any final adjustments**
@@ -2256,7 +2256,7 @@ git commit -m "chore: finalize installation and hook setup"
 - [ ] **Step 1: Run all tests**
 
 ```bash
-cd ~/Projects/hermes-vision && python -m pytest tests/ -v
+cd ~/Projects/hermes-neurovision && python -m pytest tests/ -v
 ```
 
 Expected: All tests pass.
@@ -2264,7 +2264,7 @@ Expected: All tests pass.
 - [ ] **Step 2: Run headless gallery verification**
 
 ```bash
-cd ~/Projects/hermes-vision && echo "" | hermes-vision --gallery --seconds 2
+cd ~/Projects/hermes-neurovision && echo "" | hermes-neurovision --gallery --seconds 2
 ```
 
 Expected: Headless output with stats.
@@ -2272,7 +2272,7 @@ Expected: Headless output with stats.
 - [ ] **Step 3: Run live mode with log overlay for 10 seconds to visually verify**
 
 ```bash
-hermes-vision --live --logs --seconds 10
+hermes-neurovision --live --logs --seconds 10
 ```
 
 Expected: Neural network animates, picks up any current state.db activity, log lines appear if events are flowing.
@@ -2280,12 +2280,12 @@ Expected: Neural network animates, picks up any current state.db activity, log l
 ### Task 19: Create CLAUDE.md for the project
 
 **Files:**
-- Create: `~/Projects/hermes-vision/CLAUDE.md`
+- Create: `~/Projects/hermes-neurovision/CLAUDE.md`
 
 - [ ] **Step 1: Write CLAUDE.md**
 
 ```markdown
-# Hermes Vision
+# Hermes Neurovision
 
 Terminal neurovisualizer for Hermes Agent. Pure Python, stdlib only.
 
@@ -2293,9 +2293,9 @@ Terminal neurovisualizer for Hermes Agent. Pure Python, stdlib only.
 
 ```bash
 pip install -e .
-hermes-vision --gallery    # screensaver mode
-hermes-vision --live       # real-time event visualization
-hermes-vision --live --logs # with scrolling log overlay
+hermes-neurovision --gallery    # screensaver mode
+hermes-neurovision --live       # real-time event visualization
+hermes-neurovision --live --logs # with scrolling log overlay
 ```
 
 ## Architecture
@@ -2318,13 +2318,13 @@ python -m pytest tests/ -v
 
 ## Gateway Hook
 
-Install to `~/.hermes/hooks/hermes-vision/` — see sources/hook_handler.py and sources/HOOK.yaml.
+Install to `~/.hermes/hooks/hermes-neurovision/` — see sources/hook_handler.py and sources/HOOK.yaml.
 ```
 
 - [ ] **Step 2: Register with grove**
 
 ```bash
-grove register ~/Projects/hermes-vision --priority 3
+grove register ~/Projects/hermes-neurovision --priority 3
 ```
 
 - [ ] **Step 3: Commit**

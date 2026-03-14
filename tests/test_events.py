@@ -1,5 +1,5 @@
 import time
-from hermes_vision.events import VisionEvent, EventPoller
+from hermes_neurovision.events import VisionEvent, EventPoller
 
 
 def test_vision_event_creation():

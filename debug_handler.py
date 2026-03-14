@@ -6,9 +6,9 @@ import os
 import subprocess
 import time
 
-_DEBUG_LOG = os.path.expanduser("~/.hermes/vision/handler_debug.log")
-_EVENTS_PATH = os.path.expanduser("~/.hermes/vision/events.jsonl")
-_CONFIG_PATH = os.path.expanduser("~/.hermes/vision/config.json")
+_DEBUG_LOG = os.path.expanduser("~/.hermes/neurovision/handler_debug.log")
+_EVENTS_PATH = os.path.expanduser("~/.hermes/neurovision/events.jsonl")
+_CONFIG_PATH = os.path.expanduser("~/.hermes/neurovision/config.json")
 
 def _log(msg):
     """Write to debug log."""
@@ -60,7 +60,7 @@ def _should_auto_launch(event_type: str, context: dict) -> bool:
 
 
 def _try_auto_launch() -> None:
-    """Attempt to auto-launch hermes-vision. Never raises exceptions."""
+    """Attempt to auto-launch hermes-neurovision. Never raises exceptions."""
     _log("_try_auto_launch called")
     try:
         # Get config
@@ -88,8 +88,8 @@ def _try_auto_launch() -> None:
         result = subprocess.Popen(
             [
                 "python3", "-c",
-                "from hermes_vision.launcher import auto_launch; "
-                "result = auto_launch('hermes-vision --daemon --auto-exit --logs'); "
+                "from hermes_neurovision.launcher import auto_launch; "
+                "result = auto_launch('hermes-neurovision --daemon --auto-exit --logs'); "
                 "print(f'Launch result: {result}')"
             ],
             stdout=subprocess.PIPE,

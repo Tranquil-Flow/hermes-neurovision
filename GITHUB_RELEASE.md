@@ -16,7 +16,7 @@
 ## Push to GitHub
 
 ```bash
-cd /workspace/Projects/hermes-vision
+cd /workspace/Projects/hermes-neurovision
 
 # Push main branch
 git push origin main
@@ -27,7 +27,7 @@ git push origin v0.1.0
 
 ## Create GitHub Release
 
-1. Navigate to: https://github.com/NousResearch/hermes-vision/releases/new
+1. Navigate to: https://github.com/NousResearch/hermes-neurovision/releases/new
 
 2. **Choose tag:** v0.1.0
 
@@ -109,14 +109,14 @@ git push origin v0.1.0
 ## 📦 Installation
 
 ```bash
-pip install git+https://github.com/NousResearch/hermes-vision.git@v0.1.0
+pip install git+https://github.com/NousResearch/hermes-neurovision.git@v0.1.0
 ```
 
 Or clone and install:
 
 ```bash
-git clone https://github.com/NousResearch/hermes-vision.git
-cd hermes-vision
+git clone https://github.com/NousResearch/hermes-neurovision.git
+cd hermes-neurovision
 git checkout v0.1.0
 pip install -e .
 python3 install_helper.py
@@ -126,13 +126,13 @@ python3 install_helper.py
 
 ```bash
 # Browse all 42 themes
-hermes-vision --gallery
+hermes-neurovision --gallery
 
 # Live mode with events
-hermes-vision --logs
+hermes-neurovision --logs
 
 # Daemon mode (auto-switching)
-hermes-vision --daemon --logs
+hermes-neurovision --daemon --logs
 ```
 
 ## 📋 Full Theme List
@@ -158,9 +158,9 @@ hermes-vision --daemon --logs
 
 ## 📚 Documentation
 
-- [README](https://github.com/NousResearch/hermes-vision/blob/main/README.md)
-- [CHANGELOG](https://github.com/NousResearch/hermes-vision/blob/main/CHANGELOG.md)
-- [Installation Guide](https://github.com/NousResearch/hermes-vision/blob/main/INSTALL.md)
+- [README](https://github.com/NousResearch/hermes-neurovision/blob/main/README.md)
+- [CHANGELOG](https://github.com/NousResearch/hermes-neurovision/blob/main/CHANGELOG.md)
+- [Installation Guide](https://github.com/NousResearch/hermes-neurovision/blob/main/INSTALL.md)
 
 ## 🙏 Credits
 
@@ -185,8 +185,8 @@ Built with Test-Driven Development by Hermes Agent for the Moonsong vision.
 
 7. **Verify installation:**
    ```bash
-   pip install git+https://github.com/NousResearch/hermes-vision.git@v0.1.0
-   hermes-vision --gallery
+   pip install git+https://github.com/NousResearch/hermes-neurovision.git@v0.1.0
+   hermes-neurovision --gallery
    ```
 
 8. **Announce:**
@@ -204,7 +204,7 @@ Built with Test-Driven Development by Hermes Agent for the Moonsong vision.
 ⚡ Pure Python stdlib, zero dependencies
 🔥 Watch your AI think in beautiful terminal animations
 
-Check it out: https://github.com/NousResearch/hermes-vision
+Check it out: https://github.com/NousResearch/hermes-neurovision
 
 #Python #AI #Visualization #OpenSource
 ```

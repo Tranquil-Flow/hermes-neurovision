@@ -12,7 +12,7 @@ All 4 Phase 2 post-MVP features have been successfully implemented and tested!
 
 **Usage:**
 ```bash
-hermes-vision --daemon
+hermes-neurovision --daemon
 ```
 
 **Behavior:**
@@ -112,7 +112,7 @@ New mappings:
 **Try daemon mode:**
 ```bash
 # Start daemon, it begins in gallery
-hermes-vision --daemon
+hermes-neurovision --daemon
 
 # Open a new terminal and trigger some events:
 # - Start a Hermes session (it switches to live!)
@@ -121,13 +121,13 @@ hermes-vision --daemon
 
 **Try with logs to see all the new events:**
 ```bash
-hermes-vision --daemon --logs
+hermes-neurovision --daemon --logs
 # You'll see trajectory events, session duration updates, tool patterns
 ```
 
 **Try specific theme in daemon mode:**
 ```bash
-hermes-vision --daemon --theme storm-core
+hermes-neurovision --daemon --theme storm-core
 # Gallery starts with storm-core, preserves it in live mode
 ```
 

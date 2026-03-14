@@ -13,7 +13,7 @@ Implemented:
 - 8 effect types: packet, pulse, burst, flash, spawn_node, wake, cool_down, dim
 
 Files created:
-- hermes_vision/bridge.py
+- hermes_neurovision/bridge.py
 - tests/test_bridge.py (5 tests, all passing)
 
 ### Task 15: log_overlay.py - Fading Text Overlay ✓
@@ -27,7 +27,7 @@ Implemented:
 - Proper timestamp formatting
 
 Files created:
-- hermes_vision/log_overlay.py
+- hermes_neurovision/log_overlay.py
 - tests/test_log_overlay.py (5 tests, all passing)
 
 ### Task 16: Live Mode with apply_trigger() ✓
@@ -56,9 +56,9 @@ Implemented:
   * --no-aegis to skip Aegis source
 
 Files modified:
-- hermes_vision/scene.py (apply_trigger implementation)
-- hermes_vision/app.py (LiveApp class added)
-- hermes_vision/cli.py (_run_live function, default changed)
+- hermes_neurovision/scene.py (apply_trigger implementation)
+- hermes_neurovision/app.py (LiveApp class added)
+- hermes_neurovision/cli.py (_run_live function, default changed)
 - tests/test_scene.py (6 apply_trigger tests, all passing)
 
 ## Testing Summary
@@ -73,22 +73,22 @@ All TDD cycles completed successfully:
 
 Default (live mode):
 ```bash
-hermes-vision
+hermes-neurovision
 ```
 
 Live mode with logs:
 ```bash
-hermes-vision --live --logs
+hermes-neurovision --live --logs
 ```
 
 Live mode for 10 seconds:
 ```bash
-hermes-vision --seconds 10
+hermes-neurovision --seconds 10
 ```
 
 Gallery mode (legacy):
 ```bash
-hermes-vision --gallery
+hermes-neurovision --gallery
 ```
 
 ## Event Flow

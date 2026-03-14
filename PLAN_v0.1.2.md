@@ -1,4 +1,4 @@
-# Hermes Vision v0.1.2 Plan
+# Hermes Neurovision v0.1.2 Plan
 
 ## Overview
 
@@ -10,7 +10,7 @@ v0.1.2 focuses on interactive parameter adjustment via sliders/keyboard controls
 
 ```bash
 # Run any theme
-hermes-vision --theme neural-sky
+hermes-neurovision --theme neural-sky
 
 # Press 'e' to enter Edit Mode
 # → Shows parameter overlay with current values
@@ -54,22 +54,22 @@ All ThemeConfig numeric parameters:
 
 ### Implementation Components
 
-1. **EditModeOverlay class** (`hermes_vision/edit_mode.py`)
+1. **EditModeOverlay class** (`hermes_neurovision/edit_mode.py`)
    - Render parameter list with sliders
    - Handle keyboard input
    - Trigger scene updates
 
-2. **Scene Rebuild Hooks** (`hermes_vision/scene.py`)
+2. **Scene Rebuild Hooks** (`hermes_neurovision/scene.py`)
    - `ThemeState.update_param(param, value)` method
    - Partial rebuild (only affected elements)
    - Preserve animation state
 
-3. **Config Persistence** (`~/.hermes/vision/theme_overrides.json`)
+3. **Config Persistence** (`~/.hermes/neurovision/theme_overrides.json`)
    - Save user adjustments per theme
    - Load on theme startup
    - Merge with base config
 
-4. **CLI Integration** (`hermes_vision/app.py`)
+4. **CLI Integration** (`hermes_neurovision/app.py`)
    - 'e' key toggles edit mode
    - Edit mode overlay on top of live visualization
    - Real-time preview of changes
@@ -77,7 +77,7 @@ All ThemeConfig numeric parameters:
 ### Config Override System
 
 ```json
-// ~/.hermes/vision/theme_overrides.json
+// ~/.hermes/neurovision/theme_overrides.json
 {
   "neural-sky": {
     "background_density": 0.035,
@@ -103,7 +103,7 @@ All ThemeConfig numeric parameters:
 
 ### User Workflow
 
-1. User runs theme: `hermes-vision --theme neural-sky`
+1. User runs theme: `hermes-neurovision --theme neural-sky`
 2. Presses `e` → Edit mode appears
 3. Uses arrow keys to select "Node Jitter"
 4. Presses `+` repeatedly → sees nodes shake more
@@ -117,11 +117,11 @@ Once user has customized a theme with sliders, they can export it:
 
 ```bash
 # Customize theme with sliders
-hermes-vision --theme neural-sky
+hermes-neurovision --theme neural-sky
 # [press 'e', adjust parameters, save]
 
 # Export customized version
-hermes-vision --export neural-sky --output my-neural.hvtheme
+hermes-neurovision --export neural-sky --output my-neural.hvtheme
 # → .hvtheme includes user's custom parameter values
 ```
 

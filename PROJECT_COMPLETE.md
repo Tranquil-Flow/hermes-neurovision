@@ -1,11 +1,11 @@
-# Hermes Vision - Project Complete
+# Hermes Neurovision - Project Complete
 
 **Date:** March 13, 2026  
 **Status:** ✅ ALL TASKS COMPLETE (19/19)
 
 ## Project Overview
 
-Hermes Vision is a terminal-native (curses) neurovisualizer that displays a living neural network animation reactive to real events from Hermes Agent. It monitors tool calls, token usage, memory operations, cron jobs, and security events, visualizing them as glowing nodes, pulsating edges, traveling packets, and particle bursts.
+Hermes Neurovision is a terminal-native (curses) neurovisualizer that displays a living neural network animation reactive to real events from Hermes Agent. It monitors tool calls, token usage, memory operations, cron jobs, and security events, visualizing them as glowing nodes, pulsating edges, traveling packets, and particle bursts.
 
 ## Implementation Summary
 
@@ -50,8 +50,8 @@ Hermes Vision is a terminal-native (curses) neurovisualizer that displays a livi
 ## Installation Status
 
 ✅ Package installed via `pip install -e .`  
-✅ Gateway hook installed to ~/.hermes/hooks/hermes-vision/  
-✅ CLI entry point: `hermes-vision` command available  
+✅ Gateway hook installed to ~/.hermes/hooks/hermes-neurovision/  
+✅ CLI entry point: `hermes-neurovision` command available  
 ✅ All tests passing  
 ✅ Installation guide: INSTALL.md
 
@@ -59,16 +59,16 @@ Hermes Vision is a terminal-native (curses) neurovisualizer that displays a livi
 
 ```bash
 # Live mode (default)
-hermes-vision
+hermes-neurovision
 
 # With log overlay
-hermes-vision --logs
+hermes-neurovision --logs
 
 # Gallery screensaver
-hermes-vision --gallery
+hermes-neurovision --gallery
 
 # Specific theme
-hermes-vision --theme storm-core
+hermes-neurovision --theme storm-core
 ```
 
 ## Modes
@@ -87,7 +87,7 @@ hermes-vision --theme storm-core
 
 ## Event Sources Monitored
 
-1. **Custom events** - Gateway hook → ~/.hermes/vision/events.jsonl
+1. **Custom events** - Gateway hook → ~/.hermes/neurovision/events.jsonl
 2. **Agent state** - SQLite → ~/.hermes/state.db (sessions, messages, tokens)
 3. **Memory ops** - Filesystem → ~/.hermes/memories/ (create, access, count)
 4. **Cron jobs** - Status → ~/.hermes/cron/ (executing, completed)
@@ -135,4 +135,4 @@ The visual engine successfully extracts and extends the original neurovisualizer
 
 Gateway hook is installed and ready to write events. Live mode will activate when agent activity occurs.
 
-**Next steps:** Run `hermes-vision` in a terminal to see the visualization in action.
+**Next steps:** Run `hermes-neurovision` in a terminal to see the visualization in action.

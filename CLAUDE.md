@@ -1,11 +1,11 @@
-# Hermes Vision
+# Hermes Neurovision
 
 Terminal neurovisualizer for Hermes Agent. Displays a living neural network that reacts to real agent events.
 
 ## Quick Reference
 
-- **Spec:** `docs/superpowers/specs/2026-03-13-hermes-vision-design.md`
-- **Plan:** `docs/superpowers/plans/2026-03-13-hermes-vision.md`
+- **Spec:** `docs/superpowers/specs/2026-03-13-hermes-neurovision-design.md`
+- **Plan:** `docs/superpowers/plans/2026-03-13-hermes-neurovision.md`
 - **Source to extract from:** `~/Desktop/neurovisualizer.py` (846 lines, 10 themes, curses)
 - **Tech:** Python 3.10+ stdlib only (curses, sqlite3, json, os, math, random)
 - **No external dependencies**
@@ -13,7 +13,7 @@ Terminal neurovisualizer for Hermes Agent. Displays a living neural network that
 ## Architecture
 
 ```
-hermes_vision/
+hermes_neurovision/
   themes.py       # 10 ThemeConfig definitions
   scene.py        # Particle, Packet, ThemeState simulation
   renderer.py     # Curses drawing
@@ -42,7 +42,7 @@ python -m pytest tests/ -v
 
 - Pure stdlib — no pip install of external packages
 - Each file must be independently understandable
-- `sources/hook_handler.py` is standalone — must NOT import from hermes_vision
+- `sources/hook_handler.py` is standalone — must NOT import from hermes_neurovision
 - Aegis features must gracefully degrade if `~/.hermes-aegis/` doesn't exist
 - `self.rng` in ThemeState uses `random.Random(seed)` — preserve from original
 - `_build_edges()` must be a callable method (not inlined) — needed by `apply_trigger()`

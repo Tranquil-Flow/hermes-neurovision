@@ -4,8 +4,8 @@ import json
 import pytest
 from pathlib import Path
 
-from hermes_vision.export import export_theme
-from hermes_vision.import_theme import import_theme, Version, IncompatibleVersionError
+from hermes_neurovision.export import export_theme
+from hermes_neurovision.import_theme import import_theme, Version, IncompatibleVersionError
 
 
 def test_version_parsing():
@@ -69,7 +69,7 @@ def test_import_install_mode(tmp_path):
     assert result["name"] == "neural-sky"
     
     # Check that theme was registered
-    from hermes_vision.themes import _runtime_configs
+    from hermes_neurovision.themes import _runtime_configs
     assert "neural-sky" in _runtime_configs
 
 

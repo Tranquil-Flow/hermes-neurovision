@@ -1,4 +1,4 @@
-# Release Guide for Hermes Vision v0.1.0
+# Release Guide for Hermes Neurovision v0.1.0
 
 ## What's New in v0.1.0
 
@@ -38,19 +38,19 @@
 
 ```bash
 # Clean install test
-pip uninstall hermes-vision -y
-cd /path/to/hermes-vision
+pip uninstall hermes-neurovision -y
+cd /path/to/hermes-neurovision
 pip install -e .
 
 # Verify version
-python3 -c "from hermes_vision.themes import THEMES; print(len(THEMES))"
+python3 -c "from hermes_neurovision.themes import THEMES; print(len(THEMES))"
 # Should output: 42
 
 # Test gallery mode
-hermes-vision --gallery --seconds 10
+hermes-neurovision --gallery --seconds 10
 
 # Test live mode
-hermes-vision --seconds 5
+hermes-neurovision --seconds 5
 ```
 
 ## Release Steps
@@ -73,15 +73,15 @@ hermes-vision --seconds 5
    ```
 
 4. **Create GitHub Release**
-   - Go to: https://github.com/NousResearch/hermes-vision/releases/new
+   - Go to: https://github.com/NousResearch/hermes-neurovision/releases/new
    - Tag: v0.1.0
-   - Title: "Hermes Vision v0.1.0 - The Visualization Expansion"
+   - Title: "Hermes Neurovision v0.1.0 - The Visualization Expansion"
    - Description: Copy from CHANGELOG.md
 
 5. **Verify Installation**
    ```bash
-   pip install git+https://github.com/NousResearch/hermes-vision.git@v0.1.0
-   hermes-vision --gallery
+   pip install git+https://github.com/NousResearch/hermes-neurovision.git@v0.1.0
+   hermes-neurovision --gallery
    ```
 
 ## Post-Release

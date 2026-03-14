@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Hermes Vision will be documented in this file.
+All notable changes to Hermes Neurovision will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -91,6 +91,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 34 event types
 - 8 visual effects (packet, pulse, burst, flash, spawn_node, wake, cool_down, dim)
 
-[0.1.1]: https://github.com/NousResearch/hermes-vision/releases/tag/v0.1.1
-[0.1.0]: https://github.com/NousResearch/hermes-vision/releases/tag/v0.1.0
-[0.0.1]: https://github.com/NousResearch/hermes-vision/releases/tag/v0.0.1
+[0.1.1]: https://github.com/NousResearch/hermes-neurovision/releases/tag/v0.1.1
+[0.1.0]: https://github.com/NousResearch/hermes-neurovision/releases/tag/v0.1.0
+[0.0.1]: https://github.com/NousResearch/hermes-neurovision/releases/tag/v0.0.1

@@ -9,7 +9,7 @@ import pytest
 
 # Import the hook handler module
 import sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "hermes_vision", "sources"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "hermes_neurovision", "sources"))
 import hook_handler
 
 
@@ -182,9 +182,9 @@ def test_try_auto_launch_calls_subprocess():
         # Verify subprocess was called
         mock_popen.assert_called_once()
         
-        # Verify command is calling hermes-vision CLI
+        # Verify command is calling hermes-neurovision CLI
         call_args = mock_popen.call_args[0][0]
-        assert "hermes-vision" in call_args
+        assert "hermes-neurovision" in call_args
         assert "--daemon" in call_args or "--auto-exit" in call_args
         
         # Verify detached execution

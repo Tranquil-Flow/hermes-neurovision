@@ -1,15 +1,15 @@
-from hermes_vision.renderer import Renderer
+from hermes_neurovision.renderer import Renderer
 
 
 def test_renderer_edge_glyph_horizontal():
-    from hermes_vision.themes import build_theme_config
+    from hermes_neurovision.themes import build_theme_config
     config = build_theme_config("neural-sky")
     glyph = Renderer._edge_glyph(10.0, 1.0, config)
     assert glyph == "─"
 
 
 def test_renderer_edge_glyph_vertical():
-    from hermes_vision.themes import build_theme_config
+    from hermes_neurovision.themes import build_theme_config
     config = build_theme_config("neural-sky")
     glyph = Renderer._edge_glyph(1.0, 10.0, config)
     assert glyph == "│"

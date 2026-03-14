@@ -143,8 +143,8 @@ Eight themes received major upgrades:
 
 ```bash
 # Clone the repository
-git clone https://github.com/NousResearch/hermes-vision.git
-cd hermes-vision
+git clone https://github.com/NousResearch/hermes-neurovision.git
+cd hermes-neurovision
 
 # Checkout v0.1.0
 git checkout v0.1.0
@@ -156,7 +156,7 @@ pip install -e .
 python3 install_helper.py
 
 # Start visualizing
-hermes-vision --gallery
+hermes-neurovision --gallery
 ```
 
 ---
@@ -165,19 +165,19 @@ hermes-vision --gallery
 
 ```bash
 # Gallery mode - browse all 42 themes
-hermes-vision --gallery
+hermes-neurovision --gallery
 
 # Live mode - react to agent events
-hermes-vision
+hermes-neurovision
 
 # With log overlay
-hermes-vision --logs
+hermes-neurovision --logs
 
 # Daemon mode (auto-switching)
-hermes-vision --daemon --logs
+hermes-neurovision --daemon --logs
 
 # Specific theme
-hermes-vision --theme black-hole
+hermes-neurovision --theme black-hole
 ```
 
 ---
@@ -201,7 +201,7 @@ hermes-vision --theme black-hole
 
 ## 🔗 Resources
 
-- **Repository:** https://github.com/NousResearch/hermes-vision
+- **Repository:** https://github.com/NousResearch/hermes-neurovision
 - **Documentation:** [README.md](README.md)
 - **Changelog:** [CHANGELOG.md](CHANGELOG.md)
 - **Release Guide:** [RELEASE.md](RELEASE.md)
