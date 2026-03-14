@@ -99,6 +99,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 34 event types
 - 8 visual effects (packet, pulse, burst, flash, spawn_node, wake, cool_down, dim)
 
-[0.1.1]: https://github.com/NousResearch/hermes-neurovision/releases/tag/v0.1.1
-[0.1.0]: https://github.com/NousResearch/hermes-neurovision/releases/tag/v0.1.0
-[0.0.1]: https://github.com/NousResearch/hermes-neurovision/releases/tag/v0.0.1
+[0.1.1]: https://github.com/Tranquil-Flow/hermes-neurovision/releases/tag/v0.1.1
+[0.1.0]: https://github.com/Tranquil-Flow/hermes-neurovision/releases/tag/v0.1.0
+[0.0.1]: https://github.com/Tranquil-Flow/hermes-neurovision/releases/tag/v0.0.1

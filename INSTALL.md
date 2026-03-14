@@ -1,18 +1,31 @@
 # Hermes Neurovision Installation
 
-## Installation
+## Quick Install (Recommended)
 
 ```bash
-cd ~/Projects/hermes-neurovision
+git clone https://github.com/Tranquil-Flow/hermes-neurovision.git
+cd hermes-neurovision
 pip install -e .
+
+# Setup script installs gateway hook + config directory
+python3 install_helper.py
 ```
 
-## Gateway Hook Installation
+## Manual Install
 
 ```bash
+# 1. Install package
+git clone https://github.com/Tranquil-Flow/hermes-neurovision.git
+cd hermes-neurovision
+pip install -e .
+
+# 2. Install gateway hook (enables live event capture)
 mkdir -p ~/.hermes/hooks/hermes-neurovision
 cp hermes_neurovision/sources/hook_handler.py ~/.hermes/hooks/hermes-neurovision/handler.py
 cp hermes_neurovision/sources/HOOK.yaml ~/.hermes/hooks/hermes-neurovision/HOOK.yaml
+
+# 3. (Optional) Enable auto-launch for cron jobs
+echo '{"auto_launch": true}' > ~/.hermes/neurovision/config.json
 ```
 
 ## Grove Registration (Optional)
@@ -32,50 +45,71 @@ hermes-neurovision
 # With log overlay
 hermes-neurovision --logs
 
-# Gallery mode - theme screensaver
+# Gallery mode - browse all 42 themes
 hermes-neurovision --gallery
+
+# Daemon mode - gallery when idle, live when agent is active
+hermes-neurovision --daemon
 
 # Specific theme
 hermes-neurovision --theme neural-sky
 
-# Test run
+# Test run (auto-exits after N seconds)
 hermes-neurovision --seconds 10
+
+# Export a theme
+hermes-neurovision --export neural-sky --author "YourName"
+
+# Import a theme
+hermes-neurovision --import mytheme.hvtheme
+
+# List imported themes
+hermes-neurovision --list-themes
 ```
 
 ## Modes
 
-- **--live**: Real-time event visualization (default)
-- **--gallery**: Theme rotation screensaver
-- **--daemon**: Gallery when idle, live when events arrive
-- **--logs**: Enable scrolling log overlay
-- **--no-aegis**: Skip Aegis audit source
+- **--live** (default): Real-time event visualization
+- **--gallery**: Browse all 42 themes with auto-rotation
+- **--daemon**: Gallery when idle, switches to live on events
+- **--logs**: Enable color-coded scrolling log overlay
+- **--no-aegis**: Skip Aegis security audit source
 
 ## Keyboard Controls
 
-- `q` - Quit
-- `l` - Toggle log overlay
+**Gallery Mode:**
 - `n` / Right Arrow - Next theme
 - `p` / Left Arrow - Previous theme
+- `Enter` - Lock current theme (stops rotation, keeps animating)
+- `s` - Select this theme for live mode
 - `Space` - Pause/Resume
+- `q` - Quit
+
+**Live / Daemon Mode:**
+- `l` - Toggle log overlay
+- `q` - Quit
 
 ## Event Sources
 
-Hermes Neurovision monitors:
-- Custom events (gateway hook → ~/.hermes/neurovision/events.jsonl)
-- Agent state (SQLite → ~/.hermes/state.db)
-- Memory operations (filesystem → ~/.hermes/memories/)
-- Cron jobs (status → ~/.hermes/cron/)
-- Security events (optional → ~/.hermes-aegis/audit.jsonl)
+Hermes Neurovision monitors 34 event types across 7 sources:
+- Custom events (gateway hook → `~/.hermes/neurovision/events.jsonl`)
+- Agent state (SQLite → `~/.hermes/state.db`)
+- Memory operations (filesystem → `~/.hermes/memories/`)
+- Cron jobs (status → `~/.hermes/cron/`)
+- Trajectory logs (`~/.hermes/logs/`)
+- Security events (optional → `~/.hermes-aegis/audit.jsonl`)
+
+## Requirements
+
+- Python 3.10+
+- No external dependencies (pure stdlib)
+- Terminal with 256 color support (recommended)
+- Minimum terminal size: 80x24
 
 ## Themes
 
-1. neural-sky
-2. electric-mycelium
-3. cathedral-circuit
-4. storm-core
-5. hybrid
-6. moonwire
-7. rootsong
-8. stormglass
-9. spiral-galaxy
-10. black-hole
+42 animated themes across 8 categories. See README.md for the full list, or browse live with `hermes-neurovision --gallery`.
+
+## Troubleshooting
+
+See the Troubleshooting section in [README.md](README.md) or [AUTOLAUNCH.md](AUTOLAUNCH.md) for auto-launch issues.

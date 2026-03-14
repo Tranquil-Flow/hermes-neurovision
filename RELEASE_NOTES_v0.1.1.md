@@ -123,7 +123,7 @@ Custom plugin themes contain Python code. Hermes Neurovision:
 
 - [VERSION_COMPATIBILITY.md](VERSION_COMPATIBILITY.md) - Version strategy
 - [PLAN_v0.1.2.md](PLAN_v0.1.2.md) - Future plans (sliders!)
-- [V0.1.1_IMPLEMENTATION_COMPLETE.md](V0.1.1_IMPLEMENTATION_COMPLETE.md) - Implementation details
+- [CHANGELOG.md](CHANGELOG.md) - Implementation details
 
 ## 🔮 Coming in v0.1.2
 
@@ -146,7 +146,7 @@ Created by Tranquil-Flow (tranquil_flow@protonmail.com)
 ## Installation
 
 ```bash
-git clone https://github.com/NousResearch/hermes-neurovision.git
+git clone https://github.com/Tranquil-Flow/hermes-neurovision.git
 cd hermes-neurovision
 pip install -e .
 hermes-neurovision --gallery

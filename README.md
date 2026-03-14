@@ -31,11 +31,12 @@ A beautiful living neural network that reacts to your AI agent's activity in rea
 ## 🚀 Quick Start
 
 ```bash
-# Install
-cd ~/Projects/hermes-vision  # (or hermes-neurovision if renamed)
+# Clone and install
+git clone https://github.com/Tranquil-Flow/hermes-neurovision.git
+cd hermes-neurovision
 pip install -e .
 
-# Run setup script (does everything!)
+# Run setup script (installs gateway hook + auto-launch config)
 python3 install_helper.py
 
 # Start visualizing
@@ -51,8 +52,9 @@ That's it! 🎉
 If you prefer to set up manually:
 
 ```bash
-# 1. Install package
-cd ~/Projects/hermes-neurovision
+# 1. Clone and install
+git clone https://github.com/Tranquil-Flow/hermes-neurovision.git
+cd hermes-neurovision
 pip install -e .
 
 # 2. Install gateway hook
@@ -80,7 +82,7 @@ hermes-neurovision
 # With log overlay to see event details
 hermes-neurovision --logs
 
-# Gallery mode - browse all 10 themes
+# Gallery mode - browse all 42 themes
 hermes-neurovision --gallery
 
 # Daemon mode - best of both worlds
@@ -304,7 +306,7 @@ hermes-neurovision --theme mytheme
 - Have AI agents design themes for you
 - Download themes from others
 
-See `V0.1.1_IMPLEMENTATION_COMPLETE.md` for full details.
+See [RELEASE_NOTES_v0.1.1.md](RELEASE_NOTES_v0.1.1.md) for full details.
 
 ### Integration with Hermes Agent
 
@@ -320,9 +322,10 @@ No additional configuration needed - just install and run!
 ## 📚 Documentation
 
 - **[INSTALL.md](INSTALL.md)** - Detailed installation guide
+- **[QUICKSTART.md](QUICKSTART.md)** - 60-second setup guide
 - **[AUTOLAUNCH.md](AUTOLAUNCH.md)** - Auto-launch setup & testing
-- **[COMPLETE.md](COMPLETE.md)** - Full feature reference
-- **[ENHANCEMENTS.md](ENHANCEMENTS.md)** - Development roadmap
+- **[CHANGELOG.md](CHANGELOG.md)** - Version history
+- **[PLAN_v0.1.2.md](PLAN_v0.1.2.md)** - Upcoming features (interactive theme editor)
 
 ---
 
@@ -415,7 +418,7 @@ Inspired by the Moonsong vision of beautiful, useful tools
 
 MIT License - See [LICENSE](LICENSE) for details.
 
-Copyright (c) 2026 Nous Research
+Copyright (c) 2026 Tranquil-Flow
 
 ---
 

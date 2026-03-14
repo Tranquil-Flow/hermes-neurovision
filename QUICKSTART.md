@@ -3,24 +3,20 @@
 ## For First-Time Users
 
 ```bash
-# 1. Install (choose one method)
-
-# Method A - Automated (recommended)
-cd ~/Projects/hermes-neurovision
-python3 setup.py
-
-# Method B - Manual  
+# 1. Clone and install
+git clone https://github.com/Tranquil-Flow/hermes-neurovision.git
+cd hermes-neurovision
 pip install -e .
-mkdir -p ~/.hermes/hooks/hermes-neurovision
-cp hermes_neurovision/sources/hook_handler.py ~/.hermes/hooks/hermes-neurovision/handler.py
-cp hermes_neurovision/sources/HOOK.yaml ~/.hermes/hooks/hermes-neurovision/HOOK.yaml
 
-# 2. Run it!
+# 2. Run setup (installs gateway hook, creates config)
+python3 install_helper.py
+
+# 3. Run it!
 hermes-neurovision --gallery
 
-# 3. Browse themes with 'n' key
-# 4. Lock your favorite with 'Enter'
-# 5. Press 's' to select for live mode
+# 4. Browse 42 themes with 'n' key
+# 5. Lock your favorite with 'Enter'
+# 6. Press 's' to select for live mode
 ```
 
 That's it! 🎉
@@ -33,7 +29,7 @@ That's it! 🎉
 hermes-neurovision --gallery
 ```
 
-1. **Browse**: Press `n` or `p` to cycle through 10 themes
+1. **Browse**: Press `n` or `p` to cycle through 42 themes
 2. **Lock**: Press `Enter` when you find one you like (keeps animating)
 3. **Select**: Press `s` to use it in live mode
 4. **Quit**: Press `q`
@@ -62,7 +58,7 @@ hermes-neurovision --daemon --logs
 ```
 
 - Starts as beautiful gallery screensaver
-- Auto-switches to live mode when agent is active  
+- Auto-switches to live mode when agent is active
 - Returns to gallery after 30 seconds idle
 - Perfect for always-on monitoring!
 
@@ -97,11 +93,14 @@ hermes-neurovision --logs
 # Daemon with specific theme
 hermes-neurovision --daemon --theme moonwire
 
-# Export a theme (NEW in v0.1.1)
+# Export a theme
 hermes-neurovision --export neural-sky --author "YourName"
 
-# Import a theme (NEW in v0.1.1)
+# Import a theme
 hermes-neurovision --import mytheme.hvtheme
+
+# Preview before importing
+hermes-neurovision --import mytheme.hvtheme --preview
 
 # List imported themes
 hermes-neurovision --list-themes
@@ -134,7 +133,7 @@ Daemon Mode:
 ## What You'll See
 
 **Gallery Mode:**
-- Beautiful generative animation
+- Beautiful generative animation (42 themes across 8 categories)
 - Each theme has unique visual style
 - Can lock to stay on one theme
 - Smooth transitions between themes
@@ -156,27 +155,26 @@ Daemon Mode:
 
 ## Pro Tips
 
-💡 **Always-on monitoring:** Run `hermes-neurovision --daemon` in a dedicated tmux pane  
-💡 **Browse themes:** Use `--gallery` to find your favorite, then use it in live/daemon  
-💡 **Debug events:** Enable `--logs` to see what events are triggering effects  
-💡 **Auto-launch:** Great for scheduled agent tasks - visualization opens automatically  
-💡 **Performance:** Pure stdlib means no dependencies to break or update  
+💡 **Always-on monitoring:** Run `hermes-neurovision --daemon` in a dedicated tmux pane
+💡 **Browse themes:** Use `--gallery` to find your favorite, then use it in live/daemon
+💡 **Debug events:** Enable `--logs` to see what events are triggering effects
+💡 **Auto-launch:** Great for scheduled agent tasks - visualization opens automatically
+💡 **Performance:** Pure stdlib means no dependencies to break or update
 
 ---
 
 ## Need Help?
 
-- Read full docs: [COMPLETE.md](COMPLETE.md)
-- Installation issues: [INSTALL.md](INSTALL.md)
+- Installation details: [INSTALL.md](INSTALL.md)
 - Auto-launch setup: [AUTOLAUNCH.md](AUTOLAUNCH.md)
-- Check tests: `python -m pytest tests/ -v`
+- Run tests: `python -m pytest tests/ -v`
 
 ---
 
 **Time from clone to running: ~60 seconds** ⚡
 
 ```bash
-cd ~/Projects/hermes-neurovision && python3 setup.py && hermes-neurovision --gallery
+git clone https://github.com/Tranquil-Flow/hermes-neurovision.git && cd hermes-neurovision && pip install -e . && python3 install_helper.py && hermes-neurovision --gallery
 ```
 
 That's all you need! 🚀
