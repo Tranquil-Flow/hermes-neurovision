@@ -1,8 +1,8 @@
 """Gallery and Live apps for Hermes Vision."""
 
 from __future__ import annotations
-
 import curses
+import random
 import time
 from typing import Optional, Sequence
 
@@ -100,6 +100,8 @@ class GalleryApp:
         self._escape_buf = ""
         self._fullscreen = False
         self._perf_mode = False
+        self._sim_rng = random.Random()
+        self._next_sim_at = time.time() + self._sim_rng.uniform(0.4, 1.2)
         self.state = self._make_state(self.themes[self.theme_index])
         self.switch_at = time.time() + self.theme_seconds if len(self.themes) > 1 else float("inf")
         self._configure_menu()
@@ -119,6 +121,56 @@ class GalleryApp:
         state.tune = self.tune
         return state
 
+    def _simulate_gallery_activity(self, now: float) -> None:
+        """Fire synthetic triggers into the gallery state to simulate agent activity.
+
+        Gallery mode should look alive — intensity spikes, bursts of particles,
+        packets travelling along edges, and pulses rippling out from nodes.
+        This replaces the simulated-event pump that was lost in the v0.2.0 rewrite.
+
+        quiet=True suppresses this entirely so quiet gallery is truly calm.
+        """
+        if self.quiet or self.paused:
+            return
+        if now < self._next_sim_at:
+            return
+
+        from hermes_neurovision.bridge import VisualTrigger
+
+        rng = self._sim_rng
+        state = self.state
+
+        # Schedule the next event — random interval 0.3s–2.5s
+        self._next_sim_at = now + rng.uniform(0.3, 2.5)
+
+        # Pick a random synthetic trigger type, weighted toward the lively ones
+        # VisualTrigger(effect, intensity, color_key, target)
+        roll = rng.random()
+        if roll < 0.20:
+            # Big wake-up spike: intensity → 1.0, then a burst
+            state.apply_trigger(VisualTrigger("wake",    rng.uniform(0.7, 1.0), "accent",  "all"))
+            if state.nodes:
+                state.apply_trigger(VisualTrigger("burst", rng.uniform(0.6, 1.0), "bright", "center"))
+        elif roll < 0.40:
+            # Ripple from a random node
+            state.apply_trigger(VisualTrigger("ripple",  rng.uniform(0.5, 0.9), "accent",  "random_node"))
+        elif roll < 0.58:
+            # Packet along an edge
+            state.apply_trigger(VisualTrigger("packet",  rng.uniform(0.4, 0.8), "soft",    "random_edge"))
+        elif roll < 0.72:
+            # Pulse from center
+            state.apply_trigger(VisualTrigger("pulse",   rng.uniform(0.5, 0.85), "bright", "center"))
+        elif roll < 0.84:
+            # Cascade across nodes
+            state.apply_trigger(VisualTrigger("cascade", rng.uniform(0.4, 0.7), "soft",    "random_node"))
+        elif roll < 0.92:
+            # Brief particle burst from a random node
+            state.apply_trigger(VisualTrigger("burst",   rng.uniform(0.3, 0.6), "accent",  "random_node"))
+        else:
+            # Cool down then ramp back — makes intensity breathe
+            state.apply_trigger(VisualTrigger("cool_down", 0.4, "soft", "all"))
+            self._next_sim_at = now + rng.uniform(0.8, 1.8)  # longer pause after cooldown
+
     def run(self) -> None:
         curses.curs_set(0)
         self.stdscr.nodelay(True)
@@ -133,6 +185,7 @@ class GalleryApp:
             self._handle_input()
             self._process_menu_action()
             if not self.paused:
+                self._simulate_gallery_activity(now)
                 self.state.step()
                 if len(self.themes) > 1 and not self.locked and now >= self.switch_at:
                     self._advance_theme(1)
@@ -260,6 +313,8 @@ class GalleryApp:
         elif action == "toggle_quiet":
             self.quiet = not self.quiet
             self.state.quiet = self.quiet
+            # Reset sim timer so we don't fire a backlog the moment quiet turns off
+            self._next_sim_at = time.time() + self._sim_rng.uniform(0.5, 1.5)
             self._configure_menu()
         elif action == "toggle_legacy":
             self.include_legacy = not self.include_legacy
@@ -386,6 +441,7 @@ class GalleryApp:
         if ch == ord("q"):
             self.quiet = not self.quiet
             self.state.quiet = self.quiet
+            self._next_sim_at = time.time() + self._sim_rng.uniform(0.5, 1.5)
         if ch == ord("L"):
             self.include_legacy = not self.include_legacy
             self.themes = self._base_themes + (list(LEGACY_THEMES) if self.include_legacy else [])
@@ -708,6 +764,8 @@ class DaemonApp:
         self.switch_at = time.time() + self.theme_seconds if len(self.themes) > 1 else float("inf")
 
         self._poll_counter = 0
+        self._sim_rng = random.Random()
+        self._next_sim_at = time.time() + self._sim_rng.uniform(0.4, 1.2)
         self._configure_menu()
 
     def _configure_menu(self) -> None:
@@ -732,6 +790,39 @@ class DaemonApp:
         state = ThemeState(config, w, h, seed=hash(self.selected_theme_name) & 0xFFFF, quiet=self.quiet)
         state.tune = self.tune
         return state
+
+    def _simulate_gallery_activity(self, now: float) -> None:
+        """Same simulated event pump as GalleryApp — keeps daemon gallery mode lively."""
+        if self.quiet or self.mode != "gallery":
+            return
+        if now < self._next_sim_at:
+            return
+
+        from hermes_neurovision.bridge import VisualTrigger
+
+        rng = self._sim_rng
+        state = self.gallery_state
+
+        self._next_sim_at = now + rng.uniform(0.3, 2.5)
+
+        roll = rng.random()
+        if roll < 0.20:
+            state.apply_trigger(VisualTrigger("wake",    rng.uniform(0.7, 1.0), "accent",  "all"))
+            if state.nodes:
+                state.apply_trigger(VisualTrigger("burst", rng.uniform(0.6, 1.0), "bright", "center"))
+        elif roll < 0.40:
+            state.apply_trigger(VisualTrigger("ripple",  rng.uniform(0.5, 0.9), "accent",  "random_node"))
+        elif roll < 0.58:
+            state.apply_trigger(VisualTrigger("packet",  rng.uniform(0.4, 0.8), "soft",    "random_edge"))
+        elif roll < 0.72:
+            state.apply_trigger(VisualTrigger("pulse",   rng.uniform(0.5, 0.85), "bright", "center"))
+        elif roll < 0.84:
+            state.apply_trigger(VisualTrigger("cascade", rng.uniform(0.4, 0.7), "soft",    "random_node"))
+        elif roll < 0.92:
+            state.apply_trigger(VisualTrigger("burst",   rng.uniform(0.3, 0.6), "accent",  "random_node"))
+        else:
+            state.apply_trigger(VisualTrigger("cool_down", 0.4, "soft", "all"))
+            self._next_sim_at = now + rng.uniform(0.8, 1.8)
 
     def run(self) -> None:
         curses.curs_set(0)
@@ -774,6 +865,7 @@ class DaemonApp:
 
             # Step the appropriate state
             if self.mode == "gallery":
+                self._simulate_gallery_activity(now)
                 self.gallery_state.step()
                 # Auto-advance themes in gallery mode
                 if len(self.themes) > 1 and now >= self.switch_at:
@@ -934,6 +1026,7 @@ class DaemonApp:
                 self.gallery_state.quiet = self.quiet
             if self.live_state:
                 self.live_state.quiet = self.quiet
+            self._next_sim_at = time.time() + self._sim_rng.uniform(0.5, 1.5)
             self._configure_menu()
         elif action == "hide":
             self.hide_hud = True
@@ -1021,6 +1114,7 @@ class DaemonApp:
                     self.gallery_state.quiet = self.quiet
                 if self.live_state:
                     self.live_state.quiet = self.quiet
+                self._next_sim_at = time.time() + self._sim_rng.uniform(0.5, 1.5)
             if ch == ord("d"):
                 self.debug_panel.toggle()
             if ch == ord("l"):
