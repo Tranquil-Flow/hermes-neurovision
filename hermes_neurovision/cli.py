@@ -73,14 +73,64 @@ def parse_args(argv=None):
     parser.add_argument("--disable", metavar="THEME", help="Disable a theme (hide from gallery) and exit")
     parser.add_argument("--enable", metavar="THEME", help="Re-enable a disabled theme and exit")
 
+    # ── Background mode (neurovision-bg) ──────────────────────────────────────
+    # This block is fully additive — it never affects live/gallery/daemon paths.
+    # Activated only when --bg is present. All other flags behave identically.
+    bg_group = parser.add_argument_group(
+        "background mode",
+        "Run neurovision behind your terminal (requires a transparent terminal emulator). "
+        "No curses takeover — neurovision lives in its own detached process."
+    )
+    bg_group.add_argument(
+        "--bg",
+        metavar="ACTION",
+        nargs="?",
+        const="start",
+        choices=["start", "stop", "status", "config"],
+        help="Background mode: start | stop | status | config (default: start)",
+    )
+    bg_group.add_argument("--bg-theme", default=None, help="Theme for background mode")
+    bg_group.add_argument("--bg-gallery", action="store_true", help="Use gallery rotation in background mode")
+    bg_group.add_argument(
+        "--bg-opacity",
+        type=float,
+        default=None,
+        metavar="0.0-1.0",
+        help="Suggested terminal opacity (saved to config, printed as a setup hint)",
+    )
+    bg_group.add_argument(
+        "--bg-theme-seconds",
+        type=float,
+        default=None,
+        metavar="N",
+        help="Seconds per theme in background gallery rotation",
+    )
+    bg_group.add_argument(
+        "--bg-window-mode",
+        choices=["behind", "side-by-side", "fullscreen"],
+        default=None,
+        help="Window placement mode (default: behind)",
+    )
+    bg_group.add_argument("--bg-quiet", action="store_true", help="Suppress sim activity in background (saves CPU)")
+
     return parser.parse_args(argv)
 
 
 def main(argv=None):
     args = parse_args(argv)
+
+    # ── Background mode early-exit ────────────────────────────────────────────
+    # Must come first — if --bg is present we dispatch and return immediately.
+    # Nothing below this block is touched when bg mode is active.
+    if getattr(args, "bg", None) is not None:
+        from hermes_neurovision.bg_mode import handle_bg_command
+        handle_bg_command(args)
+        return
+    # ─────────────────────────────────────────────────────────────────────────
+
     if args.theme is None:
         args.theme = _load_default_theme()
-    
+
     # Handle export
     if args.export:
         from hermes_neurovision.export import export_theme
