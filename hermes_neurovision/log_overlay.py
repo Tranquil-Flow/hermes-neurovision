@@ -21,6 +21,8 @@ SOURCE_COLORS = {
     "custom": "green",
     "trajectories": "cyan",
     "docker": "green",
+    "mcp": "green",
+    "provider": "yellow",
 }
 
 
@@ -108,6 +110,47 @@ def _format_event(ev: VisionEvent) -> str:
     elif ev.kind == "delegate_task_done":
         name = data.get("container", "?")
         return f"[{ts}] delegate:done [{name[:24]}]"
+    # NEW — v0.2.0 event kinds
+    elif ev.kind == "tool_error":
+        name = data.get("tool_name", "?")
+        err = data.get("error", "")[:40]
+        return f"[{ts}] tool:error {name} — {err}"
+    elif ev.kind == "compression_started":
+        return f"[{ts}] compression:start"
+    elif ev.kind == "compression_ended":
+        before = data.get("tokens_before", "?")
+        after = data.get("tokens_after", "?")
+        return f"[{ts}] compression:end {before}→{after} tokens"
+    elif ev.kind == "checkpoint_created":
+        cid = data.get("checkpoint_id", "?")[:8]
+        return f"[{ts}] checkpoint:created {cid}"
+    elif ev.kind == "checkpoint_rollback":
+        cid = data.get("checkpoint_id", "?")[:8]
+        return f"[{ts}] checkpoint:rollback {cid}"
+    elif ev.kind == "mcp_connected":
+        server = data.get("server", "?")
+        return f"[{ts}] mcp:connected {server}"
+    elif ev.kind == "mcp_disconnected":
+        server = data.get("server", "?")
+        return f"[{ts}] mcp:disconnected {server}"
+    elif ev.kind == "mcp_tool_call":
+        tool = data.get("tool_name", "?")
+        server = data.get("server", "")
+        return f"[{ts}] mcp:tool {tool} ({server})"
+    elif ev.kind == "provider_fallback":
+        frm = data.get("from", "?")
+        to = data.get("to", "?")
+        return f"[{ts}] provider:fallback {frm}→{to}"
+    elif ev.kind == "provider_error":
+        provider = data.get("provider", "?")
+        err = data.get("error", "")[:30]
+        return f"[{ts}] provider:error {provider} — {err}"
+    elif ev.kind == "subagent_started":
+        name = data.get("name", data.get("goal", "?"))[:30]
+        return f"[{ts}] subagent:start [{name}]"
+    elif ev.kind == "subagent_ended":
+        name = data.get("name", "?")[:30]
+        return f"[{ts}] subagent:end [{name}]"
     else:
         return f"[{ts}] {ev.kind}"
 

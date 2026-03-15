@@ -10,7 +10,7 @@ from hermes_neurovision.events import VisionEvent
 
 @dataclass
 class VisualTrigger:
-    effect: str       # "packet", "pulse", "spawn_node", "burst", "flash", "dim", "wake", "cool_down"
+    effect: str       # "packet", "pulse", "spawn_node", "burst", "flash", "dim", "wake", "cool_down", "ripple", "cascade", "converge", "streak"
     intensity: float  # 0.0 - 1.0
     color_key: str    # "accent", "warning", "bright", "soft", "base"
     target: str       # "random_node", "center", "random_edge", "all", "new"
@@ -55,6 +55,19 @@ _MAPPING = {
     "tool_chain":             ("packet",     0.7, "accent",  "random_edge"),
     "delegate_task_started":  ("spawn_node", 1.0, "bright",  "new"),
     "delegate_task_done":     ("burst",      0.9, "bright",  "center"),
+    # NEW — v0.2.0 event kinds
+    "tool_error":             ("flash",      0.7, "warning", "random_node"),
+    "compression_started":    ("pulse",      0.6, "accent",  "center"),
+    "compression_ended":      ("ripple",     0.5, "soft",    "center"),
+    "checkpoint_created":     ("spawn_node", 0.7, "bright",  "new"),
+    "checkpoint_rollback":    ("flash",      0.9, "warning", "all"),
+    "mcp_connected":          ("wake",       0.7, "accent",  "all"),
+    "mcp_disconnected":       ("flash",      0.6, "warning", "all"),
+    "mcp_tool_call":          ("packet",     0.6, "accent",  "random_edge"),
+    "provider_fallback":      ("cascade",    0.8, "warning", "all"),
+    "provider_error":         ("burst",      0.8, "warning", "center"),
+    "subagent_started":       ("spawn_node", 0.9, "bright",  "new"),
+    "subagent_ended":         ("converge",   0.7, "bright",  "center"),
 }
 
 
