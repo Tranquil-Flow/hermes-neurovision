@@ -70,6 +70,8 @@ def parse_args(argv=None):
     parser.add_argument("--custom-only", action="store_true", help="Show only custom/imported themes")
     parser.add_argument("--include-legacy", action="store_true", help="Include legacy themes in gallery rotation")
     parser.add_argument("--list-legacy", action="store_true", help="List all legacy theme names and exit")
+    parser.add_argument("--disable", metavar="THEME", help="Disable a theme (hide from gallery) and exit")
+    parser.add_argument("--enable", metavar="THEME", help="Re-enable a disabled theme and exit")
 
     return parser.parse_args(argv)
 
@@ -134,6 +136,19 @@ def main(argv=None):
             print(f"✗ Import failed: {e}")
             sys.exit(1)
     
+    # Handle disable / enable
+    if args.disable:
+        from hermes_neurovision.disabled import add_disabled
+        add_disabled(args.disable)
+        print(f"Theme '{args.disable}' disabled.")
+        return
+
+    if args.enable:
+        from hermes_neurovision.disabled import remove_disabled
+        remove_disabled(args.enable)
+        print(f"Theme '{args.enable}' enabled.")
+        return
+
     # Handle list-legacy
     if args.list_legacy:
         from hermes_neurovision.themes import build_theme_config
@@ -158,8 +173,14 @@ def main(argv=None):
 
 def _run_gallery(args, include_legacy=False):
     from hermes_neurovision.app import GalleryApp
+    from hermes_neurovision.disabled import load_disabled
 
-    base_themes = list(THEMES) + (list(LEGACY_THEMES) if include_legacy else [])
+    disabled = load_disabled()
+    all_themes = list(THEMES) + (list(LEGACY_THEMES) if include_legacy else [])
+    base_themes = [t for t in all_themes if t not in disabled]
+    if not base_themes:
+        print("Warning: all themes are disabled — showing full theme list as fallback.")
+        base_themes = list(THEMES)
 
     if not sys.stdin.isatty() or not sys.stdout.isatty():
         # Headless mode

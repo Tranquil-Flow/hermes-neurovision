@@ -160,6 +160,17 @@ class GalleryApp:
             self.theme_index = 0
             self.state = self._make_state(self.themes[self.theme_index])
             self.switch_at = time.time() + self.theme_seconds
+        if ch == ord("X"):
+            from hermes_neurovision.disabled import add_disabled
+            current = self.themes[self.theme_index]
+            add_disabled(current)
+            self.themes = [t for t in self.themes if t != current]
+            if not self.themes:
+                from hermes_neurovision.themes import THEMES as _ALL
+                self.themes = list(_ALL)
+            self.theme_index = self.theme_index % len(self.themes)
+            self.state = self._make_state(self.themes[self.theme_index])
+            self.switch_at = time.time() + self.theme_seconds
         if ch in (curses.KEY_RIGHT, curses.KEY_SRIGHT, ord("n")):
             self._advance_theme(1)
         elif ch in (curses.KEY_LEFT, curses.KEY_SLEFT, ord("p")):
