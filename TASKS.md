@@ -204,6 +204,11 @@ Read the full plan at `docs/superpowers/plans/2026-03-13-hermes-neurovision.md` 
   Gallery key 'X': disables current theme and advances to next. Print brief notice.
   Test: test_disable_theme(), test_enable_theme(), test_disabled_themes_filtered_from_gallery().
 
+- [ ] Task 50: Create 5 new original screens. [QWEN30B]
+  Each screen must be a completely original ASCII visualization not already in the theme list.
+  Add each to themes.py, theme_plugins/__init__.py, and tests/test_themes.py full_screen_themes set.
+  Run tests after each addition. Commit after all 5 are done.
+
 ---
 
 ## v0.2.0: Full ASCII Field Engine Overhaul
