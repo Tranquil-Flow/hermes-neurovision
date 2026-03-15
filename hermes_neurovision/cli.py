@@ -251,7 +251,7 @@ def _run_daemon(args):
     themes = list(THEMES)
 
     def run_curses(stdscr):
-        app = DaemonApp(stdscr, themes, args.theme_seconds, poller, bridge, log_overlay, show_logs=args.logs, quiet=not args.animated)
+        app = DaemonApp(stdscr, themes, args.theme_seconds, poller, bridge, log_overlay, show_logs=args.logs, quiet=args.quiet)
         app.run()
 
     try:
