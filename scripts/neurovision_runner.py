@@ -52,11 +52,35 @@ logging.basicConfig(
 log = logging.getLogger("neurovision-runner")
 
 # ---------------------------------------------------------------------------
-# Model config (local Ollama — no API key needed)
+# Model config — pick the fastest reachable Ollama endpoint
 # ---------------------------------------------------------------------------
 MODEL = "qwen3:30b"
-BASE_URL = "http://192.168.1.112:11434/v1"   # M4 Pro GPU — fast; falls back to localhost
 API_KEY = "ollama"
+
+def _pick_endpoint() -> tuple[str, str]:
+    """
+    Return (base_url, model) for the best available Ollama endpoint.
+    Prefers the M4 Pro GPU with qwen3:30b; falls back to local qwen3:14b-nothink
+    (much faster on CPU — no thinking overhead).
+    """
+    import urllib.request, json
+    candidates = [
+        ("http://192.168.1.112:11434", "qwen3:30b"),   # M4 Pro GPU (fast)
+        ("http://localhost:11434",      "qwen3:14b-nothink"),  # local CPU fallback
+    ]
+    for host, model in candidates:
+        try:
+            resp = urllib.request.urlopen(f"{host}/api/tags", timeout=3)
+            available = {m["name"] for m in json.loads(resp.read()).get("models", [])}
+            if model in available:
+                log.info("Using %s @ %s", model, host)
+                return f"{host}/v1", model
+        except Exception:
+            pass
+    log.warning("No Ollama endpoint reachable — attempting localhost with qwen3:30b")
+    return "http://localhost:11434/v1", "qwen3:30b"
+
+BASE_URL, MODEL = _pick_endpoint()
 
 # ---------------------------------------------------------------------------
 # System prompt — project context injected into every agent conversation
