@@ -300,35 +300,39 @@ def _update_registry(theme_name: str, metadata: Dict[str, Any], has_plugin: bool
 
 def list_themes(custom_only: bool = False) -> None:
     """List all themes with metadata."""
+    from hermes_neurovision.disabled import load_disabled
+    disabled = load_disabled()
+
     registry_path = Path.home() / ".hermes" / "vision" / "theme_registry.json"
-    
+
     if not registry_path.exists():
         print("No imported themes found")
         return
-    
+
     with open(registry_path) as f:
         registry = json.load(f)
-    
+
     themes = registry.get("themes", {})
-    
+
     if not themes:
         print("No imported themes found")
         return
-    
+
     print("\nImported Themes:")
     print("=" * 70)
-    
+
     for name, info in themes.items():
         if custom_only and info.get("type") != "custom":
             continue
-        
-        print(f"\n  Name: {name}")
+
+        disabled_marker = " (disabled)" if name in disabled else ""
+        print(f"\n  Name: {name}{disabled_marker}")
         print(f"  Title: {info.get('title', 'N/A')}")
         print(f"  Author: {info.get('author', 'unknown')}")
         print(f"  Installed: {info.get('installed', 'unknown')}")
         print(f"  Custom Plugin: {'Yes' if info.get('has_plugin') else 'No'}")
         if info.get("description"):
             print(f"  Description: {info.get('description')}")
-    
+
     print("\n" + "=" * 70)
     print(f"Total: {len(themes)} theme(s)\n")
