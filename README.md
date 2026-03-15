@@ -6,7 +6,7 @@ A full-screen ASCII art visualizer that reacts to your AI agent's activity in re
 
 ![Version](https://img.shields.io/badge/version-0.2.0-blue)
 ![Python](https://img.shields.io/badge/python-3.10+-green)
-![Tests](https://img.shields.io/badge/tests-174%20passing-brightgreen)
+![Themes](https://img.shields.io/badge/themes-85-purple)
 ![Dependencies](https://img.shields.io/badge/dependencies-stdlib%20only-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -14,7 +14,7 @@ A full-screen ASCII art visualizer that reacts to your AI agent's activity in re
 
 ## Features
 
-- **58 Animated Themes** — Full-screen generative fields, hybrid node/field screens, and classic node graphs
+- **85 Animated Themes** — Full-screen generative fields, strange attractors, hybrid node/field screens, and classic node graphs
 - **Live Event Visualization** — Agent activity directly drives visual intensity, packets, pulses, and bursts
 - **7 Data Sources** — Sessions, tool calls, memory writes, cron jobs, trajectories, security events
 - **Log Overlay** — Color-coded live event stream with fading text
@@ -197,11 +197,24 @@ Legacy themes use the node-based engine exclusively. If you prefer the more legi
 
 ---
 
-## Themes (58 total)
+## Themes (85 total)
 
 Browse with `hermes-neurovision --gallery`. All themes respond to agent activity via `intensity_multiplier`.
 
-### ASCII Field Themes (33)
+### Strange Attractors (5) — New in v0.2.0
+
+Real continuous ODE systems iterated in real-time and rendered as density fields.
+Every pixel is rainbow-hued by spatial position. Parameters morph between presets.
+
+`lorenz-butterfly` `rossler-ribbon` `halvorsen-star` `aizawa-torus` `thomas-labyrinth`
+
+### Spectacular (5) — New in v0.2.0
+
+Maximum colour, maximum geometry. Every pixel is individually coloured.
+
+`plasma-rainbow` `hypnotic-tunnel` `fractal-zoom` `particle-vortex` `chladni-sand`
+
+### ASCII Field Themes (43)
 
 Full-screen generative renderers. Agent events drive field brightness, density, and speed.
 
@@ -215,9 +228,16 @@ Full-screen generative renderers. Agent events drive field brightness, density, 
 `waveform-scope` `lissajous-mind` `pulse-matrix` `fractal-engine` `n-body` `standing-waves`
 `clifford-attractor` `barnsley-fern` `flow-field`
 
-### Node-Based Themes (25) — Being Redesigned
+**v0.2.0 Engine Showcases** — demonstrating emergent systems and reactive features:
+`mycelium-network` `swarm-mind` `neural-cascade` `tide-pool` `turing-garden`
+`dna-helix` `pendulum-waves` `kaleidoscope` `electric-storm` `coral-growth`
+`dna-strand` `pendulum-array` `mandala-scope` `ghost-echo` `magnetic-field`
+`plasma-grid` `deep-signal`
 
-These use the original graph engine. Packets travel edges, pulses radiate from nodes. Each is scheduled for ASCII field redesign in v0.2.0.
+### Node-Based Themes (25) — Classic Engine
+
+These use the original graph engine. Packets travel edges, pulses radiate from nodes.
+All still fully functional and react to agent events.
 
 `aurora-borealis` `nebula-nursery` `binary-rain` `wormhole` `liquid-metal`
 `factory-floor` `pipe-hell` `oil-slick` `campfire` `aquarium`
@@ -277,7 +297,13 @@ hermes_neurovision/
   cli.py              # Entry point
   sources/            # Event sources (state_db, memories, cron, aegis, hook)
   theme_plugins/
+    attractors.py         # 5 strange attractors + rainbow colour helpers (NEW v0.2.0)
+    spectacular.py        # 5 spectacle themes: plasma, tunnel, fractal, vortex, chladni (NEW v0.2.0)
     ascii_fields.py       # 10 pure ASCII field themes
+    experimental.py       # 3 experimental themes (clifford, barnsley-fern, flow-field)
+    emergent_showcase.py  # 5 emergent system showcase themes
+    emergent_v2.py        # 5 v0.2.0 engine feature demos
+    advanced_screens.py   # 5 postfx + reactive hybrid themes
     redesigned.py         # 15 redesigned themes (v2)
     originals_v2.py       # 7 original themes redesigned
     nature_v2.py          # Nature themes redesigned
@@ -338,7 +364,13 @@ hermes-neurovision --list-themes
 
 ---
 
-## Writing Hybrid Themes
+## Writing Themes
+
+See [PLUGIN_API.md](PLUGIN_API.md) for the complete plugin API reference —
+all hooks, state fields, colour helpers, rainbow pairs, reactive system,
+and full worked examples including a strange attractor from scratch.
+
+### Writing Hybrid Themes
 
 To create a theme that combines an ASCII field backdrop with node-based event storytelling:
 

@@ -620,6 +620,7 @@ class FractalEnginePlugin(ThemePlugin):
     def __init__(self):
         self._target_idx = 0
         self._cycle_start_frame = 0
+        self._zoom = 3.5
 
     def build_nodes(self, w, h, cx, cy, count, rng):
         return []
@@ -639,7 +640,8 @@ class FractalEnginePlugin(ThemePlugin):
             phase = 0
 
         t = phase / CYCLE  # 0 → 1
-        zoom = 3.5 * (1.0 - t) ** 2.2 + 0.0003  # fast initial zoom, slow near target
+        self._zoom = 3.5 * (1.0 - t) ** 2.2 + 0.0003  # fast initial zoom, slow near target
+        zoom = self._zoom
 
         target_cx, target_cy = self._TARGETS[self._target_idx]
         start_cx, start_cy = -0.7, 0.0

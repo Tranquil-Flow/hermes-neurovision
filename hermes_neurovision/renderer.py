@@ -81,6 +81,13 @@ class _BufferShim:
         for i, ch in enumerate(text):
             self._buf.put(x + i, y, ch, pair, style)
 
+    def addch(self, y: int, x: int, ch, attr: int = 0) -> None:
+        pair = attr & self._A_COLOR
+        style = attr & ~self._A_COLOR
+        if isinstance(ch, int):
+            ch = chr(ch)
+        self._buf.put(x, y, str(ch), pair, style)
+
     def getmaxyx(self) -> Tuple[int, int]:
         return (self._buf.h, self._buf.w)
 
@@ -281,7 +288,7 @@ class Renderer:
 
     def _draw_hide_hint(self, h: int, w: int) -> None:
         """Draw minimal unhide reminder in bottom-right corner."""
-        hint = " h show HUD · M mute · P perf · F fullscreen · Q quit "
+        hint = " h show HUD "
         try:
             self.stdscr.addstr(
                 h - 1, max(0, w - len(hint) - 1), hint[:max(0, w - 2)],
@@ -294,7 +301,7 @@ class Renderer:
         title = f" Hermes Neurovisualizer // {state.config.name} "
         from hermes_neurovision import __version__
         version = f"v{__version__}"
-        footer = " q quit  n next  p prev  M mute  F full  space pause "
+        footer = " Q quit  ←/→ nav  m menu  h hide  space pause  M mute  F full "
         if gallery_total > 1:
             footer = f" theme {gallery_index + 1}/{gallery_total} |" + footer
         if end_time is not None:

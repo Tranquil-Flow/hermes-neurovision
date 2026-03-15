@@ -86,9 +86,39 @@ THEMES: Tuple[str, ...] = (
     "clifford-attractor",
     "barnsley-fern",
     "flow-field",
+    # ── Emergent Showcase (5) ─────────────────────────────────────────
+    "mycelium-network",
+    "swarm-mind",
+    "neural-cascade",
+    "tide-pool",
+    "turing-garden",
     # ── Hybrid (2) ───────────────────────────────────────────────────
     "plasma-grid",
     "deep-signal",
+    # ── Emergent V2 (5) ──────────────────────────────────────────────
+    "dna-helix",
+    "pendulum-waves",
+    "kaleidoscope",
+    "electric-storm",
+    "coral-growth",
+    # ── Advanced Screens (5) ─────────────────────────────────────────
+    "dna-strand",
+    "pendulum-array",
+    "mandala-scope",
+    "ghost-echo",
+    "magnetic-field",
+    # ── Strange Attractors (5) ───────────────────────────────────────
+    "lorenz-butterfly",
+    "rossler-ribbon",
+    "halvorsen-star",
+    "aizawa-torus",
+    "thomas-labyrinth",
+    # ── Spectacular (5) ──────────────────────────────────────────────
+    "hypnotic-tunnel",
+    "plasma-rainbow",
+    "fractal-zoom",
+    "particle-vortex",
+    "chladni-sand",
 )
 
 FRAME_DELAY = 0.05
@@ -205,9 +235,39 @@ def build_theme_config(name: str) -> ThemeConfig:
         "clifford-attractor": ThemeConfig(name, "Clifford Attractor", "\u00b7", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_MAGENTA, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_BLUE)),
         "barnsley-fern":      ThemeConfig(name, "Barnsley Fern",      ":",     0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_GREEN, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_YELLOW)),
         "flow-field":         ThemeConfig(name, "Flow Field",         "\u25cf", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_CYAN, curses.COLOR_MAGENTA, curses.COLOR_WHITE, curses.COLOR_BLUE)),
-        # ── Hybrid (ASCII field + node graph) ────────────────────────
+        # ── Emergent Showcase (5) — v0.2.0 engine features ───────────
+        "mycelium-network": ThemeConfig(name, "Mycelium Network", "·", 0.018, 0.03, 0.12, 0.28, (0.03, 0.07), 0.08, 0.50, 3, palette=(curses.COLOR_GREEN, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_YELLOW)),
+        "swarm-mind":       ThemeConfig(name, "Swarm Mind",       "◆", 0.010, 0.00, 0.08, 0.30, (0.04, 0.08), 0.06, 0.45, 3, palette=(curses.COLOR_MAGENTA, curses.COLOR_BLUE, curses.COLOR_CYAN, curses.COLOR_WHITE)),
+        "neural-cascade":   ThemeConfig(name, "Neural Cascade",   "⬡", 0.008, 0.00, 0.04, 0.34, (0.04, 0.08), 0.10, 0.55, 3, palette=(curses.COLOR_CYAN, curses.COLOR_BLUE, curses.COLOR_WHITE, curses.COLOR_MAGENTA)),
+        "tide-pool":        ThemeConfig(name, "Tide Pool",        "~", 0.0,   0.0,  0.0,  0.0,  (0.02, 0.05), 0.0,  0.5,  2, palette=(curses.COLOR_BLUE, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_GREEN)),
+        "turing-garden":    ThemeConfig(name, "Turing Garden",    "✦", 0.0,   0.0,  0.04, 0.20, (0.03, 0.06), 0.06, 0.40, 2, palette=(curses.COLOR_MAGENTA, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_GREEN)),
+        # ── Hybrid (ASCII field + node graph) ────────────────────────────
         "plasma-grid":  ThemeConfig(name, "Plasma Grid",  "+", 0.0, 0.0, 0.10, 0.34, (0.04, 0.08), 0.10, 0.5, 3, palette=(curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_BLUE, curses.COLOR_MAGENTA)),
         "deep-signal":  ThemeConfig(name, "Deep Signal",  "\u25c7", 0.0, 0.0, 0.08, 0.26, (0.03, 0.06), 0.08, 0.5, 2, palette=(curses.COLOR_BLUE, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_MAGENTA)),
+        # ── Emergent V2 (5) ──────────────────────────────────────────────
+        "dna-helix":      ThemeConfig(name, "DNA Helix",      "\u25c9", 0.010, 0.02, 0.10, 0.28, (0.03, 0.07), 0.08, 0.5, 2, palette=(curses.COLOR_CYAN, curses.COLOR_GREEN, curses.COLOR_WHITE, curses.COLOR_MAGENTA)),
+        "pendulum-waves": ThemeConfig(name, "Pendulum Waves", "\u25cb", 0.008, 0.00, 0.06, 0.20, (0.02, 0.05), 0.06, 0.5, 2, palette=(curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_BLUE, curses.COLOR_MAGENTA)),
+        "kaleidoscope":   ThemeConfig(name, "Kaleidoscope",   "\u25c6", 0.012, 0.00, 0.08, 0.24, (0.03, 0.06), 0.08, 0.5, 3, palette=(curses.COLOR_MAGENTA, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_YELLOW)),
+        "electric-storm": ThemeConfig(name, "Electric Storm", "*",      0.030, 0.12, 0.40, 0.36, (0.05, 0.09), 0.12, 0.4, 3, palette=(curses.COLOR_WHITE, curses.COLOR_CYAN, curses.COLOR_BLUE, curses.COLOR_YELLOW)),
+        "coral-growth":   ThemeConfig(name, "Coral Growth",   "\u25c9", 0.016, 0.02, 0.14, 0.22, (0.03, 0.06), 0.08, 0.5, 3, palette=(curses.COLOR_GREEN, curses.COLOR_CYAN, curses.COLOR_MAGENTA, curses.COLOR_WHITE)),
+        # ── Advanced Screens (5) ─────────────────────────────────────────
+        "dna-strand":     ThemeConfig(name, "DNA Strand",     "A",      0.010, 0.02, 0.10, 0.28, (0.03, 0.07), 0.08, 0.5, 2, palette=(curses.COLOR_CYAN, curses.COLOR_GREEN, curses.COLOR_YELLOW, curses.COLOR_WHITE)),
+        "pendulum-array": ThemeConfig(name, "Pendulum Array", "\u25cb", 0.008, 0.00, 0.06, 0.20, (0.02, 0.05), 0.06, 0.5, 2, palette=(curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_BLUE, curses.COLOR_YELLOW)),
+        "mandala-scope":  ThemeConfig(name, "Mandala Scope",  "\u25c6", 0.012, 0.00, 0.08, 0.24, (0.03, 0.06), 0.08, 0.5, 3, palette=(curses.COLOR_MAGENTA, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_YELLOW)),
+        "ghost-echo":     ThemeConfig(name, "Ghost Echo",     "\u25ce", 0.020, 0.04, 0.18, 0.20, (0.02, 0.05), 0.06, 0.5, 2, palette=(curses.COLOR_BLUE, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_MAGENTA)),
+        "magnetic-field": ThemeConfig(name, "Magnetic Field", "\u2192", 0.014, 0.04, 0.12, 0.26, (0.03, 0.07), 0.08, 0.5, 3, palette=(curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_BLUE, curses.COLOR_YELLOW)),
+        # ── Strange Attractors (5) ───────────────────────────────────────────
+        "lorenz-butterfly": ThemeConfig(name, "Lorenz Butterfly",  "\u00b7", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_CYAN,    curses.COLOR_MAGENTA, curses.COLOR_YELLOW, curses.COLOR_WHITE)),
+        "rossler-ribbon":   ThemeConfig(name, "Rossler Ribbon",    "\u00b7", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_MAGENTA, curses.COLOR_CYAN,    curses.COLOR_GREEN,  curses.COLOR_WHITE)),
+        "halvorsen-star":   ThemeConfig(name, "Halvorsen Star",    "\u2605", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_YELLOW,  curses.COLOR_CYAN,    curses.COLOR_MAGENTA,curses.COLOR_WHITE)),
+        "aizawa-torus":     ThemeConfig(name, "Aizawa Torus",      "\u25ce", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_BLUE,    curses.COLOR_CYAN,    curses.COLOR_WHITE,  curses.COLOR_YELLOW)),
+        "thomas-labyrinth": ThemeConfig(name, "Thomas Labyrinth",  "\u00b7", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_GREEN,   curses.COLOR_YELLOW,  curses.COLOR_CYAN,   curses.COLOR_WHITE)),
+        # ── Spectacular (5) ──────────────────────────────────────────────────
+        "hypnotic-tunnel":  ThemeConfig(name, "Hypnotic Tunnel",   "\u25c8", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_MAGENTA, curses.COLOR_CYAN,    curses.COLOR_YELLOW, curses.COLOR_WHITE)),
+        "plasma-rainbow":   ThemeConfig(name, "Plasma Rainbow",    "\u00b7", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_MAGENTA, curses.COLOR_CYAN,    curses.COLOR_YELLOW, curses.COLOR_GREEN)),
+        "fractal-zoom":     ThemeConfig(name, "Fractal Zoom",      "\u2588", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_CYAN,    curses.COLOR_MAGENTA, curses.COLOR_YELLOW, curses.COLOR_WHITE)),
+        "particle-vortex":  ThemeConfig(name, "Particle Vortex",   "\u25cf", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_CYAN,    curses.COLOR_MAGENTA, curses.COLOR_YELLOW, curses.COLOR_GREEN)),
+        "chladni-sand":     ThemeConfig(name, "Chladni Sand",      "\u00b7", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_YELLOW,  curses.COLOR_CYAN,    curses.COLOR_WHITE,  curses.COLOR_MAGENTA)),
         # ── Legacy: Originals (original node-based implementations) ──
         "legacy-neural-sky":    ThemeConfig(name, "Neural Sky (Legacy)",    "*",      0.030, 0.10, 0.40, 0.32, (0.04, 0.08), 0.10, 0.4, 3, palette=(curses.COLOR_CYAN, curses.COLOR_BLUE, curses.COLOR_WHITE, curses.COLOR_MAGENTA)),
         "legacy-storm-core":    ThemeConfig(name, "Storm Core (Legacy)",    "x",      0.024, 0.18, 0.52, 0.42, (0.06, 0.10), 0.12, 0.35, 3, palette=(curses.COLOR_BLUE, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_YELLOW)),
