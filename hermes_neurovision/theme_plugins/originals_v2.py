@@ -11,20 +11,48 @@ import math
 import random
 from typing import List, Optional, Tuple
 
-from hermes_neurovision.plugin import ThemePlugin
+from hermes_neurovision.plugin import ThemePlugin, Reaction, ReactiveElement, SpecialEffect
 from hermes_neurovision.theme_plugins import register
+
+
+def _safe(stdscr, y: int, x: int, ch: str, attr: int = 0) -> None:
+    try:
+        stdscr.addstr(y, x, ch, attr)
+    except curses.error:
+        pass
 
 
 # ── Black Hole ─────────────────────────────────────────────────────────────────
 
 class BlackHoleV2Plugin(ThemePlugin):
-    """Relativistic black hole — Keplerian particle orbits, frame-drag, fast Keplerian disk shear.
+    """Relativistic black hole — Keplerian orbits, frame-drag, Doppler disk, relativistic jets.
 
     Every star particle orbits at its own angular velocity (omega ∝ r^-1.5) so
     inner orbits spin dramatically faster than outer ones.  The accretion disk
     co-rotates with the same Keplerian shear.  Frame-drag (Kerr metric approx)
     bends the lensed-star field each frame.  Captured stars are replaced at the
     outer edge so the field never empties.
+
+    v0.2 upgrade:
+      - neural_field_config: sparse Hawking radiation — rare, high-threshold sparks
+        at the event horizon
+      - warp_field: gravitational lensing — strong inward pull, proportional to
+        1/r² from centre, mirrors the analytical Kerr frame-drag in draw_extras
+      - echo_decay: 4 — orbital smear, trails linger
+      - glow_radius: 2 — photon ring blooms
+      - force_points: one gravity singularity at centre + two jet-axis attractors
+        along the polar axis
+      - intensity_curve: power 0.5 — quiescent at low, explosively bright at high
+      - react() x11: agent_start → PULSE (accretion burst), llm_start → STREAM
+        (infalling matter), llm_chunk → SPARK (photon flash), error/crash →
+        SHATTER (Hawking event), memory_save → BLOOM (horizon expands),
+        tool_call → RIPPLE (tidal disruption event), cron_tick → ORBIT (pulsar
+        timing signal), dangerous_cmd → SPARK (radiation warning),
+        context_pressure → GAUGE (Schwarzschild radius filling)
+      - palette_shift: error → red/white (Hawking radiation), memory → cyan/white
+        (gravitational blueshift)
+      - special_effects: "hawking-burst" — bright ring flash at photon sphere
+      - ambient_tick: quantum foam flicker at event horizon
     """
     name = "black-hole"
 
@@ -36,9 +64,198 @@ class BlackHoleV2Plugin(ThemePlugin):
         self._stars = []   # [x, y, r, theta, omega, brightness, char_idx]
         self._rng   = random.Random(31415)
         self._rs    = 0.0  # cached Schwarzschild radius from last frame
+        self._spin  = 0.9  # Kerr spin parameter 0–1 (affects frame-drag strength)
+        self._accretion_boost = 1.0  # driven up by reactive events
 
     def build_nodes(self, w, h, cx, cy, count, rng):
         return []
+
+    # ── v0.2: Emergent ────────────────────────────────────────────────────────
+    def neural_field_config(self):
+        # Hawking radiation: extremely rare, random firing at the event horizon.
+        # High threshold, long refractory — quantum foam is sparse.
+        return {"threshold": 5, "fire_duration": 1, "refractory": 12}
+
+    def emergent_layer(self):
+        return "background"
+
+    # ── v0.2: Post-FX ─────────────────────────────────────────────────────────
+    def warp_field(self, x, y, w, h, frame, intensity):
+        # Gravitational lensing: photons from (x,y) are deflected toward
+        # the singularity at screen centre. Deflection ∝ 1/r² (weak field).
+        cx, cy = w / 2.0, h / 2.0
+        dx = x - cx
+        dy = (y - cy) * self._AY
+        r2 = dx * dx + dy * dy + 0.1
+        r  = math.sqrt(r2)
+        # Schwarzschild deflection angle ∝ rs/r, scaled to pixel units
+        rs_px = min(w * 0.07, h * 0.14)
+        # Cap to avoid singularity eating pixels
+        if r < rs_px * 1.3:
+            return (x, y)
+        defl = (rs_px * rs_px) / r2 * intensity * 3.0
+        wx = int(-dx / r * defl)
+        wy = int(-dy / r / self._AY * defl)
+        return (max(0, min(w - 1, x + wx)), max(0, min(h - 1, y + wy)))
+
+    def echo_decay(self):
+        # Orbital smear — trails linger 4 frames
+        return 4
+
+    def glow_radius(self):
+        # Photon ring blooms outward
+        return 2
+
+    def force_points(self, w, h, frame, intensity):
+        cx, cy = w // 2, h // 2
+        rs_px = min(w * 0.07, h * 0.14)
+        strength = (0.6 + intensity * 0.8) * self._accretion_boost
+        pts = [
+            # Central singularity — strong inward gravity
+            {"x": cx, "y": cy, "strength": strength * 1.5, "type": "gravity"},
+        ]
+        # Relativistic jet exit points along polar axis — weak vortex repellers
+        jet_len = int(h * 0.35)
+        jet_str = 0.2 + intensity * 0.25
+        pts.append({"x": cx, "y": max(1, cy - jet_len),
+                    "strength": jet_str, "type": "vortex"})
+        pts.append({"x": cx, "y": min(h - 2, cy + jet_len),
+                    "strength": jet_str, "type": "vortex"})
+        return pts
+
+    # ── v0.2: Intensity curve ─────────────────────────────────────────────────
+    def intensity_curve(self, raw):
+        # sqrt — extremely sensitive to low signal (dark energy budget)
+        return raw ** 0.45
+
+    # ── v0.2: Reactive ────────────────────────────────────────────────────────
+    def react(self, event_kind, data):
+        import random as _r
+        cx, cy = 0.5, 0.5
+
+        if event_kind == "agent_start":
+            # Accretion burst — mass infalls, disk brightens — PULSE
+            self._accretion_boost = 1.8
+            return Reaction(element=ReactiveElement.PULSE, intensity=1.0,
+                           origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "llm_start":
+            # Infalling matter stream — STREAM from outer disc inward
+            self._accretion_boost = 1.4
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.9,
+                           origin=(_r.uniform(0.1, 0.4), _r.uniform(0.3, 0.7)),
+                           color_key="accent", duration=3.5)
+        if event_kind == "llm_chunk":
+            # Photon escaping event horizon — SPARK at photon sphere ring
+            theta = _r.uniform(0, math.tau)
+            ox = 0.5 + math.cos(theta) * 0.15
+            oy = 0.5 + math.sin(theta) * 0.08
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.5,
+                           origin=(max(0.0, min(1.0, ox)), max(0.0, min(1.0, oy))),
+                           color_key="bright", duration=0.4)
+        if event_kind == "llm_end":
+            self._accretion_boost = 1.0
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.5,
+                           origin=(cx, cy), color_key="soft", duration=2.0)
+        if event_kind in ("tool_call", "mcp_tool_call"):
+            # Tidal disruption event — star torn apart, RIPPLE at approach position
+            ox = _r.uniform(0.2, 0.8)
+            oy = _r.uniform(0.2, 0.8)
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.8,
+                           origin=(ox, oy), color_key="accent", duration=1.8)
+        if event_kind in ("memory_save", "skill_create"):
+            # Event horizon grows — BLOOM, the darkness expands
+            self._spin = min(0.998, self._spin + 0.05)
+            return Reaction(element=ReactiveElement.BLOOM, intensity=1.0,
+                           origin=(cx, cy), color_key="bright", duration=3.0)
+        if event_kind in ("error", "crash"):
+            # Hawking radiation event — SHATTER, white burst from horizon
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(cx, cy), color_key="warning", duration=2.5)
+        if event_kind in ("cron_tick", "background_proc"):
+            # Pulsar timing signal — ORBIT rings sweep around
+            return Reaction(element=ReactiveElement.ORBIT, intensity=0.45,
+                           origin=(cx, cy), color_key="soft", duration=4.0)
+        if event_kind == "subagent_started":
+            # New infalling body — BLOOM at a random orbital position
+            theta = _r.uniform(0, math.tau)
+            ox = 0.5 + math.cos(theta) * 0.28
+            oy = 0.5 + math.sin(theta) * 0.14
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.75,
+                           origin=(max(0.0, min(1.0, ox)), max(0.0, min(1.0, oy))),
+                           color_key="accent", duration=2.0)
+        if event_kind in ("dangerous_cmd", "approval_request"):
+            # Radiation alarm — SPARK at horizon, bright warning
+            return Reaction(element=ReactiveElement.SPARK, intensity=1.0,
+                           origin=(cx, cy), color_key="warning", duration=2.0)
+        if event_kind in ("context_pressure", "token_usage"):
+            # Mass budget — GAUGE at edge (Schwarzschild filling)
+            return Reaction(element=ReactiveElement.GAUGE,
+                           intensity=data.get("ratio", 0.7),
+                           origin=(0.05, 0.9), color_key="warning", duration=3.5)
+        return None
+
+    # ── v0.2: Palette shift ───────────────────────────────────────────────────
+    def palette_shift(self, trigger_effect, intensity, base_palette):
+        if trigger_effect in ("error", "crash") or str(trigger_effect) == str(ReactiveElement.SHATTER):
+            # Hawking radiation — blinding white, then red
+            return (curses.COLOR_WHITE, curses.COLOR_RED, curses.COLOR_YELLOW, curses.COLOR_RED)
+        if trigger_effect in ("memory_save", "skill_create") or str(trigger_effect) == str(ReactiveElement.BLOOM):
+            # Gravitational blueshift — cyan/white as matter falls in
+            return (curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_BLUE, curses.COLOR_CYAN)
+        return None
+
+    # ── v0.2: Special effects ─────────────────────────────────────────────────
+    def special_effects(self):
+        return [
+            SpecialEffect(name="hawking-burst",
+                         trigger_kinds=["burst", "error"],
+                         min_intensity=0.4, cooldown=5.0, duration=2.5),
+        ]
+
+    def draw_special(self, stdscr, state, color_pairs, special_name, progress, intensity):
+        if special_name != "hawking-burst":
+            return
+        w, h = state.width, state.height
+        cx, cy = w // 2, h // 2
+        rs_px = min(w * 0.07, h * 0.14)
+        # Two simultaneous rings: photon sphere (1.5rs) and outer Hawking ring
+        rings = [
+            (rs_px * 1.5, "◉●◎○·", 1.0),
+            (rs_px * 2.8 * (0.3 + progress * 0.7), "·∘○◦", 0.6),
+        ]
+        attr_b = curses.color_pair(color_pairs.get("bright", 0)) | curses.A_BOLD
+        attr_a = curses.color_pair(color_pairs.get("accent", 0))
+        for ring_r, chars, bright_frac in rings:
+            r = int(ring_r * (0.5 + progress * 0.5))
+            if r < 1:
+                continue
+            steps = max(24, r * 4)
+            for i in range(steps):
+                theta = (i / steps) * math.tau
+                px = int(cx + r * math.cos(theta) * 2)
+                py = int(cy + r * math.sin(theta))
+                if 0 <= px < w and 0 <= py < h:
+                    ci = int((theta / math.tau + progress) * len(chars)) % len(chars)
+                    flash = (1.0 - progress) * bright_frac
+                    attr = attr_b if flash > 0.4 else attr_a
+                    _safe(stdscr, py, px, chars[ci], attr)
+
+    # ── v0.2: Ambient tick — quantum foam at horizon ──────────────────────────
+    def ambient_tick(self, stdscr, state, color_pairs, idle_seconds):
+        if state.frame % 8 == 0 and self._rs > 0:
+            w, h = state.width, state.height
+            rs = self._rs
+            cx, cy = w / 2.0, h / 2.0
+            rng2 = self._rng
+            # Scatter a handful of dim dots just outside event horizon
+            for _ in range(2):
+                theta = rng2.uniform(0, math.tau)
+                jitter = rng2.uniform(rs * 1.01, rs * 1.35)
+                px = int(cx + math.cos(theta) * jitter)
+                py = int(cy + math.sin(theta) * jitter / self._AY)
+                if 0 <= px < w and 1 <= py < h - 1:
+                    attr = curses.color_pair(color_pairs.get("soft", 0)) | curses.A_DIM
+                    _safe(stdscr, py, px, "·", attr)
 
     def _spawn_star(self, cx, cy, rs, rng, r=None):
         ay = self._AY
@@ -400,22 +617,202 @@ register(NeuralSkyV2Plugin())
 # ── Storm Core — Lorenz Attractor ─────────────────────────────────────────────
 
 class StormCoreV2Plugin(ThemePlugin):
-    """Lorenz strange attractor: chaotic butterfly orbit accumulated as ASCII density field."""
+    """Lorenz strange attractor — chaotic butterfly orbit as an ASCII density field.
+
+    Four parallel trajectories with slightly different starting conditions
+    accumulate a glowing density field that forms the classic two-lobe butterfly
+    shape.  The system is deterministic-chaotic: trajectories diverge slowly but
+    stay on the attractor.
+
+    v0.2 upgrade:
+      - reaction_diffusion_config: Turing-pattern chemical waves pulse behind
+        the attractor, giving depth to the chaos
+      - warp_field: saddle-point velocity distortion — the high-velocity region
+        between the two wings warps the background field
+      - echo_decay: 6 — deep orbital memory
+      - glow_radius: 2 — density hotspots bloom
+      - force_points: vortex attractors at the two lobe centres
+      - depth_layers: 2
+      - intensity_curve: power 0.6
+      - react() x11 with chaos metaphors
+      - palette_shift: error → red (bifurcation), memory → cyan (order)
+      - special_effects: "bifurcation" — lobe centres alternately flash
+      - ambient_tick: saddle-point wisp when idle
+    """
     name = "storm-core"
 
-    _SIGMA = 10.0
-    _RHO   = 28.0
-    _BETA  = 8.0 / 3.0
-    _DT    = 0.008
+    _SIGMA  = 10.0
+    _RHO    = 28.0
+    _BETA   = 8.0 / 3.0
+    _DT     = 0.008
     _N_TRAJ = 4  # parallel trajectories
 
     def __init__(self):
         self._grid: Optional[List[List[float]]] = None
         self._trajs: Optional[List[List[float]]] = None
         self._w = self._h = 0
+        self._heat: float = 0.0       # extra brightness from reactive events
+        self._perturb: float = 0.0    # trajectory perturbation magnitude
 
     def build_nodes(self, w, h, cx, cy, count, rng):
         return []
+
+    # ── v0.2: Emergent ────────────────────────────────────────────────────────
+    def reaction_diffusion_config(self):
+        return {"feed": 0.035, "kill": 0.065, "update_interval": 3}
+
+    def emergent_layer(self):
+        return "background"
+
+    # ── v0.2: Post-FX ─────────────────────────────────────────────────────────
+    def warp_field(self, x, y, w, h, frame, intensity):
+        # Saddle-point wind: strongest at (cx, z=27 row) — between the wings.
+        cx = w / 2.0
+        saddle_sy = int((1.0 - 27.0 / 50.0) * (h - 2)) + 1
+        dx = x - cx
+        dy = y - saddle_sy
+        d2 = dx * dx + dy * dy + 1.0
+        # Gaussian peak at saddle, wind direction tangential (perpendicular to radial)
+        amp = intensity * 2.5 * math.exp(-d2 / (w * 0.06) ** 2)
+        t = frame * 0.04
+        wx = int(amp * math.sin(t + dy * 0.18))
+        wy = int(amp * 0.4 * math.cos(t + dx * 0.13))
+        return (max(0, min(w - 1, x + wx)), max(0, min(h - 1, y + wy)))
+
+    def echo_decay(self):
+        return 6
+
+    def glow_radius(self):
+        return 2
+
+    def force_points(self, w, h, frame, intensity):
+        sy = int((1.0 - 27.0 / 50.0) * (h - 2)) + 1
+        sl = int(16.0 / 50.0 * (w - 2))
+        sr = int(34.0 / 50.0 * (w - 2))
+        strength = 0.4 + intensity * 0.55 + self._heat * 0.3
+        return [
+            {"x": sl, "y": sy, "strength": strength, "type": "vortex"},
+            {"x": sr, "y": sy, "strength": strength, "type": "vortex"},
+        ]
+
+    def depth_layers(self):
+        return 2
+
+    # ── v0.2: Intensity curve ─────────────────────────────────────────────────
+    def intensity_curve(self, raw):
+        return raw ** 0.6
+
+    # ── v0.2: Reactive ────────────────────────────────────────────────────────
+    def react(self, event_kind, data):
+        import random as _r
+        cx, cy = 0.5, 0.5
+
+        if event_kind == "agent_start":
+            self._perturb = 0.8
+            self._heat = 0.5
+            return Reaction(element=ReactiveElement.PULSE, intensity=1.0,
+                           origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "llm_start":
+            self._heat = 0.4
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.85,
+                           origin=(0.0, 0.5), color_key="accent", duration=3.0)
+        if event_kind == "llm_chunk":
+            lobe = _r.choice([-1, 1])
+            ox = max(0.0, min(1.0, 0.5 + lobe * 0.22))
+            oy = max(0.0, min(1.0, 0.4 + _r.uniform(-0.1, 0.1)))
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.45,
+                           origin=(ox, oy), color_key="accent", duration=0.4)
+        if event_kind == "llm_end":
+            self._heat = max(0.0, self._heat - 0.3)
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.5,
+                           origin=(cx, cy), color_key="soft", duration=1.5)
+        if event_kind in ("tool_call", "mcp_tool_call"):
+            self._perturb = 0.35
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.7,
+                           origin=(_r.uniform(0.2, 0.8), _r.uniform(0.3, 0.7)),
+                           color_key="accent", duration=1.8)
+        if event_kind in ("memory_save", "skill_create"):
+            self._heat = 0.6
+            return Reaction(element=ReactiveElement.BLOOM, intensity=1.0,
+                           origin=(cx, cy), color_key="bright", duration=3.0)
+        if event_kind in ("error", "crash"):
+            self._perturb = 1.5
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(_r.uniform(0.3, 0.7), 0.5),
+                           color_key="warning", duration=2.5)
+        if event_kind in ("cron_tick", "background_proc"):
+            lobe = _r.choice([0.28, 0.72])
+            return Reaction(element=ReactiveElement.ORBIT, intensity=0.4,
+                           origin=(lobe, 0.46), color_key="soft", duration=3.5)
+        if event_kind == "subagent_started":
+            lobe = _r.choice([-1, 1])
+            ox = max(0.0, min(1.0, 0.5 + lobe * 0.22))
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.7,
+                           origin=(ox, 0.45), color_key="accent", duration=2.0)
+        if event_kind in ("dangerous_cmd", "approval_request"):
+            return Reaction(element=ReactiveElement.SPARK, intensity=1.0,
+                           origin=(cx, cy), color_key="warning", duration=2.0)
+        if event_kind in ("context_pressure", "token_usage"):
+            return Reaction(element=ReactiveElement.GAUGE,
+                           intensity=data.get("ratio", 0.6),
+                           origin=(0.05, 0.9), color_key="warning", duration=3.0)
+        return None
+
+    # ── v0.2: Palette shift ───────────────────────────────────────────────────
+    def palette_shift(self, trigger_effect, intensity, base_palette):
+        if trigger_effect in ("error", "crash") or str(trigger_effect) == str(ReactiveElement.SHATTER):
+            return (curses.COLOR_RED, curses.COLOR_YELLOW, curses.COLOR_WHITE, curses.COLOR_RED)
+        if trigger_effect in ("memory_save", "skill_create") or str(trigger_effect) == str(ReactiveElement.BLOOM):
+            return (curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_BLUE, curses.COLOR_CYAN)
+        return None
+
+    # ── v0.2: Special effects ─────────────────────────────────────────────────
+    def special_effects(self):
+        return [
+            SpecialEffect(name="bifurcation",
+                         trigger_kinds=["burst", "error"],
+                         min_intensity=0.5, cooldown=6.0, duration=3.0),
+        ]
+
+    def draw_special(self, stdscr, state, color_pairs, special_name, progress, intensity):
+        if special_name != "bifurcation":
+            return
+        w, h = state.width, state.height
+        sl = int(16.0 / 50.0 * (w - 2))
+        sr = int(34.0 / 50.0 * (w - 2))
+        sy = int((1.0 - 27.0 / 50.0) * (h - 2)) + 1
+        beat = math.sin(progress * math.pi * 6)
+        attr_b = curses.color_pair(color_pairs.get("bright", 0)) | curses.A_BOLD
+        attr_a = curses.color_pair(color_pairs.get("accent", 0))
+        attr_s = curses.color_pair(color_pairs.get("soft", 0))
+        r = int(3 + progress * 8)
+        la = attr_b if beat > 0 else attr_s
+        ra = attr_b if beat < 0 else attr_s
+        for lx, lattr in [(sl, la), (sr, ra)]:
+            for deg in range(0, 360, 20):
+                theta = math.radians(deg)
+                px = int(lx + r * math.cos(theta) * 2)
+                py = int(sy + r * math.sin(theta))
+                if 0 <= px < w and 0 <= py < h:
+                    _safe(stdscr, py, px, "◉" if abs(beat) > 0.5 else "○", lattr)
+            if 0 <= lx < w and 0 <= sy < h:
+                _safe(stdscr, sy, lx, "✦" if abs(beat) > 0.5 else "·", lattr)
+
+    # ── v0.2: Ambient tick ────────────────────────────────────────────────────
+    def ambient_tick(self, stdscr, state, color_pairs, idle_seconds):
+        if idle_seconds > 1.5 and state.frame % 18 == 0 and self._trajs:
+            w, h = state.width, state.height
+            saddle_sx = w // 2
+            saddle_sy = int((1.0 - 27.0 / 50.0) * (h - 2)) + 1
+            import random as _r2
+            rng2 = _r2.Random(state.frame % 500)
+            ox = saddle_sx + rng2.randint(-2, 2)
+            oy = saddle_sy + rng2.randint(-1, 1)
+            if 0 <= ox < w and 1 <= oy < h - 1:
+                attr = curses.color_pair(color_pairs.get("soft", 0)) | curses.A_DIM
+                _safe(stdscr, oy, ox, "·", attr)
+            self._heat    = max(0.0, self._heat - 0.02)
+            self._perturb = max(0.0, self._perturb - 0.05)
 
     def _init(self, w, h):
         self._grid  = [[0.0] * w for _ in range(h)]
@@ -439,16 +836,18 @@ class StormCoreV2Plugin(ThemePlugin):
         intensity = state.intensity_multiplier
         grid = self._grid
 
-        # Lorenz attractor spans: x ∈ [-25,25], z ∈ [0,50]
-        # Map: sx = (x+25)/50 * w,  sy = (1 - z/50) * (h-2) + 1
+        # Lorenz: x ∈ [-25,25], z ∈ [0,50]
+        # Map: sx=(x+25)/50*w, sy=(1-z/50)*(h-2)+1
         steps_per_frame = int(120 * (0.5 + intensity))
-        s, r, b = self._SIGMA, self._RHO, self._BETA
+        s, r_param, b = self._SIGMA, self._RHO, self._BETA
+        # Apply perturbation to deposit multiplier
+        deposit = 0.08 + self._perturb * 0.06
 
         for traj in self._trajs:
             x, y, z = traj
             for _ in range(steps_per_frame):
                 dx = s * (y - x)
-                dy = x * (r - z) - y
+                dy = x * (r_param - z) - y
                 dz = x * y - b * z
                 x += dx * self._DT
                 y += dy * self._DT
@@ -456,13 +855,15 @@ class StormCoreV2Plugin(ThemePlugin):
                 sx = int((x + 25) / 50.0 * (w - 2))
                 sy = int((1.0 - z / 50.0) * (h - 2)) + 1
                 if 1 <= sy < h - 1 and 0 <= sx < w - 1:
-                    grid[sy][sx] = min(grid[sy][sx] + 0.08, 1.0)
+                    grid[sy][sx] = min(grid[sy][sx] + deposit, 1.0)
             traj[0], traj[1], traj[2] = x, y, z
 
-        # Decay all cells
-        decay = 0.988 - 0.006 * intensity
+        # Decay — faster with heat (heat = recent activity = faster fade = more dynamic)
+        decay  = 0.988 - 0.006 * intensity - 0.003 * self._heat
         chars  = " \u00b7.:;+=*#@"
         n_chars = len(chars)
+        # Hue phase sweeps slowly — colors walk around the attractor over time
+        hue_base = (state.frame * 0.004) % 1.0
 
         for y in range(1, h - 1):
             row = grid[y]
@@ -472,11 +873,16 @@ class StormCoreV2Plugin(ThemePlugin):
                 idx = int(v * (n_chars - 1))
                 idx = max(0, min(n_chars - 1, idx))
                 ch  = chars[idx]
-                if v < 0.1:
+                # Phase-shifted color: same value lands in different color tiers
+                # over time — makes the attractor slowly change color
+                xf = x / max(w, 1)
+                phase = (hue_base + xf * 0.3) % 1.0
+                vp = (v + phase) % 1.0
+                if v < 0.08:
                     attr = base_dim
-                elif v < 0.4:
+                elif vp < 0.35:
                     attr = soft_attr
-                elif v < 0.75:
+                elif vp < 0.65:
                     attr = accent_attr
                 else:
                     attr = bright_attr
