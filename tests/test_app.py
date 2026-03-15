@@ -1,3 +1,4 @@
+import curses
 import unittest.mock as mock
 
 from hermes_neurovision.app import GalleryApp
@@ -40,3 +41,41 @@ def test_gallery_app_new_state_inherits_tune():
     app.themes = ["electric-mycelium", "neural-sky"]
     app._advance_theme(1)
     assert app.state.tune is app.tune
+
+
+# Task 44: Shift+Left / Shift+Right gallery navigation
+
+def test_gallery_shift_right_advances_theme():
+    app = _make_gallery_app()
+    app.themes = ["electric-mycelium", "neural-sky", "storm-core"]
+    before = app.theme_index
+    app._handle_key(curses.KEY_SRIGHT)
+    assert app.theme_index == (before + 1) % len(app.themes)
+
+
+def test_gallery_shift_left_retreats_theme():
+    app = _make_gallery_app()
+    app.themes = ["electric-mycelium", "neural-sky", "storm-core"]
+    app.theme_index = 1
+    app._handle_key(curses.KEY_SLEFT)
+    assert app.theme_index == 0
+
+
+def test_gallery_shift_right_escape_sequence():
+    """Terminal escape sequence \\x1b[1;2C also advances."""
+    app = _make_gallery_app()
+    app.themes = ["electric-mycelium", "neural-sky", "storm-core"]
+    before = app.theme_index
+    for ch in b"\x1b[1;2C":
+        app._handle_key(ch)
+    assert app.theme_index == (before + 1) % len(app.themes)
+
+
+def test_gallery_shift_left_escape_sequence():
+    """Terminal escape sequence \\x1b[1;2D also retreats."""
+    app = _make_gallery_app()
+    app.themes = ["electric-mycelium", "neural-sky", "storm-core"]
+    app.theme_index = 2
+    for ch in b"\x1b[1;2D":
+        app._handle_key(ch)
+    assert app.theme_index == 1
