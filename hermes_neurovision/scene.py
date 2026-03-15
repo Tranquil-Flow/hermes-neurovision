@@ -135,16 +135,27 @@ class ThemeState:
         nodes: List[Tuple[float, float]] = []
         clusters = max(2, self.config.cluster_count)
         centers = []
+        # Random initial rotation ensures 2-cluster arrangements aren't always
+        # purely horizontal (0°/180°) — they can be diagonal or vertical,
+        # giving good x AND y coverage regardless of cluster count.
+        base_angle = self.rng.uniform(0, math.tau / max(2, clusters))
         for i in range(clusters):
-            a = (math.tau * i) / clusters + self.rng.uniform(-0.2, 0.2)
-            r = min(usable_w, usable_h) * self.rng.uniform(0.15, 0.32)
-            centers.append((cx + math.cos(a) * r, cy + math.sin(a) * r * 0.7))
+            a = base_angle + (math.tau * i) / clusters + self.rng.uniform(-0.2, 0.2)
+            # Use separate x/y radii so clusters spread across the full screen,
+            # not just a tiny box determined by the shorter dimension.
+            r_x = usable_w * self.rng.uniform(0.22, 0.40)
+            r_y = usable_h * self.rng.uniform(0.22, 0.40)
+            centers.append((cx + math.cos(a) * r_x, cy + math.sin(a) * r_y * 0.7))
         per_cluster = max(4, count // clusters)
+        # Node spread is sized relative to cluster separation, not screen size,
+        # so clusters stay distinct rather than merging into one blob.
+        spread_x = usable_w / max(clusters, 1) * 0.18
+        spread_y = usable_h / max(clusters, 1) * 0.35
         for mx, my in centers:
             for _ in range(per_cluster):
                 nodes.append((
-                    mx + self.rng.uniform(-usable_w * 0.10, usable_w * 0.10),
-                    my + self.rng.uniform(-usable_h * 0.10, usable_h * 0.10),
+                    mx + self.rng.uniform(-spread_x, spread_x),
+                    my + self.rng.uniform(-spread_y, spread_y),
                 ))
 
         self.nodes = nodes[: max(10, min(len(nodes), 56))]
@@ -163,7 +174,12 @@ class ThemeState:
                 if idx == jdx:
                     continue
                 dx = node[0] - other[0]
-                dy = node[1] - other[1]
+                # Correct for terminal character aspect ratio (~2:1 height:width
+                # in pixels). Without this, the algorithm treats 1 char of
+                # vertical distance as equal to 1 char of horizontal, making
+                # "nearest" neighbours cluster vertically and producing parallel
+                # vertical lines. Multiplying dy by 2 matches visual distances.
+                dy = (node[1] - other[1]) * 2.0
                 distances.append((dx * dx + dy * dy, jdx))
             distances.sort(key=lambda item: item[0])
             for _, jdx in distances[:keep]:

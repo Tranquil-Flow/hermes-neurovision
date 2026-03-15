@@ -657,8 +657,8 @@ class FractalEnginePlugin(ThemePlugin):
 
         for y in range(1, h - 1):
             for x in range(0, w - 1):
-                re = view_cx + (x / max(w, 1) - 0.5) * self._zoom
-                im = view_cy + (y / max(h, 1) - 0.5) * self._zoom * (h / max(w, 1)) * 2.2
+                re = view_cx + (x / max(w, 1) - 0.5) * zoom
+                im = view_cy + (y / max(h, 1) - 0.5) * zoom * (h / max(w, 1)) * 2.2
 
                 zr, zi = 0.0, 0.0
                 i = 0

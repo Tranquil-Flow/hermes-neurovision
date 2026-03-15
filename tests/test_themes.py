@@ -45,3 +45,36 @@ def test_all_themes_can_be_built():
         assert config.name == name
         if name not in full_screen_themes:
             assert config.background_density > 0
+
+
+# ── Fractal engine regression ─────────────────────────────────────────────────
+
+def test_fractal_engine_draw_extras_no_attribute_error():
+    """FractalEnginePlugin.draw_extras must not raise AttributeError for _zoom."""
+    import unittest.mock as mock
+    from hermes_neurovision.scene import ThemeState
+    config = build_theme_config("fractal-engine")
+    state = ThemeState(config, 100, 30, seed=42)
+    mock_stdscr = mock.MagicMock()
+    mock_stdscr.getmaxyx.return_value = (30, 100)
+    cp = {"bright": 0, "accent": 0, "soft": 0, "base": 0, "warning": 0}
+    with mock.patch("curses.color_pair", return_value=0), \
+         mock.patch("curses.A_BOLD", 0), \
+         mock.patch("curses.A_DIM", 0):
+        state.plugin.draw_extras(mock_stdscr, state, cp)  # must not raise
+
+
+def test_fractal_engine_draws_cells():
+    """FractalEnginePlugin must call stdscr.addstr (actually renders pixels)."""
+    import unittest.mock as mock
+    from hermes_neurovision.scene import ThemeState
+    config = build_theme_config("fractal-engine")
+    state = ThemeState(config, 100, 30, seed=42)
+    mock_stdscr = mock.MagicMock()
+    mock_stdscr.getmaxyx.return_value = (30, 100)
+    cp = {"bright": 0, "accent": 0, "soft": 0, "base": 0, "warning": 0}
+    with mock.patch("curses.color_pair", return_value=0), \
+         mock.patch("curses.A_BOLD", 0), \
+         mock.patch("curses.A_DIM", 0):
+        state.plugin.draw_extras(mock_stdscr, state, cp)
+    assert mock_stdscr.addstr.called
