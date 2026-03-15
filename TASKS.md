@@ -39,139 +39,27 @@ Read the full plan at `docs/superpowers/plans/2026-03-13-hermes-neurovision.md` 
 
 ### Navigation + UI polish
 
-- [x] Task 44: [SKIPPED — build manually]
-  In GalleryApp._handle_input(): add curses.KEY_SLEFT → _advance_theme(-1), curses.KEY_SRIGHT → _advance_theme(1).
-  Also check for escape sequences "\x1b[1;2D" (Shift+Left) and "\x1b[1;2C" (Shift+Right) as some
-  terminals send these instead of curses.KEY_SLEFT/SRIGHT. Update the HUD footer to show "⇧←/⇧→ nav".
-  Test: add test_gallery_shift_arrow_navigation() in tests/test_app.py.
+- [x] Task 44: Shift+Left/Right gallery nav — DONE (commit 908e1d0)
+  Refactored _handle_input → _handle_key(ch). Handles KEY_SLEFT/KEY_SRIGHT
+  and escape sequences \x1b[1;2D / \x1b[1;2C. 4 tests passing.
 
 ### Tuner — live parameter sliders
 
-- [x] Task 45: [SKIPPED — build manually]
-  File: hermes_neurovision/tune.py
+- [x] Task 45: TuneSettings + TuneOverlay — DONE (commit 75bb973)
+  hermes_neurovision/tune.py: 6 sliders, 8 element toggles, unified
+  ↑↓ navigation, ←→ adjust/toggle, t close, r reset. 28 tests passing.
 
-  TuneSettings has two groups of fields:
-
-  SLIDERS (float, default 1.0):
-    burst_scale: float = 1.0       # multiplies burst particle count in apply_trigger()
-    packet_rate_mult: float = 1.0  # multiplies packet_rate from ThemeConfig
-    pulse_rate_mult: float = 1.0   # multiplies pulse_rate from ThemeConfig
-    particle_density: float = 1.0  # multiplies particle_base_chance from plugin
-    event_sensitivity: float = 1.0 # scales incoming trigger intensities in bridge
-    animation_speed: float = 1.0   # multiplies FRAME_DELAY (speed up/slow down)
-  Each slider has: min, max, step, label.
-
-  ELEMENT TOGGLES (bool, default True — all on):
-    show_packets: bool = True      # passive + event-driven packet spawning
-    show_particles: bool = True    # passive + event-driven particle spawning
-    show_pulses: bool = True       # passive + event-driven pulse rings
-    show_stars: bool = True        # background star field drift
-    show_background: bool = True   # plugin draw_extras() full-screen field
-    show_nodes: bool = True        # network node rendering
-    show_flash: bool = True        # flash effects from events
-    show_spawn_node: bool = True   # dynamic node spawning from events
-  These gate ALL activity for that element — both passive ambient AND AI-event-driven.
-
-  TuneOverlay: draws a centered modal (max 36w x 22h) when active.
-  Two-section UI layout:
-    ┌─── TUNER ──────────────────────┐
-    │                                │
-    │ ── SLIDERS ─────────────────── │
-    │ ▶ Burst scale            1.0   │
-    │   [========●========]          │
-    │   Packet rate            1.0   │
-    │   [========●========]          │
-    │   ...                          │
-    │                                │
-    │ ── ELEMENTS ────────────────── │
-    │   [ON]  packets    [ON]  stars  │
-    │   [ON]  particles  [ON]  bg    │
-    │   [ON]  pulses     [ON]  nodes  │
-    │   [ON]  flash      [ON]  spawn  │
-    │                                │
-    │  ↑↓ select  ←→ adjust/toggle  │
-    │  t close    r reset all        │
-    └────────────────────────────────┘
-  Sliders and toggles are navigated as a unified list (↑↓ moves through all rows).
-  ← → on a toggle row flips it; on a slider row adjusts value.
-  draw(stdscr, color_pairs): renders the overlay on top of current scene.
-  handle_key(ch) -> bool: returns True if key was consumed.
-  Properties to expose: selected_index, current_settings.
-  Write tests: test_tune_settings_default(), test_tune_overlay_handle_key(),
-    test_tune_toggle_element(), test_tune_reset_all_restores_toggles().
-
-- [x] Task 46: [SKIPPED — build manually]
-  GalleryApp: add self.tune = TuneSettings(), self.tune_overlay = TuneOverlay(self.tune).
-  _handle_input(): 't' key → self.tune_overlay.active = not self.tune_overlay.active.
-  When tune_overlay.active: route ALL keys to tune_overlay.handle_key() first, stop if consumed.
-  _draw_with_indicators(): if tune_overlay.active, call tune_overlay.draw(stdscr, color_pairs).
-  HUD: when tuner has non-default settings, show "[TUNED]" indicator next to "[QUIET]".
-
-  Apply TuneSettings SLIDERS in scene.py:
-    ThemeState: add optional tune attr (set from outside, default None).
-    _spawn_packets(): multiply rng threshold by tune.packet_rate_mult if tune set.
-    _spawn_particles(): multiply base_chance by tune.particle_density if tune set.
-    _spawn_particles(): multiply pulse_rate by tune.pulse_rate_mult if tune set.
-    apply_trigger(): for "burst" effect, multiply particle count by tune.burst_scale.
-    apply_trigger(): scale trigger.intensity by tune.event_sensitivity.
-  Apply in app.py run loop: time.sleep(FRAME_DELAY / max(0.1, tune.animation_speed)).
-
-  Apply TuneSettings ELEMENT TOGGLES everywhere — both passive ambient AND event-driven:
-    scene.py _spawn_packets(): gate entire method on tune.show_packets (if tune set).
-    scene.py apply_trigger() "packet": gate on tune.show_packets.
-    scene.py _spawn_particles(): gate particle spawning on tune.show_particles.
-    scene.py _spawn_particles(): gate pulse spawning on tune.show_pulses.
-    scene.py apply_trigger() "burst": gate on tune.show_particles.
-    scene.py apply_trigger() "pulse": gate on tune.show_pulses.
-    scene.py apply_trigger() "flash": gate on tune.show_flash.
-    scene.py apply_trigger() "spawn_node": gate on tune.show_spawn_node.
-    scene.py _step_stars(): gate entire method on tune.show_stars; renderer skips star draw too.
-    renderer.py: skip node/edge rendering when tune.show_nodes is False.
-    renderer.py: skip draw_extras() call when tune.show_background is False.
-  Renderer needs access to tune — pass state.tune through (ThemeState already holds it).
-
-  Test: test_tune_settings_applied_to_burst(), test_tune_settings_packet_rate(),
-    test_tune_toggle_packets_suppresses_passive_spawn(),
-    test_tune_toggle_packets_suppresses_event_trigger(),
-    test_tune_toggle_stars_suppresses_step(),
-    test_tune_toggle_background_skips_draw_extras().
+- [x] Task 46: Wire TuneSettings into all effect pathways — DONE (commit 68d3147)
+  scene.py: ThemeState.tune field; all spawn/trigger methods gated on toggles
+  and scaled by sliders. renderer.py: stars/nodes/background gated. app.py:
+  GalleryApp + LiveApp hold TuneSettings+TuneOverlay, wired to state.
 
 ### Debug panel
 
-- [x] Task 47: [SKIPPED — build manually]
-  File: hermes_neurovision/debug_panel.py
-  DebugPanel class, width=34 chars, anchored to right edge.
-  Stores ring buffers: events (last 8), triggers (last 8).
-  record_event(event: VisionEvent): append to ring buffer.
-  record_trigger(trigger: VisualTrigger, source_event=None): append to ring buffer.
-  draw(stdscr, state, color_pairs): draws panel over rightmost 34 cols.
-  Panel sections:
-    ┌── DEBUG ──────────────────┐
-    │ Theme: neural-sky         │
-    │ Frame: 1234  Intens: 0.62 │
-    │ ████████░░░░░░  (bar)     │
-    │ Mode: GALLERY  Quiet: OFF │
-    │                           │
-    │ ── EVENTS ─────────────── │
-    │ 00:12 state:db  session   │
-    │ 00:08 memories  new_mem   │
-    │ 00:05 cron      heartbeat │
-    │                           │
-    │ ── TRIGGERS ────────────  │
-    │ 00:04 wake       I:0.80   │
-    │ 00:02 burst      I:0.90   │
-    │ 00:01 packet     I:0.50   │
-    │                           │
-    │ ── TUNE ────────────────  │
-    │ burst:1.0 packets:1.0     │
-    │ sensitivity:1.0 spd:1.0   │
-    └───────────────────────────┘
-  Relative timestamps shown as "HH:MM" since event or "XXs ago".
-  Colors: section headers in accent, values in bright, timestamps in dim.
-  Toggle in GalleryApp and LiveApp via 'd' key.
-  Wire into HybridApp: pass events/triggers to debug_panel on each poll cycle.
-  CLI: --debug flag starts with panel visible.
-  Test: test_debug_panel_record_event(), test_debug_panel_draw_headless().
+- [x] Task 47: Debug panel — DONE (commit 46101c7)
+  hermes_neurovision/debug_panel.py: 34-col right-anchored overlay with
+  ring buffers (8 events, 8 triggers), intensity bar, theme/frame info.
+  GalleryApp + LiveApp: 'd' toggles, LiveApp feeds events+triggers. 13 tests.
 
 ### Legacy theme management
 
