@@ -93,13 +93,21 @@ class _AttractorBase(ThemePlugin):
         self._grid = [[0.0] * w for _ in range(h)]
         self._w, self._h = w, h
         self._setup_projection(w, h)
-        # Warm up trajectory (skip transient)
+        self._reset_trajectory()
+        # Warm up trajectory (skip transient); reset if diverged
         for _ in range(3000):
             self._step()
+            if not (math.isfinite(self._tx) and math.isfinite(self._ty)
+                    and math.isfinite(self._tz)):
+                self._reset_trajectory()
 
     def _setup_projection(self, w: int, h: int) -> None:
         """Override to set _ox, _oy (offsets) and _sx, _sy (scales)."""
         raise NotImplementedError
+
+    def _reset_trajectory(self) -> None:
+        """Reset to a known-good initial point. Override in each subclass."""
+        self._tx, self._ty, self._tz = 0.1, 0.0, 0.1
 
     def _step(self) -> None:
         """Advance trajectory one Euler step; update self._tx/_ty/_tz."""
@@ -109,9 +117,10 @@ class _AttractorBase(ThemePlugin):
         """Return (screen_x, screen_y) for current trajectory position."""
         raise NotImplementedError
 
-    def _hue(self) -> int:
-        """Return a curses.color_pair int for current trajectory position."""
-        raise NotImplementedError
+    def _is_valid(self) -> bool:
+        """True if trajectory is finite (not NaN/inf)."""
+        return (math.isfinite(self._tx) and math.isfinite(self._ty)
+                and math.isfinite(self._tz))
 
     def draw_extras(self, stdscr, state, color_pairs):
         w, h = state.width, state.height
@@ -127,6 +136,10 @@ class _AttractorBase(ThemePlugin):
         n_steps = int(600 * (0.5 + intensity))
         for _ in range(n_steps):
             self._step()
+            # Guard against divergence — reset to known-good point and skip frame
+            if not self._is_valid():
+                self._reset_trajectory()
+                continue
             sx, sy = self._project()
             if 1 <= sy < h - 1 and 0 <= sx < w - 1:
                 grid[sy][sx] = min(grid[sy][sx] + 0.04, 1.0)
@@ -163,11 +176,14 @@ class LorenzButterflyPlugin(_AttractorBase):
     Hue mapped to X position so left wing glows red-yellow, right wing blue-violet.
     """
     name = "lorenz-butterfly"
-    _DT = 0.008
+    _DT = 0.006   # conservative dt — Lorenz is chaotic but bounded
     _SIGMA = 10.0
     _RHO   = 28.0
     _BETA  = 8.0 / 3.0
     # X range ~[-20,20], Z range ~[0,50]
+
+    def _reset_trajectory(self):
+        self._tx, self._ty, self._tz = 1.0, 0.0, 15.0
 
     def _setup_projection(self, w, h):
         # Map X ∈ [-22,22] → [0, w-1],  Z ∈ [-2, 52] → [h-2, 1]
@@ -175,7 +191,6 @@ class LorenzButterflyPlugin(_AttractorBase):
         self._oy = (h - 2) + 2.0 * (h / 54.0)  # Z=0 at bottom
         self._sx = (w - 4) / 44.0
         self._sy = (h - 3) / 54.0
-        self._tx, self._ty, self._tz = 1.0, 0.0, 15.0
 
     def _step(self):
         x, y, z = self._tx, self._ty, self._tz
@@ -209,18 +224,20 @@ class RosslerRibbonPlugin(_AttractorBase):
     spiral; hue mapped to angle-from-centre for a full-spectrum colour wheel.
     """
     name = "rossler-ribbon"
-    _DT = 0.02
+    _DT = 0.015  # reduced from 0.02 — spike region can be stiff
     _A  = 0.2
     _B  = 0.2
     _C  = 5.7
     # X,Y range ~[-12, 12]
+
+    def _reset_trajectory(self):
+        self._tx, self._ty, self._tz = 0.1, 0.0, 0.0
 
     def _setup_projection(self, w, h):
         self._ox = w / 2.0
         self._oy = h / 2.0
         self._sx = (w - 6) / 24.0
         self._sy = (h - 4) / 22.0
-        self._tx, self._ty, self._tz = 0.1, 0.0, 0.0
 
     def _step(self):
         x, y, z = self._tx, self._ty, self._tz
@@ -259,8 +276,12 @@ class HalvorsenStarPlugin(_AttractorBase):
     120° = red-yellow, 120° = green-cyan, 120° = blue-magenta.
     """
     name = "halvorsen-star"
-    _DT = 0.01
+    _DT = 0.005  # halved — Halvorsen has y² and z² terms that blow up with large dt
     _A  = 1.4
+
+    def _reset_trajectory(self):
+        # Verified on-attractor starting point (avoids transient divergence)
+        self._tx, self._ty, self._tz = -1.48, -1.51, 2.04
 
     def _setup_projection(self, w, h):
         self._ox = w / 2.0
@@ -268,7 +289,6 @@ class HalvorsenStarPlugin(_AttractorBase):
         # Range roughly ±10 for X,Y
         self._sx = (w - 6) / 20.0
         self._sy = (h - 4) / 14.0
-        self._tx, self._ty, self._tz = -5.0, 0.1, 0.1
 
     def _step(self):
         x, y, z = self._tx, self._ty, self._tz
@@ -310,7 +330,7 @@ class AizawaTorusPlugin(_AttractorBase):
     (top violet → bottom red) making a chromatic stack of orbital bands.
     """
     name = "aizawa-torus"
-    _DT = 0.02
+    _DT = 0.015  # conservative — cubic z term can spike
     _A = 0.95
     _B = 0.7
     _C = 0.6
@@ -319,12 +339,14 @@ class AizawaTorusPlugin(_AttractorBase):
     _F = 0.1
     # X range ~[-1.5,1.5], Z range ~[-0.5,1.5]
 
+    def _reset_trajectory(self):
+        self._tx, self._ty, self._tz = 0.1, 0.0, 0.5
+
     def _setup_projection(self, w, h):
         self._ox = w / 2.0
         self._oy = h / 2.0
         self._sx = (w - 6) / 3.2
         self._sy = (h - 4) / 2.2
-        self._tx, self._ty, self._tz = 0.1, 0.0, 0.5
 
     def _step(self):
         x, y, z = self._tx, self._ty, self._tz
@@ -367,8 +389,11 @@ class ThomasLabyrinthPlugin(_AttractorBase):
     Hue by diagonal position for a sweeping rainbow diagonal.
     """
     name = "thomas-labyrinth"
-    _DT  = 0.05
+    _DT  = 0.04  # reduced from 0.05 — sin(x) terms well-behaved but cautious
     _B   = 0.208186
+
+    def _reset_trajectory(self):
+        self._tx, self._ty, self._tz = 0.1, 0.0, -0.1
 
     def _setup_projection(self, w, h):
         self._ox = w / 2.0
@@ -376,7 +401,6 @@ class ThomasLabyrinthPlugin(_AttractorBase):
         # Range roughly ±5 for all axes; project onto (x+y)/√2, z
         self._sx = (w - 6) / 14.0
         self._sy = (h - 4) / 10.0
-        self._tx, self._ty, self._tz = 0.1, 0.0, -0.1
 
     def _step(self):
         x, y, z = self._tx, self._ty, self._tz
