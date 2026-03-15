@@ -6,6 +6,15 @@ import curses
 from dataclasses import dataclass
 from typing import Tuple
 
+LEGACY_THEMES: Tuple[str, ...] = (
+    "legacy-starfall", "legacy-quasar", "legacy-supernova", "legacy-sol",
+    "legacy-terra", "legacy-binary-star",
+    "legacy-neural-sky", "legacy-storm-core", "legacy-moonwire",
+    "legacy-rootsong", "legacy-stormglass", "legacy-spiral-galaxy", "legacy-black-hole",
+    "legacy-deep-abyss", "legacy-storm-sea", "legacy-dark-forest",
+    "legacy-mountain-stars", "legacy-beach-lighthouse",
+)
+
 THEMES: Tuple[str, ...] = (
     # ── Originals (7) ───────────────────────────────────────────
     "black-hole",
