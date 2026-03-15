@@ -167,9 +167,48 @@ def _opacity_hint_for_terminal(term: str) -> str:
         "kitty":     "Add 'allow_remote_control yes' to kitty.conf, then retry",
         "alacritty": "Upgrade to Alacritty 0.12+ for automatic opacity control",
         "wezterm":   "Set window_background_opacity in wezterm.lua and reload",
-        "terminal":  "Terminal.app: Preferences > Profiles > Background (opacity slider) — manual only",
+        "terminal":  "Run: osascript -e 'tell application \"Terminal\" to set backgroundAlpha of front window to 0.5'",
     }
     return hints.get(term, "Set terminal background opacity to ~45% in your terminal emulator settings")
+
+
+# ── Terminal.app ──────────────────────────────────────────────────────────────
+
+def _terminal_get_opacity() -> Optional[float]:
+    """Read backgroundAlpha of the front Terminal.app window via AppleScript."""
+    script = 'tell application "Terminal" to return backgroundAlpha of front window'
+    try:
+        result = subprocess.run(
+            ["osascript", "-e", script],
+            capture_output=True, text=True, timeout=3
+        )
+        if result.returncode == 0:
+            return float(result.stdout.strip())
+    except (subprocess.TimeoutExpired, ValueError, FileNotFoundError):
+        pass
+    return None
+
+
+def _terminal_set_opacity(opacity: float) -> bool:
+    """Set backgroundAlpha of all Terminal.app windows via AppleScript.
+
+    Sets every open window so tab/split setups are also covered.
+    backgroundAlpha convention matches ours: 1.0 = opaque, 0.0 = transparent.
+    """
+    opacity = max(0.0, min(1.0, opacity))
+    script = (
+        f'tell application "Terminal" to repeat with w in windows\n'
+        f'  set backgroundAlpha of w to {round(opacity, 4)}\n'
+        f'end repeat'
+    )
+    try:
+        result = subprocess.run(
+            ["osascript", "-e", script],
+            capture_output=True, text=True, timeout=3
+        )
+        return result.returncode == 0
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return False
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -433,6 +472,9 @@ def _get_current_opacity(term: str) -> Optional[float]:
     if term == "wezterm":
         val = _wezterm_get_opacity()
         return val if val is not None else 1.0
+    if term == "terminal":
+        val = _terminal_get_opacity()
+        return val if val is not None else 1.0
     return None
 
 
@@ -446,6 +488,8 @@ def _set_opacity(term: str, opacity: float) -> bool:
         return _alacritty_set_opacity(opacity)
     if term == "wezterm":
         return _wezterm_set_opacity(opacity)
+    if term == "terminal":
+        return _terminal_set_opacity(opacity)
     return False
 
 
@@ -461,12 +505,6 @@ def apply_auto_opacity(cfg: dict, verbose: bool = True) -> bool:
 
     term = _detect_terminal_app()
     target = cfg.get("opacity", 0.45)
-
-    if term == "terminal":
-        if verbose:
-            print("[neurovision-bg] Terminal.app does not support runtime opacity control.")
-            print("[neurovision-bg] Manual: Preferences > Profiles > Window > Opacity")
-        return False
 
     if term == "unknown":
         if verbose:
