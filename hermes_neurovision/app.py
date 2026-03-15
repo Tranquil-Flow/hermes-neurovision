@@ -15,6 +15,68 @@ from hermes_neurovision.command_menu import CommandMenu
 from hermes_neurovision.theme_editor import ThemeEditor, apply_custom_overrides
 
 
+def _toggle_native_fullscreen() -> None:
+    """Toggle native macOS fullscreen via AppleScript.
+
+    Works with Terminal.app, iTerm2, and other macOS terminal emulators.
+    On non-macOS platforms this is a no-op.
+    """
+    import sys
+    if sys.platform != 'darwin':
+        return
+    import subprocess
+    try:
+        subprocess.Popen(
+            ['osascript', '-e',
+             'tell application "System Events" to keystroke "f" '
+             'using {control down, command down}'],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except OSError:
+        pass
+
+
+def _apply_performance_mode(tune: 'TuneSettings', perf_on: bool) -> None:
+    """Toggle performance mode — disable expensive effects for smoother rendering.
+
+    When perf_on=True:  disable postfx, emergent, particles, symmetry, reactive
+    When perf_on=False: restore all defaults
+    """
+    if perf_on:
+        # Disable expensive rendering
+        tune.warp_strength = 0.0
+        tune.void_intensity = 0.0
+        tune.force_strength = 0.0
+        tune.decay_rate = 0.0
+        tune.emergent_speed = 0.0
+        tune.emergent_opacity = 0.0
+        tune.symmetry_enabled = False
+        tune.mask_enabled = False
+        tune.reactive_elements = False
+        tune.show_particles = False
+        tune.show_streaks = False
+        tune.show_specials = False
+        tune.show_overlays = False
+        tune.color_shifts = False
+    else:
+        # Restore defaults
+        tune.warp_strength = 1.0
+        tune.void_intensity = 1.0
+        tune.force_strength = 1.0
+        tune.decay_rate = 1.0
+        tune.emergent_speed = 1.0
+        tune.emergent_opacity = 1.0
+        tune.symmetry_enabled = True
+        tune.mask_enabled = True
+        tune.reactive_elements = True
+        tune.show_particles = True
+        tune.show_streaks = True
+        tune.show_specials = True
+        tune.show_overlays = True
+        tune.color_shifts = True
+
+
 class GalleryApp:
     def __init__(self, stdscr: "curses._CursesWindow", themes: Sequence[str], theme_seconds: float, end_after: Optional[float], include_legacy: bool = False) -> None:
         self.stdscr = stdscr
@@ -37,6 +99,7 @@ class GalleryApp:
         self.theme_editor = ThemeEditor()
         self._escape_buf = ""
         self._fullscreen = False
+        self._perf_mode = False
         self.state = self._make_state(self.themes[self.theme_index])
         self.switch_at = time.time() + self.theme_seconds if len(self.themes) > 1 else float("inf")
         self._configure_menu()
@@ -62,26 +125,20 @@ class GalleryApp:
         self.stdscr.timeout(0)
 
         deadline = time.time() + self.end_after if self.end_after is not None else None
-        try:
-            while True:
-                now = time.time()
-                if deadline is not None and now >= deadline:
-                    break
+        while True:
+            now = time.time()
+            if deadline is not None and now >= deadline:
+                break
 
-                self._handle_input()
-                self._process_menu_action()
-                if not self.paused:
-                    self.state.step()
-                    if len(self.themes) > 1 and not self.locked and now >= self.switch_at:
-                        self._advance_theme(1)
-                self._draw_with_indicators()
-                self.stdscr.refresh()
-                time.sleep(FRAME_DELAY / max(0.1, self.tune.animation_speed))
-        finally:
-            if self._fullscreen:
-                import sys
-                sys.stdout.write("\033[?1049l\033[?25h")
-                sys.stdout.flush()
+            self._handle_input()
+            self._process_menu_action()
+            if not self.paused:
+                self.state.step()
+                if len(self.themes) > 1 and not self.locked and now >= self.switch_at:
+                    self._advance_theme(1)
+            self._draw_with_indicators()
+            self.stdscr.refresh()
+            time.sleep(FRAME_DELAY / max(0.1, self.tune.animation_speed))
 
     def _draw_with_indicators(self) -> None:
         """Draw scene with lock and selection indicators."""
@@ -103,6 +160,14 @@ class GalleryApp:
             text = " LOCKED "
             try:
                 self.stdscr.addstr(0, w - len(text) - 1, text, curses.color_pair(5) | curses.A_BOLD)
+            except curses.error:
+                pass
+
+        # Top-right: PERF indicator
+        if self._perf_mode:
+            ptext = " PERF "
+            try:
+                self.stdscr.addstr(0, 1, ptext, curses.color_pair(4) | curses.A_BOLD)
             except curses.error:
                 pass
 
@@ -146,7 +211,8 @@ class GalleryApp:
         hide_flag = " [HIDDEN]" if self.hide_hud else ""
         # Left side: navigation + controls
         muted_flag = " [MUTED]" if not self.tune.sound_enabled else ""
-        left = f" theme {self.theme_index + 1}/{len(self.themes)}{quiet_flag}{legacy_flag}{tuned_flag}{muted_flag} | Q quit  ←/→ nav  m menu  h hide  M mute  F full  space pause"
+        perf_flag = " [PERF]" if self._perf_mode else ""
+        left = f" theme {self.theme_index + 1}/{len(self.themes)}{quiet_flag}{legacy_flag}{tuned_flag}{muted_flag}{perf_flag} | Q quit  ←/→  m menu  h hide  M mute  P perf  F full"
         # Right side: selection hints
         right = "enter lock  s use theme "
         gap = w - len(left) - len(right) - 1
@@ -286,16 +352,16 @@ class GalleryApp:
             self.tune.sound_enabled = not self.tune.sound_enabled
             return
 
-        # Toggle fullscreen (via terminal escape sequences)
+        # Toggle performance mode
+        if ch == ord("P"):
+            self._perf_mode = not self._perf_mode
+            _apply_performance_mode(self.tune, self._perf_mode)
+            return
+
+        # Toggle native fullscreen (macOS)
         if ch == ord("F"):
             self._fullscreen = not self._fullscreen
-            import sys
-            if self._fullscreen:
-                sys.stdout.write("\033[?1049h\033[?25l")  # alt screen + hide cursor
-            else:
-                sys.stdout.write("\033[?1049l\033[?25h")  # restore + show cursor
-            sys.stdout.flush()
-            curses.resizeterm(*self.stdscr.getmaxyx())
+            _toggle_native_fullscreen()
             return
 
         # Open command menu
@@ -385,6 +451,7 @@ class LiveApp:
         self.end_after = end_after
         self.hide_hud = False
         self._fullscreen = False
+        self._perf_mode = False
         self.renderer = Renderer(stdscr)
         h, w = stdscr.getmaxyx()
         self.tune = TuneSettings()
@@ -412,65 +479,59 @@ class LiveApp:
         self.stdscr.nodelay(True)
         deadline = time.time() + self.end_after if self.end_after else None
 
-        try:
-            while True:
-                now = time.time()
-                if deadline and now >= deadline:
-                    break
+        while True:
+            now = time.time()
+            if deadline and now >= deadline:
+                break
 
-                self._handle_input()
-                self._process_menu_action()
-                self.state.step()
+            self._handle_input()
+            self._process_menu_action()
+            self.state.step()
 
-                # Poll every ~5 frames (0.25 seconds at 50ms/frame)
-                self._poll_counter += 1
-                if self._poll_counter >= 5:
-                    self._poll_counter = 0
-                    events = self.poller.poll()
-                    if events:
-                        self._last_event_time = now
-                    for ev in events:
-                        triggers = self.bridge.translate(ev)
-                        for trigger in triggers:
-                            self.state.apply_trigger(trigger)
-                            self.debug_panel.record_trigger(trigger, source_event=ev)
-                        self.debug_panel.record_event(ev)
-                        if self.show_logs:
-                            self.log_overlay.add_event(ev)
+            # Poll every ~5 frames (0.25 seconds at 50ms/frame)
+            self._poll_counter += 1
+            if self._poll_counter >= 5:
+                self._poll_counter = 0
+                events = self.poller.poll()
+                if events:
+                    self._last_event_time = now
+                for ev in events:
+                    triggers = self.bridge.translate(ev)
+                    for trigger in triggers:
+                        self.state.apply_trigger(trigger)
+                        self.debug_panel.record_trigger(trigger, source_event=ev)
+                    self.debug_panel.record_event(ev)
+                    if self.show_logs:
+                        self.log_overlay.add_event(ev)
 
-                # Idle fallback — generative mode kicks in
-                # (already handled by scene.py's normal step())
+            # Idle fallback — generative mode kicks in
+            # (already handled by scene.py's normal step())
 
-                self.renderer.draw(self.state, 0, 1, deadline, hide_hud=self.hide_hud)
+            self.renderer.draw(self.state, 0, 1, deadline, hide_hud=self.hide_hud)
 
-                # Draw log overlay if enabled (but not when HUD hidden or menu active)
-                if self.show_logs and not self.hide_hud and not self.command_menu.active:
-                    self._draw_logs(now)
-                    self._draw_status_indicator()
+            # Draw log overlay if enabled (but not when HUD hidden or menu active)
+            if self.show_logs and not self.hide_hud and not self.command_menu.active:
+                self._draw_logs(now)
+                self._draw_status_indicator()
 
-                # Overlays — command menu supersedes logs and other overlays
-                if self.hide_hud:
-                    if self.command_menu.active:
-                        self.command_menu.draw(self.stdscr, self.renderer.color_pairs)
-                    if self.theme_editor.active:
-                        self.theme_editor.draw(self.stdscr, self.renderer.color_pairs)
-                else:
-                    if self.command_menu.active:
-                        self.command_menu.draw(self.stdscr, self.renderer.color_pairs)
-                    elif self.theme_editor.active:
-                        self.theme_editor.draw(self.stdscr, self.renderer.color_pairs)
-                    elif self.tune_overlay.active:
-                        self.tune_overlay.draw(self.stdscr, self.renderer.color_pairs)
-                    if self.debug_panel.visible and not self.command_menu.active:
-                        self.debug_panel.draw(self.stdscr, self.state, self.renderer.color_pairs)
+            # Overlays — command menu supersedes logs and other overlays
+            if self.hide_hud:
+                if self.command_menu.active:
+                    self.command_menu.draw(self.stdscr, self.renderer.color_pairs)
+                if self.theme_editor.active:
+                    self.theme_editor.draw(self.stdscr, self.renderer.color_pairs)
+            else:
+                if self.command_menu.active:
+                    self.command_menu.draw(self.stdscr, self.renderer.color_pairs)
+                elif self.theme_editor.active:
+                    self.theme_editor.draw(self.stdscr, self.renderer.color_pairs)
+                elif self.tune_overlay.active:
+                    self.tune_overlay.draw(self.stdscr, self.renderer.color_pairs)
+                if self.debug_panel.visible and not self.command_menu.active:
+                    self.debug_panel.draw(self.stdscr, self.state, self.renderer.color_pairs)
 
-                self.stdscr.refresh()
-                time.sleep(FRAME_DELAY / max(0.1, self.tune.animation_speed))
-        finally:
-            if self._fullscreen:
-                import sys
-                sys.stdout.write("\033[?1049l\033[?25h")
-                sys.stdout.flush()
+            self.stdscr.refresh()
+            time.sleep(FRAME_DELAY / max(0.1, self.tune.animation_speed))
 
     def _draw_logs(self, now: float) -> None:
         h, w = self.stdscr.getmaxyx()
@@ -574,16 +635,16 @@ class LiveApp:
                 self.tune.sound_enabled = not self.tune.sound_enabled
                 continue
 
-            # Toggle fullscreen
+            # Toggle performance mode
+            if ch == ord("P"):
+                self._perf_mode = not self._perf_mode
+                _apply_performance_mode(self.tune, self._perf_mode)
+                continue
+
+            # Toggle native fullscreen (macOS)
             if ch == ord("F"):
                 self._fullscreen = not self._fullscreen
-                import sys
-                if self._fullscreen:
-                    sys.stdout.write("\033[?1049h\033[?25l")
-                else:
-                    sys.stdout.write("\033[?1049l\033[?25h")
-                sys.stdout.flush()
-                curses.resizeterm(*self.stdscr.getmaxyx())
+                _toggle_native_fullscreen()
                 continue
 
             # Open menu
@@ -623,6 +684,7 @@ class DaemonApp:
         self.quiet = quiet
         self.hide_hud = False
         self._fullscreen = False
+        self._perf_mode = False
         self.renderer = Renderer(stdscr)
         self.command_menu = CommandMenu()
         self.theme_editor = ThemeEditor()
@@ -675,61 +737,55 @@ class DaemonApp:
         curses.curs_set(0)
         self.stdscr.nodelay(True)
 
-        try:
-            while True:
-                now = time.time()
-                self._handle_input()
-                self._process_menu_action()
+        while True:
+            now = time.time()
+            self._handle_input()
+            self._process_menu_action()
 
-                # Poll for events every ~5 frames
-                self._poll_counter += 1
-                if self._poll_counter >= 5:
-                    self._poll_counter = 0
-                    events = self.poller.poll()
+            # Poll for events every ~5 frames
+            self._poll_counter += 1
+            if self._poll_counter >= 5:
+                self._poll_counter = 0
+                events = self.poller.poll()
 
-                    if events:
-                        # Transition to live mode on first event
-                        if self.mode == "gallery":
-                            self._transition_to_live()
+                if events:
+                    # Transition to live mode on first event
+                    if self.mode == "gallery":
+                        self._transition_to_live()
 
-                        self.last_event_time = now
+                    self.last_event_time = now
 
-                        # Apply events to live state
-                        for ev in events:
-                            triggers = self.bridge.translate(ev)
-                            for trigger in triggers:
-                                if self.live_state:
-                                    self.live_state.apply_trigger(trigger)
-                                self.debug_panel.record_trigger(trigger, source_event=ev)
-                            self.debug_panel.record_event(ev)
-                            if self.show_logs:
-                                self.log_overlay.add_event(ev)
+                    # Apply events to live state
+                    for ev in events:
+                        triggers = self.bridge.translate(ev)
+                        for trigger in triggers:
+                            if self.live_state:
+                                self.live_state.apply_trigger(trigger)
+                            self.debug_panel.record_trigger(trigger, source_event=ev)
+                        self.debug_panel.record_event(ev)
+                        if self.show_logs:
+                            self.log_overlay.add_event(ev)
 
-                # Check idle timeout
-                if self.mode == "live" and self.last_event_time is not None:
-                    idle_time = now - self.last_event_time
-                    if idle_time >= self.idle_threshold:
-                        self._transition_to_gallery()
+            # Check idle timeout
+            if self.mode == "live" and self.last_event_time is not None:
+                idle_time = now - self.last_event_time
+                if idle_time >= self.idle_threshold:
+                    self._transition_to_gallery()
 
-                # Step the appropriate state
-                if self.mode == "gallery":
-                    self.gallery_state.step()
-                    # Auto-advance themes in gallery mode
-                    if len(self.themes) > 1 and now >= self.switch_at:
-                        self._advance_theme(1)
-                    self._draw_gallery(now)
-                else:  # live mode
-                    if self.live_state:
-                        self.live_state.step()
-                    self._draw_live(now)
+            # Step the appropriate state
+            if self.mode == "gallery":
+                self.gallery_state.step()
+                # Auto-advance themes in gallery mode
+                if len(self.themes) > 1 and now >= self.switch_at:
+                    self._advance_theme(1)
+                self._draw_gallery(now)
+            else:  # live mode
+                if self.live_state:
+                    self.live_state.step()
+                self._draw_live(now)
 
-                self.stdscr.refresh()
-                time.sleep(FRAME_DELAY / max(0.1, self.tune.animation_speed))
-        finally:
-            if self._fullscreen:
-                import sys
-                sys.stdout.write("\033[?1049l\033[?25h")
-                sys.stdout.flush()
+            self.stdscr.refresh()
+            time.sleep(FRAME_DELAY / max(0.1, self.tune.animation_speed))
 
     def _transition_to_live(self) -> None:
         """Transition from gallery to live mode."""
@@ -933,16 +989,16 @@ class DaemonApp:
                 self.tune.sound_enabled = not self.tune.sound_enabled
                 continue
 
-            # Toggle fullscreen
+            # Toggle performance mode
+            if ch == ord("P"):
+                self._perf_mode = not self._perf_mode
+                _apply_performance_mode(self.tune, self._perf_mode)
+                continue
+
+            # Toggle native fullscreen (macOS)
             if ch == ord("F"):
                 self._fullscreen = not self._fullscreen
-                import sys
-                if self._fullscreen:
-                    sys.stdout.write("\033[?1049h\033[?25l")
-                else:
-                    sys.stdout.write("\033[?1049l\033[?25h")
-                sys.stdout.flush()
-                curses.resizeterm(*self.stdscr.getmaxyx())
+                _toggle_native_fullscreen()
                 continue
 
             # Open menu

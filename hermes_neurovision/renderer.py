@@ -281,7 +281,7 @@ class Renderer:
 
     def _draw_hide_hint(self, h: int, w: int) -> None:
         """Draw minimal unhide reminder in bottom-right corner."""
-        hint = " h show HUD · M mute · F fullscreen · Q quit "
+        hint = " h show HUD · M mute · P perf · F fullscreen · Q quit "
         try:
             self.stdscr.addstr(
                 h - 1, max(0, w - len(hint) - 1), hint[:max(0, w - 2)],
