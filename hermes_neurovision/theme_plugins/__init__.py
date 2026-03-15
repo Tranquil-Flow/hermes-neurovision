@@ -86,6 +86,10 @@ def _load_all() -> None:
         from hermes_neurovision.theme_plugins import experimental  # noqa: F401
     except ImportError:
         pass
+    try:
+        from hermes_neurovision.theme_plugins import hybrid  # noqa: F401
+    except ImportError:
+        pass
 
 
 _load_all()

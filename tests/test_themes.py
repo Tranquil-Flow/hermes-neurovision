@@ -2,7 +2,7 @@ from hermes_neurovision.themes import THEMES, ThemeConfig, build_theme_config
 
 
 def test_all_theme_names_are_defined():
-    assert len(THEMES) == 58
+    assert len(THEMES) == 60
     assert "neural-sky" in THEMES
     assert "black-hole" in THEMES
     assert "synaptic-plasma" in THEMES
@@ -37,6 +37,8 @@ def test_all_themes_can_be_built():
         "deep-abyss", "storm-sea", "dark-forest", "mountain-stars", "beach-lighthouse",
         # Experimental
         "clifford-attractor", "barnsley-fern", "flow-field",
+        # Hybrid themes — draw_background() provides the field; background_density unused
+        "plasma-grid", "deep-signal",
     }
     for name in THEMES:
         config = build_theme_config(name)
