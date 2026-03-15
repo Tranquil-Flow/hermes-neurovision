@@ -95,13 +95,34 @@ class StarfallV2Plugin(ThemePlugin):
 # ── Quasar v2: Bipolar jets + accretion disk ──────────────────────────────────
 
 class QuasarV2Plugin(ThemePlugin):
-    """Bipolar relativistic jets and accretion disk — full-screen field rendering."""
+    """Bipolar relativistic jets and accretion disk — stellar color scheme, high energy."""
     name = "quasar"
+
+    # Rainbow pairs for stellar spectrum: claim pairs 20-25
+    _RAINBOW_READY = False
+
+    @classmethod
+    def _ensure_stellar(cls):
+        if cls._RAINBOW_READY:
+            return
+        try:
+            # Hot stellar palette: white-blue core → gold disk → deep field
+            curses.init_pair(20, curses.COLOR_WHITE,   -1)  # white-hot core
+            curses.init_pair(21, curses.COLOR_CYAN,    -1)  # blue jet plasma
+            curses.init_pair(22, curses.COLOR_YELLOW,  -1)  # gold inner disk
+            curses.init_pair(23, curses.COLOR_RED,     -1)  # outer disk / corona
+            curses.init_pair(24, curses.COLOR_BLUE,    -1)  # magnetic field
+            curses.init_pair(25, curses.COLOR_MAGENTA, -1)  # jet shock front
+            cls._RAINBOW_READY = True
+        except Exception:
+            pass
 
     def build_nodes(self, w, h, cx, cy, count, rng):
         return []
 
     def draw_extras(self, stdscr, state, color_pairs):
+        self._ensure_stellar()
+
         w = state.width
         h = state.height
         f = state.frame
@@ -110,77 +131,134 @@ class QuasarV2Plugin(ThemePlugin):
         cx = w / 2.0
         cy = h / 2.0
 
-        bright_attr = curses.color_pair(color_pairs["bright"]) | curses.A_BOLD
-        accent_attr = curses.color_pair(color_pairs["accent"])
-        soft_attr = curses.color_pair(color_pairs["soft"])
-        base_dim_attr = curses.color_pair(color_pairs["base"]) | curses.A_DIM
+        # Stellar palette — overrides the default theme palette
+        core_attr    = curses.color_pair(20) | curses.A_BOLD   # white-hot
+        jet_attr     = curses.color_pair(21) | curses.A_BOLD   # electric cyan
+        jet_dim_attr = curses.color_pair(24)                   # deep blue
+        disk_inner   = curses.color_pair(22) | curses.A_BOLD   # gold bright
+        disk_mid     = curses.color_pair(22)                   # gold
+        disk_outer   = curses.color_pair(23)                   # red-orange corona
+        shock_attr   = curses.color_pair(25) | curses.A_BOLD   # magenta shock
+        field_attr   = curses.color_pair(24) | curses.A_DIM    # dim blue field
+        void_attr    = curses.color_pair(24) | curses.A_DIM    # deep space
+
+        # Disk thickness pulses slightly with intensity
+        disk_half   = 2.5 + intensity * 1.5
+        disk_r_max  = w * 0.38
+        disk_r_min  = 2.5
+        jet_half_w  = 1.5 + intensity * 0.8
+
+        # Jet energy: brightness surges with intensity
+        jet_reach   = h * 0.48 * max(0.3, intensity)
 
         for y in range(1, h - 1):
             dy = y - cy
             for x in range(0, w - 1):
                 dx = x - cx
-                dist = math.sqrt(dx * dx / 2.25 + dy * dy)
-                angle = math.atan2(dy, dx * 1.5)
+                # Elliptical distance (terminal aspect: chars are ~2:1)
+                dist_e = math.sqrt(dx * dx / 2.25 + dy * dy)
+                dist   = math.sqrt(dx * dx + dy * dy)
+                angle  = math.atan2(dy, dx)
 
-                ch = " "
-                attr = base_dim_attr
+                ch   = " "
+                attr = void_attr
 
-                # Accretion disk
-                if abs(dy) < 3 + math.sin(x * 0.3 + f * 0.04) * 1.5 and 3 < dist < w * 0.35:
-                    disk_v = max(0.0, 1 - dist / (w * 0.35)) * (1 - abs(dy) / 3)
-                    disk_chars = "~\u2248\u2550\u2500"
-                    ch = disk_chars[(x + f // 4) % 4]
-                    if dist < w * 0.15:
-                        attr = accent_attr
-                    else:
-                        attr = soft_attr
-
-                # Bipolar jets
-                elif abs(dx) < 2 and abs(dy) > 2:
-                    jet_dist = abs(dy) - 2
-                    jet_v = max(0.0, 1 - jet_dist / (h * 0.45 * max(0.2, intensity)))
-                    if jet_v > 0:
-                        jet_chars = "\u2502\u2551|!"
-                        ch = jet_chars[int(jet_v * 3)]
-                        if (x + y + f) % 3 == 0 and jet_v > 0.3:
-                            ch = "\u2503"
-                        if jet_v > 0.7:
-                            attr = bright_attr
-                        elif jet_v > 0.4:
-                            attr = accent_attr
+                # ── Bipolar jets (vertical axis, higher priority than disk) ──
+                # Width widens slightly with distance from core (jet expansion)
+                jet_w_at_y = jet_half_w + abs(dy) * 0.04
+                if abs(dx) < jet_w_at_y and abs(dy) > disk_half:
+                    jet_dist = abs(dy) - disk_half
+                    jet_v    = max(0.0, 1.0 - jet_dist / max(1.0, jet_reach))
+                    if jet_v > 0.0:
+                        # Plasma columns — character varies with frame for flicker
+                        phase = (y + f) % 5
+                        if jet_v > 0.75:
+                            ch   = "║" if phase < 3 else "┃"
+                            attr = jet_attr
+                        elif jet_v > 0.45:
+                            ch   = "│" if phase < 3 else "╎"
+                            attr = jet_attr if (x + y + f) % 3 != 0 else shock_attr
                         else:
-                            attr = soft_attr
+                            # Jet fading edge — diffuse plasma
+                            ch   = "·" if phase < 3 else ":"
+                            attr = jet_dim_attr
+                        # Shock knots: bright flares that travel up/down jet
+                        knot_phase = (int(abs(dy)) + f // 4) % 12
+                        if knot_phase < 2 and jet_v > 0.5:
+                            ch   = "◈" if knot_phase == 0 else "●"
+                            attr = shock_attr
 
-                # Magnetic field lines
+                # ── Accretion disk (horizontal ellipse) ──────────────────────
+                elif abs(dy) < disk_half + math.sin(x * 0.28 + f * 0.035) * 1.2 \
+                        and disk_r_min < dist_e < disk_r_max:
+                    disk_v = max(0.0, 1.0 - dist_e / disk_r_max)
+                    # Doppler: left side redshifted, right blue-shifted
+                    doppler = dx / max(cx, 1.0)   # -1=left(red), +1=right(blue)
+                    # Disk scrolls: material orbits (inner faster)
+                    scroll  = (x - f * max(0.3, 2.0 / max(dist_e, 1.0))) % w
+                    turb    = math.sin(scroll * 0.4 + dy * 1.2 + f * 0.06) * 0.5 + 0.5
+
+                    disk_chars = "─═≈~·"
+                    idx = int(turb * (len(disk_chars) - 1))
+                    ch  = disk_chars[idx]
+
+                    if dist_e < disk_r_max * 0.25:
+                        # Inner hot zone: gold-white, rapidly rotating
+                        attr = disk_inner
+                    elif dist_e < disk_r_max * 0.55:
+                        # Mid disk: gold
+                        attr = disk_mid
+                    else:
+                        # Outer corona: red-orange
+                        attr = disk_outer
+
+                # ── Magnetic field lines (rest of the space) ─────────────────
                 else:
-                    field_v = abs(math.sin(dist * 0.3 - f * 0.02) * math.cos(angle * 2)) * 0.3 * intensity
-                    if field_v > 0.05:
-                        ch = "\u00b7"
-                        attr = base_dim_attr
+                    # Hourglass field topology: field lines loop from jet poles
+                    # to disk equator — visualised as faint arc pattern
+                    field_r   = math.sqrt(dx * dx / 1.5 + dy * dy)
+                    # Dipole potential contours: sin(angle)*r^-2 analog
+                    sin_lat   = abs(dy) / max(dist, 0.5)
+                    field_v   = abs(math.sin(field_r * 0.22 - f * 0.015)
+                                    * math.cos(sin_lat * 2.8)) * 0.5 * intensity
+                    # Only draw field in the funnel region (|angle| close to 0 or pi)
+                    if field_v > 0.08 and dist_e > disk_r_max * 0.6:
+                        # Character conveys field direction
+                        if abs(dy) > abs(dx) * 1.2:
+                            ch = "│" if abs(dx) < 2 else "╲" if dx > 0 else "╱"
+                        else:
+                            ch = "─"
+                        attr = field_attr if field_v < 0.25 else jet_dim_attr
+                    else:
+                        # Deep space: sparse background stars
+                        star = math.sin(x * 37.3 + y * 19.7) * math.cos(x * 11.1 + y * 5.3)
+                        if star > 0.90:
+                            ch   = "·"
+                            attr = field_attr
 
                 try:
                     stdscr.addstr(y, x, ch, attr)
                 except curses.error:
                     pass
 
-        # Core glyphs
+        # ── Core singularity ─────────────────────────────────────────────────
         core_y = int(cy)
         core_x = int(cx)
-        if 1 <= core_y <= h - 2 and 0 <= core_x <= w - 2:
-            try:
-                stdscr.addstr(core_y, core_x, "\u25c8", bright_attr)
-            except curses.error:
-                pass
-        if 1 <= core_y <= h - 2 and core_x - 1 >= 0:
-            try:
-                stdscr.addstr(core_y, core_x - 1, "\u25cf", accent_attr)
-            except curses.error:
-                pass
-        if 1 <= core_y <= h - 2 and core_x + 1 <= w - 2:
-            try:
-                stdscr.addstr(core_y, core_x + 1, "\u25cf", accent_attr)
-            except curses.error:
-                pass
+        # Pulsing core glyph — flickers rapidly
+        core_ch = "◉" if (f // 2) % 2 == 0 else "⊕"
+        for oy, ox, gch, gattr in [
+            (0,  0,  core_ch, core_attr),
+            (0, -1,  "◈",     disk_inner),
+            (0,  1,  "◈",     disk_inner),
+            (-1, 0,  "·",     jet_attr),
+            (1,  0,  "·",     jet_attr),
+        ]:
+            gy, gx = core_y + oy, core_x + ox
+            if 1 <= gy <= h - 2 and 0 <= gx <= w - 2:
+                try:
+                    stdscr.addstr(gy, gx, gch, gattr)
+                except curses.error:
+                    pass
 
 
 # ── Supernova v2: Periodic explosion cycle ────────────────────────────────────
