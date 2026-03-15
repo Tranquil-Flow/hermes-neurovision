@@ -70,7 +70,7 @@ hermes-neurovision --list-themes
 ## Modes
 
 - **--live** (default): Real-time event visualization
-- **--gallery**: Browse all 42 themes with auto-rotation
+- **--gallery**: Browse all 85 themes with auto-rotation
 - **--daemon**: Gallery when idle, switches to live on events
 - **--logs**: Enable color-coded scrolling log overlay
 - **--no-aegis**: Skip Aegis security audit source
@@ -83,10 +83,17 @@ hermes-neurovision --list-themes
 - `Enter` - Lock current theme (stops rotation, keeps animating)
 - `s` - Select this theme for live mode
 - `Space` - Pause/Resume
+- `Shift+→` / `Shift+←` - Jump forward/back in theme list
+- `t` - Open tuner overlay (real-time parameter sliders)
+- `d` - Toggle debug panel (live event diagnostics)
+- `L` - Toggle legacy themes in gallery
+- `X` - Disable current theme (skip in future rotations)
 - `q` - Quit
 
 **Live / Daemon Mode:**
 - `l` - Toggle log overlay
+- `t` - Open tuner overlay
+- `d` - Toggle debug panel
 - `q` - Quit
 
 ## Event Sources
@@ -108,7 +115,7 @@ Hermes Neurovision monitors 34 event types across 7 sources:
 
 ## Themes
 
-42 animated themes across 8 categories. See README.md for the full list, or browse live with `hermes-neurovision --gallery`.
+85 animated themes across 8 categories. See README.md for the full list, or browse live with `hermes-neurovision --gallery`.
 
 ## Troubleshooting
 

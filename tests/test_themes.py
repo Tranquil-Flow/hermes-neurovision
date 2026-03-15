@@ -2,7 +2,7 @@ from hermes_neurovision.themes import THEMES, ThemeConfig, build_theme_config
 
 
 def test_all_theme_names_are_defined():
-    assert len(THEMES) == 60
+    assert len(THEMES) == 85
     assert "neural-sky" in THEMES
     assert "black-hole" in THEMES
     assert "synaptic-plasma" in THEMES
@@ -39,6 +39,15 @@ def test_all_themes_can_be_built():
         "clifford-attractor", "barnsley-fern", "flow-field",
         # Hybrid themes — draw_background() provides the field; background_density unused
         "plasma-grid", "deep-signal",
+        # Strange attractors (v0.2.0 new)
+        "lorenz-butterfly", "rossler-ribbon", "halvorsen-star", "aizawa-torus", "thomas-labyrinth",
+        # Spectacular (v0.2.0 new)
+        "plasma-rainbow", "hypnotic-tunnel", "fractal-zoom", "particle-vortex", "chladni-sand",
+        # Emergent showcase (v0.2.0 new)
+        "mycelium-network", "swarm-mind", "neural-cascade", "tide-pool", "turing-garden",
+        # Emergent v2 (v0.2.0 new)
+        "dna-helix", "pendulum-waves", "kaleidoscope", "electric-storm", "coral-growth",
+        "dna-strand", "pendulum-array", "mandala-scope", "ghost-echo", "magnetic-field",
     }
     for name in THEMES:
         config = build_theme_config(name)
