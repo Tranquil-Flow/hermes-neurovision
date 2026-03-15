@@ -56,6 +56,7 @@ def _load_all() -> None:
         "attractors",
         "spectacular",
         "new_screens",
+        "legacy_v1_screens",
     ]
     for mod in _mods:
         try:
