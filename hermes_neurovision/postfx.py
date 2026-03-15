@@ -224,19 +224,29 @@ def apply_force_field(buf: FrameBuffer, plugin, frame: int, strength: float) -> 
                 # Calculate net force
                 fx_total, fy_total = 0.0, 0.0
                 for fp in points:
-                    if len(fp) >= 4:
-                        px, py, fstrength, ftype = fp[0], fp[1], fp[2], fp[3]
-                        dx = x - px
-                        dy = y - py
-                        dist = max(1.0, math.sqrt(dx * dx + dy * dy))
-                        if dist < 15:  # influence radius
-                            force = fstrength * strength / (dist * dist)
-                            if ftype == 'vortex':
-                                fx_total += -dy / dist * force
-                                fy_total += dx / dist * force
-                            else:  # radial
-                                fx_total += dx / dist * force
-                                fy_total += dy / dist * force
+                    try:
+                        if isinstance(fp, dict):
+                            px = fp["x"]
+                            py = fp["y"]
+                            fstrength = fp["strength"]
+                            ftype = fp.get("type", "radial")
+                        elif hasattr(fp, '__len__') and len(fp) >= 4:
+                            px, py, fstrength, ftype = fp[0], fp[1], fp[2], fp[3]
+                        else:
+                            continue
+                    except (KeyError, IndexError, TypeError):
+                        continue
+                    dx = x - px
+                    dy = y - py
+                    dist = max(1.0, math.sqrt(dx * dx + dy * dy))
+                    if dist < 15:  # influence radius
+                        force = fstrength * strength / (dist * dist)
+                        if ftype == 'vortex':
+                            fx_total += -dy / dist * force
+                            fy_total += dx / dist * force
+                        else:  # radial
+                            fx_total += dx / dist * force
+                            fy_total += dy / dist * force
                 # Only move if force is significant
                 if abs(fx_total) > 0.3 or abs(fy_total) > 0.3:
                     nx = max(0, min(w - 1, int(round(x + fx_total))))

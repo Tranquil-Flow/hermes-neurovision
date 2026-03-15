@@ -5,6 +5,95 @@ All notable changes to Hermes Neurovision will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-03-16
+
+**Major Release — v0.2.0 Engine Overhaul** 🚀
+
+### Added
+
+#### New Visual Engine
+- **Post-Processing Pipeline** — 7 compositable effects applied per-frame:
+  - `warp_field` — per-pixel coordinate distortion (sinusoidal, rotation, etc.)
+  - `symmetry` — 4-way / 8-way / radial mirror modes
+  - `glow_radius` — bloom halo around bright cells
+  - `void_intensity` — dynamic hole-punching / negative space
+  - `echo_decay` — afterimage trail persistence (N-frame ring buffer)
+  - `force_field` — vector field nudge applied to all cell positions
+  - `decay_sequence` — char-substitution trail as cells age
+- **Reactive Element System** — 8 named reactive effects any plugin can trigger:
+  `SPARK`, `BLOOM`, `RIPPLE`, `WAVE`, `SHATTER`, `VOID`, `PULSE_BURST`, `STREAK`
+- **Sound System** — optional terminal bell cues mapped to agent events
+- **Emergent Systems** — 5 autonomous grid-based simulations that run alongside nodes:
+  - Cellular automaton (custom rule sets)
+  - Neural field (excitatory/inhibitory wave propagation)
+  - Wave field (2D wave equation)
+  - Physarum (slime-mold network formation)
+  - Reaction-diffusion (Gray-Scott model)
+- **Boids** — N-body flocking simulation rendered as directional glyphs
+- **Depth Layers** — parallax rendering with multiple z-planes
+- **Tuner Overlay** — press `t` for real-time per-element sliders and toggles
+- **Debug Panel** — press `d` for live event/trigger diagnostic overlay
+- **Performance Mode** — press `P` to halve render resolution for slow terminals
+- **Mute Toggle** — press `M` to silence all sound cues
+- **Fullscreen Toggle** — press `F` to enter native macOS fullscreen
+
+#### New Themes (85 total, was 42 in v0.1.x)
+**Strange Attractors** (5 new) — real continuous ODE systems rendered as density fields
+with full per-pixel rainbow colouring:
+- `lorenz-butterfly` — iconic butterfly attractor (sigma=10, rho=28, beta=8/3)
+- `rossler-ribbon` — flat spiral coil with vertical spike (a=0.2, b=0.2, c=5.7)
+- `halvorsen-star` — 3-fold cyclically symmetric triple spiral
+- `aizawa-torus` — toroidal orbit with alien geometry
+- `thomas-labyrinth` — space-filling labyrinthine web (edge-of-chaos parameter)
+
+**Spectacular** (5 new) — maximally visual, experimental screens:
+- `plasma-rainbow` — dense multi-harmonic interference with full HSV sweep
+- `hypnotic-tunnel` — infinite 3D rectangular tunnel with rotating rainbow hues
+- `fractal-zoom` — Mandelbrot boundary zoom with escape-time rainbow colouring
+- `particle-vortex` — dual counter-rotating vortices with 700 rainbow-hued particles
+- `chladni-sand` — sand-on-plate standing wave Chladni figures, cycling 16 modes
+
+**Emergent V2** (5 new) — v0.2.0 engine feature showcases:
+- `dna-helix`, `pendulum-waves`, `kaleidoscope`, `electric-storm`, `coral-growth`
+
+**Advanced Screens** (5 new) — postfx + reactive hybrids:
+- `dna-strand`, `pendulum-array`, `mandala-scope`, `ghost-echo`, `magnetic-field`
+
+**Emergent Showcase** (5) — `mycelium-network`, `swarm-mind`, `neural-cascade`,
+`tide-pool`, `turing-garden`
+
+**Hybrid** (2) — `plasma-grid`, `deep-signal`
+
+#### Agent API for Theme Authoring
+- Full `plugin.py` API documented with all hooks
+- Rainbow colour pair system (pairs 10-15) available to all `draw_extras` plugins
+- `state.intensity_multiplier` (0.2–1.0) drives all agent-reactive visuals
+- `state.frame` (int, ~20fps), `state.rng` (seeded), `state.width/height`
+
+### Changed
+- Theme count: **85 non-legacy** (was 42 in v0.1.2)
+- README updated to reflect all new themes and engine features
+- Architecture section updated with full render pipeline order
+- `build_theme_config` now handles all 85 themes + 18 legacy variants
+- Lightning bolt format in `electric-storm` changed from plain list to
+  `[age, points]` to fix Python 3.14 `AttributeError` on list attribute set
+- `dna-strand` glow/echo/decay postfx removed (was causing purple block flash)
+- `dna-strand` palette: MAGENTA → YELLOW (biological codon colours)
+
+### Fixed
+- `electric-storm` crash on Python 3.14: `bolt._age = 0` on plain list
+- `dna-strand` purple flashing boxes (over-aggressive postfx + MAGENTA palette)
+- Gallery crash when `emergent_v2.py` / `advanced_screens.py` not auto-imported
+
+## [0.1.2] - 2026-03-15
+
+**AI-Driven Live Mode + Docker Visibility**
+
+### Added
+- Live mode uses AI event injection by default
+- Docker container visibility improvements
+- Theme persistence between sessions
+
 ## [0.1.1] - 2026-03-14
 
 **First Public Release** 🎉

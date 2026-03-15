@@ -212,7 +212,7 @@ class GalleryApp:
         # Left side: navigation + controls
         muted_flag = " [MUTED]" if not self.tune.sound_enabled else ""
         perf_flag = " [PERF]" if self._perf_mode else ""
-        left = f" theme {self.theme_index + 1}/{len(self.themes)}{quiet_flag}{legacy_flag}{tuned_flag}{muted_flag}{perf_flag} | Q quit  ←/→  m menu  h hide  M mute  P perf  F full"
+        left = f" theme {self.theme_index + 1}/{len(self.themes)}{quiet_flag}{legacy_flag}{tuned_flag}{muted_flag}{perf_flag} | Q quit  ←/→  space pause  q quiet  m menu  h hide  M mute  P perf  F full"
         # Right side: selection hints
         right = "enter lock  s use theme "
         gap = w - len(left) - len(right) - 1
@@ -403,9 +403,9 @@ class GalleryApp:
             self.theme_index = self.theme_index % len(self.themes)
             self.state = self._make_state(self.themes[self.theme_index])
             self.switch_at = time.time() + self.theme_seconds
-        if ch in (curses.KEY_RIGHT, curses.KEY_SRIGHT, ord("n")):
+        if ch in (curses.KEY_RIGHT, curses.KEY_SRIGHT):
             self._advance_theme(1)
-        elif ch in (curses.KEY_LEFT, curses.KEY_SLEFT, ord("p")):
+        elif ch in (curses.KEY_LEFT, curses.KEY_SLEFT):
             self._advance_theme(-1)
         elif ch == ord(" "):
             self.paused = not self.paused
@@ -835,7 +835,7 @@ class DaemonApp:
             pass
 
         # Footer
-        footer = f" theme {self.theme_index + 1}/{len(self.themes)} | Q quit  ←/→ nav  m menu  h hide"
+        footer = f" theme {self.theme_index + 1}/{len(self.themes)} | Q quit  ←/→ nav  q quiet  m menu  h hide"
         try:
             self.stdscr.addstr(h - 1, 1, footer[:max(0, w - 2)], curses.color_pair(2) | curses.A_DIM)
         except curses.error:
@@ -865,7 +865,7 @@ class DaemonApp:
             self._draw_logs(now)
 
         # Footer
-        footer = f" Q quit  m menu  h hide  l logs  e editor"
+        footer = f" Q quit  q quiet  m menu  h hide  l logs  e editor"
         try:
             self.stdscr.addstr(h - 1, 1, footer[:max(0, w - 2)], curses.color_pair(2) | curses.A_DIM)
         except curses.error:
@@ -1026,7 +1026,7 @@ class DaemonApp:
             if ch == ord("l"):
                 self.show_logs = not self.show_logs
             if self.mode == "gallery":
-                if ch in (curses.KEY_RIGHT, ord("n")):
+                if ch in (curses.KEY_RIGHT,):
                     self._advance_theme(1)
-                elif ch in (curses.KEY_LEFT, ord("p")):
+                elif ch in (curses.KEY_LEFT,):
                     self._advance_theme(-1)

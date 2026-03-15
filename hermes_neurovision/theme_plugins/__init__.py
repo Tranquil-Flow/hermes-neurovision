@@ -90,6 +90,26 @@ def _load_all() -> None:
         from hermes_neurovision.theme_plugins import hybrid  # noqa: F401
     except ImportError:
         pass
+    try:
+        from hermes_neurovision.theme_plugins import emergent_showcase  # noqa: F401
+    except ImportError:
+        pass
+    try:
+        from hermes_neurovision.theme_plugins import advanced_screens  # noqa: F401
+    except ImportError:
+        pass
+    try:
+        from hermes_neurovision.theme_plugins import emergent_v2  # noqa: F401
+    except ImportError:
+        pass
+    try:
+        from hermes_neurovision.theme_plugins import attractors  # noqa: F401
+    except ImportError:
+        pass
+    try:
+        from hermes_neurovision.theme_plugins import spectacular  # noqa: F401
+    except ImportError:
+        pass
 
 
 _load_all()
