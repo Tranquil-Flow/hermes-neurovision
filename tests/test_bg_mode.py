@@ -502,53 +502,88 @@ def test_terminal_get_opacity_timeout():
 
 def test_terminal_set_opacity_success():
     from hermes_neurovision.bg_mode import _terminal_set_opacity
-    mock_result = MagicMock()
-    mock_result.returncode = 0
-    with patch("subprocess.run", return_value=mock_result) as mock_run:
+    # First call returns window count=1, second call sets it
+    count_result = MagicMock()
+    count_result.returncode = 0
+    count_result.stdout = "1\n"
+    set_result = MagicMock()
+    set_result.returncode = 0
+    set_result.stdout = ""
+    with patch("subprocess.run", side_effect=[count_result, set_result]) as mock_run:
         result = _terminal_set_opacity(0.5)
     assert result is True
-    argv = mock_run.call_args[0][0]
-    assert argv[0] == "osascript"
-    # All -e args joined should contain the opacity value and backgroundAlpha
-    all_args = " ".join(argv)
+    # Second call should use single-line inline syntax with the opacity value
+    set_call_argv = mock_run.call_args_list[1][0][0]
+    all_args = " ".join(set_call_argv)
     assert "0.5" in all_args
     assert "backgroundAlpha" in all_args
+    assert "window 1" in all_args
 
 
 def test_terminal_set_opacity_clamps():
     from hermes_neurovision.bg_mode import _terminal_set_opacity
-    mock_result = MagicMock()
-    mock_result.returncode = 0
-    with patch("subprocess.run", return_value=mock_result) as mock_run:
-        _terminal_set_opacity(1.5)   # over max
-    argv = mock_run.call_args[0][0]
-    all_args = " ".join(argv)
-    assert "1.0" in all_args or "1" in all_args
+    count_result = MagicMock()
+    count_result.returncode = 0
+    count_result.stdout = "1\n"
+    set_result = MagicMock()
+    set_result.returncode = 0
+    with patch("subprocess.run", side_effect=[count_result, set_result]) as mock_run:
+        _terminal_set_opacity(1.5)   # over max — should clamp to 1.0
+    set_argv = " ".join(mock_run.call_args_list[1][0][0])
+    assert "1.0" in set_argv
 
 
-def test_terminal_set_opacity_all_windows():
-    """Script must use repeat/windows loop, not just front window."""
+def test_terminal_set_opacity_multiple_windows():
+    """Should set each window individually when there are multiple windows."""
     from hermes_neurovision.bg_mode import _terminal_set_opacity
-    mock_result = MagicMock()
-    mock_result.returncode = 0
-    with patch("subprocess.run", return_value=mock_result) as mock_run:
-        _terminal_set_opacity(0.4)
-    all_args = " ".join(mock_run.call_args[0][0])
-    assert "repeat" in all_args
-    assert "windows" in all_args
+    count_result = MagicMock()
+    count_result.returncode = 0
+    count_result.stdout = "3\n"
+    set_result = MagicMock()
+    set_result.returncode = 0
+    with patch("subprocess.run", side_effect=[count_result, set_result, set_result, set_result]) as mock_run:
+        result = _terminal_set_opacity(0.4)
+    assert result is True
+    # 1 count call + 3 set calls
+    assert mock_run.call_count == 4
 
 
-def test_terminal_set_opacity_uses_multiple_e_flags():
-    """Must pass multiple -e flags rather than a single multi-line string."""
+def test_terminal_set_opacity_uses_inline_tell_syntax():
+    """Must use single-line inline 'tell App to ...' per window."""
     from hermes_neurovision.bg_mode import _terminal_set_opacity
-    mock_result = MagicMock()
-    mock_result.returncode = 0
-    with patch("subprocess.run", return_value=mock_result) as mock_run:
+    count_result = MagicMock()
+    count_result.returncode = 0
+    count_result.stdout = "1\n"
+    set_result = MagicMock()
+    set_result.returncode = 0
+    with patch("subprocess.run", side_effect=[count_result, set_result]) as mock_run:
         _terminal_set_opacity(0.5)
-    argv = mock_run.call_args[0][0]
-    # Count the number of -e flags — must be more than one
-    e_count = argv.count("-e")
-    assert e_count >= 3, f"Expected multiple -e flags, got {e_count}"
+    set_argv = mock_run.call_args_list[1][0][0]
+    # Single -e flag with the full inline tell...to expression
+    assert set_argv.count("-e") == 1
+    assert 'tell application "Terminal"' in set_argv[-1]
+
+
+def test_terminal_set_opacity_no_windows():
+    """Zero windows should return False cleanly."""
+    from hermes_neurovision.bg_mode import _terminal_set_opacity
+    count_result = MagicMock()
+    count_result.returncode = 0
+    count_result.stdout = "0\n"
+    with patch("subprocess.run", return_value=count_result):
+        result = _terminal_set_opacity(0.5)
+    assert result is False
+
+
+def test_terminal_set_opacity_count_fails():
+    """If window count call fails, return False without attempting set."""
+    from hermes_neurovision.bg_mode import _terminal_set_opacity
+    count_result = MagicMock()
+    count_result.returncode = 1
+    with patch("subprocess.run", return_value=count_result) as mock_run:
+        result = _terminal_set_opacity(0.5)
+    assert result is False
+    assert mock_run.call_count == 1  # only the count call, no set calls
 
 
 def test_terminal_roundtrip(tmp_config):
