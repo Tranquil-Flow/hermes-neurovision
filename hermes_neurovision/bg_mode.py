@@ -189,32 +189,76 @@ def _terminal_get_opacity() -> Optional[float]:
     return None
 
 
+def diagnose_terminal_opacity() -> None:
+    """Print a diagnostic report for Terminal.app opacity control.
+
+    Run with: python3 -c "from hermes_neurovision.bg_mode import diagnose_terminal_opacity; diagnose_terminal_opacity()"
+    """
+    import shutil
+    print("=== Terminal.app opacity diagnostic ===")
+    print(f"osascript path: {shutil.which('osascript')}")
+
+    tests = [
+        ("get count of windows",
+         'tell application "Terminal" to return count of windows'),
+        ("get backgroundAlpha of front window",
+         'tell application "Terminal" to return backgroundAlpha of front window'),
+        ("set backgroundAlpha of window 1 to 0.9",
+         'tell application "Terminal" to set backgroundAlpha of window 1 to 0.9'),
+    ]
+    for label, script in tests:
+        try:
+            r = subprocess.run(
+                ["osascript", "-e", script],
+                capture_output=True, text=True, timeout=5
+            )
+            print(f"  [{label}]")
+            print(f"    rc={r.returncode}  stdout={r.stdout.strip()!r}  stderr={r.stderr.strip()!r}")
+        except Exception as e:
+            print(f"  [{label}] exception: {e}")
+
+
 def _terminal_set_opacity(opacity: float) -> bool:
     """Set backgroundAlpha of all Terminal.app windows via AppleScript.
 
-    Sets every open window so tab/split setups are also covered.
-    backgroundAlpha convention matches ours: 1.0 = opaque, 0.0 = transparent.
-
-    Uses multiple -e flags (one per line) instead of a single multi-line
-    string — osascript does not parse embedded newlines inside a single -e arg.
+    Uses the inline single-line 'tell App to ...' form per window index,
+    which is the confirmed-working pattern on macOS Terminal.app.
+    backgroundAlpha: 1.0 = opaque, 0.0 = transparent.
     """
     opacity = max(0.0, min(1.0, opacity))
     val = str(round(opacity, 4))
+
+    # First get the window count, then set each window by index.
+    # We use single-line inline tell...to syntax which is reliably parsed
+    # by osascript -e without multi-line block issues.
     try:
-        result = subprocess.run(
-            [
-                "osascript",
-                "-e", 'tell application "Terminal"',
-                "-e", "repeat with w in windows",
-                "-e", f"  set backgroundAlpha of w to {val}",
-                "-e", "end repeat",
-                "-e", "end tell",
-            ],
+        # Get number of windows
+        count_result = subprocess.run(
+            ["osascript", "-e",
+             'tell application "Terminal" to return count of windows'],
             capture_output=True, text=True, timeout=3
         )
-        return result.returncode == 0
-    except (subprocess.TimeoutExpired, FileNotFoundError):
+        if count_result.returncode != 0:
+            return False
+        n = int(count_result.stdout.strip())
+    except (subprocess.TimeoutExpired, FileNotFoundError, ValueError):
         return False
+
+    # Set each window individually with a single-line inline tell
+    ok = True
+    for i in range(1, n + 1):
+        try:
+            result = subprocess.run(
+                ["osascript", "-e",
+                 f'tell application "Terminal" to set backgroundAlpha of window {i} to {val}'],
+                capture_output=True, text=True, timeout=3
+            )
+            if result.returncode != 0:
+                ok = False
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            ok = False
+
+    return ok and n > 0
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -528,7 +572,8 @@ def apply_auto_opacity(cfg: dict, verbose: bool = True) -> bool:
 
     success = _set_opacity(term, target)
     if not success and verbose:
-        print(f"[neurovision-bg] Auto-opacity failed. Manual hint: {_opacity_hint_for_terminal(term)}")
+        print(f"[neurovision-bg] Auto-opacity failed for {term}.")
+        print(f"[neurovision-bg] Manual hint: {_opacity_hint_for_terminal(term)}")
 
     return success
 
