@@ -10,6 +10,27 @@ from hermes_neurovision.plugin import ThemePlugin
 from hermes_neurovision.theme_plugins import register
 
 
+# ---------------------------------------------------------------------------
+# Shared color helper — phase-shifted so colors sweep dynamically over time
+# ---------------------------------------------------------------------------
+
+def _hue_attr(v: float, phase: float, cp: dict) -> int:
+    """Map value v to a curses attr through a time/space rotating phase.
+
+    phase is 0..1 and shifts which color tier v lands in, so the same pixel
+    cycles through all palette colors as phase evolves — making colors move
+    rather than sitting frozen at fixed intensity thresholds.
+    """
+    s = (v + phase) % 1.0
+    if s > 0.72:
+        return curses.color_pair(cp.get("bright", 1)) | curses.A_BOLD
+    elif s > 0.48:
+        return curses.color_pair(cp.get("accent", 1))
+    elif s > 0.24:
+        return curses.color_pair(cp.get("soft", 1))
+    return curses.color_pair(cp.get("base", 1)) | curses.A_DIM
+
+
 # ── Screen 1: Synaptic Plasma ─────────────────────────────────────────────────
 
 class SynapticPlasmaPlugin(ThemePlugin):
@@ -28,6 +49,8 @@ class SynapticPlasmaPlugin(ThemePlugin):
         cx2 = w / 2.0
         cy2 = h / 2.0
         intensity = state.intensity_multiplier
+        # global hue rotation: one full cycle every ~300 frames
+        hue_base = (f * 0.0033) % 1.0
 
         for y in range(1, h - 1):
             dy = y - cy2
@@ -44,14 +67,9 @@ class SynapticPlasmaPlugin(ThemePlugin):
                 v = max(0.0, min(1.0, v))
                 ci = int(v * n)
                 ch = chars[ci]
-                if v > 0.75:
-                    attr = curses.color_pair(color_pairs["bright"]) | curses.A_BOLD
-                elif v > 0.50:
-                    attr = curses.color_pair(color_pairs["soft"])
-                elif v > 0.25:
-                    attr = curses.color_pair(color_pairs["base"])
-                else:
-                    attr = curses.color_pair(color_pairs["base"]) | curses.A_DIM
+                # phase varies per-pixel: dist drives spatial rainbow bands
+                phase = (hue_base + dist * 0.04) % 1.0
+                attr = _hue_attr(v, phase, color_pairs)
                 try:
                     stdscr.addstr(y, x, ch, attr)
                 except curses.error:
@@ -76,6 +94,8 @@ class OraclePlugin(ThemePlugin):
         hw = w / 2.0
         hh = h / 2.0
         intensity = state.intensity_multiplier
+        # hue spirals outward from center — different phase direction from Plasma
+        hue_base = (f * 0.004) % 1.0
 
         for y in range(1, h - 1):
             for x in range(0, w - 1):
@@ -92,14 +112,9 @@ class OraclePlugin(ThemePlugin):
                 v *= intensity
                 ci = int(v * n)
                 ch = chars[ci]
-                if v > 0.8:
-                    attr = curses.color_pair(color_pairs["bright"]) | curses.A_BOLD
-                elif v > 0.55:
-                    attr = curses.color_pair(color_pairs["accent"])
-                elif v > 0.35:
-                    attr = curses.color_pair(color_pairs["soft"])
-                else:
-                    attr = curses.color_pair(color_pairs["base"]) | curses.A_DIM
+                # phase rotates with angle + dist so colors swirl outward
+                phase = (hue_base + angle / (2 * math.pi) + dist * 0.06) % 1.0
+                attr = _hue_attr(v, phase, color_pairs)
                 try:
                     stdscr.addstr(y, x, ch, attr)
                 except curses.error:
@@ -156,26 +171,25 @@ class CellularCortexPlugin(ThemePlugin):
                 edge_dist = math.sqrt(d2) - math.sqrt(d1)
 
                 if edge_dist < 0.025:
-                    # Border cell
+                    # Border cell — color drifts with frame + cell-pair index
                     pulse = abs(math.sin(f * 0.08 + i1 * 0.7))
                     border_chars = "│─╱╲┼"
                     bci = (i1 + i2) % len(border_chars)
                     ch = border_chars[bci]
-                    if pulse > 0.7:
-                        attr = curses.color_pair(color_pairs["bright"])
-                    else:
-                        attr = curses.color_pair(color_pairs["soft"])
+                    phase = (f * 0.005 + (i1 + i2) * 0.17) % 1.0
+                    attr = _hue_attr(pulse, phase, color_pairs)
                 else:
-                    # Interior
+                    # Interior — ripple color rotates per cell index over time
                     name, mx, my, icon = mods[i1]
                     d_center = math.sqrt(d1)
-                    ripple = math.sin(d_center * 20.0 - f * 0.05)
-                    if ripple > 0.3:
+                    ripple = (math.sin(d_center * 20.0 - f * 0.05) + 1.0) / 2.0
+                    if ripple > 0.25:
                         ch = "·"
-                        attr = curses.color_pair(color_pairs["base"]) | curses.A_DIM
+                        phase = (f * 0.004 + i1 * 0.16 + d_center * 0.1) % 1.0
+                        attr = _hue_attr(ripple, phase, color_pairs)
                     else:
                         ch = " "
-                        attr = curses.color_pair(color_pairs["base"]) | curses.A_DIM
+                        attr = curses.color_pair(color_pairs.get("base", 1)) | curses.A_DIM
 
                 try:
                     stdscr.addstr(y, x, ch, attr)
@@ -277,6 +291,8 @@ class ReactionFieldPlugin(ThemePlugin):
         chars = " ·.:+*#█"
         n = len(chars) - 1
         v_arr = self._v
+        # hue travels across x axis — creates crawling horizontal color bands
+        hue_base = (state.frame * 0.003) % 1.0
 
         for y in range(1, h - 1):
             for x in range(0, w - 1):
@@ -287,12 +303,9 @@ class ReactionFieldPlugin(ThemePlugin):
                 val = v_arr[sy * sw + sx]
                 ci = int(val * n)
                 ch = chars[ci]
-                if val > 0.5:
-                    attr = curses.color_pair(color_pairs["bright"])
-                elif val > 0.25:
-                    attr = curses.color_pair(color_pairs["soft"])
-                else:
-                    attr = curses.color_pair(color_pairs["base"]) | curses.A_DIM
+                # phase wanders with x position — bands scroll left/right
+                phase = (hue_base + x / max(w, 1) * 0.8 + y / max(h, 1) * 0.2) % 1.0
+                attr = _hue_attr(val, phase, color_pairs)
                 try:
                     stdscr.addstr(y, x, ch, attr)
                 except curses.error:
@@ -573,21 +586,25 @@ class AuroraBandsPlugin(ThemePlugin):
                         winning_band = bi
 
                 max_v *= intensity
+                # phase shifts per-band at its own speed, creating independent
+                # color migration along each aurora ribbon
+                band_phase = (f * bands[winning_band][4] * 0.5
+                              + winning_band * 0.2
+                              + x / max(w, 1) * 0.3) % 1.0
                 if max_v > 0.8:
                     ch = "█"
-                    attr = curses.color_pair(color_pairs[winning_key]) | curses.A_BOLD
                 elif max_v > 0.6:
                     ch = "▓"
-                    attr = curses.color_pair(color_pairs[winning_key])
                 elif max_v > 0.4:
                     ch = "▒"
-                    attr = curses.color_pair(color_pairs[winning_key])
                 elif max_v > 0.2:
                     ch = "░"
-                    attr = curses.color_pair(color_pairs[winning_key]) | curses.A_DIM
                 else:
                     ch = " "
-                    attr = curses.color_pair(color_pairs["base"]) | curses.A_DIM
+                if ch == " ":
+                    attr = curses.color_pair(color_pairs.get("base", 1)) | curses.A_DIM
+                else:
+                    attr = _hue_attr(max_v, band_phase, color_pairs)
                 try:
                     stdscr.addstr(y, x, ch, attr)
                 except curses.error:
@@ -656,32 +673,32 @@ class WaveformScopePlugin(ThemePlugin):
         # Draw channels
         for ci, (y_ratio, color_key, label) in enumerate(channels):
             center_y = y_ratio * h
-            ch_attr = curses.color_pair(color_pairs[color_key])
-            bold_attr = ch_attr | curses.A_BOLD
-            # Draw waveform
+            # Draw waveform — color drifts along x driven by wave phase
             for x in range(0, w - 1):
                 x_norm = x * 8.0 / max(w, 1)
                 vy = self._wave(ci, x_norm, f)
                 py = int(round(center_y - vy * h * 0.07))
                 if 1 <= py <= h - 2:
+                    ch = "═" if abs(vy) < 0.02 else "─"
+                    # phase: each channel's hue flows rightward at its own speed
+                    phase = (f * 0.003 * (ci + 1) + x / max(w, 1) + ci * 0.2) % 1.0
+                    v = (abs(vy) + 0.1)
+                    attr = _hue_attr(v, phase, color_pairs)
                     if abs(vy) < 0.02:
-                        ch = "═"
-                        attr = bold_attr
-                    else:
-                        ch = "─"
-                        attr = ch_attr
+                        attr |= curses.A_BOLD
                     try:
                         stdscr.addstr(py, x, ch, attr)
                     except curses.error:
                         pass
-            # Draw label
+            # Draw label in the channel's nominal color (stable reference)
             label_y = max(1, int(center_y) - 1)
             if label_y < 1:
                 label_y = 1
             if label_y > h - 2:
                 label_y = h - 2
+            label_attr = curses.color_pair(color_pairs.get(color_key, 1)) | curses.A_BOLD
             try:
-                stdscr.addstr(label_y, 2, label, bold_attr)
+                stdscr.addstr(label_y, 2, label, label_attr)
             except curses.error:
                 pass
 
@@ -729,11 +746,9 @@ class LissajousMindPlugin(ThemePlugin):
             self._trail.pop(0)
 
         trail_len = len(self._trail)
-        base_dim_attr = curses.color_pair(color_pairs["base"]) | curses.A_DIM
-        base_attr = curses.color_pair(color_pairs["base"])
-        soft_attr = curses.color_pair(color_pairs["soft"])
-        accent_attr = curses.color_pair(color_pairs["accent"])
-        bright_attr = curses.color_pair(color_pairs["bright"]) | curses.A_BOLD
+        bright_attr = curses.color_pair(color_pairs.get("bright", 1)) | curses.A_BOLD
+        # hue races around the trail loop — one full revolution every ~200 frames
+        hue_base = (f * 0.005) % 1.0
 
         for i, (tx, ty) in enumerate(self._trail):
             age_ratio = i / max(trail_len, 1)
@@ -743,19 +758,17 @@ class LissajousMindPlugin(ThemePlugin):
             if 1 <= ty <= h - 2 and 1 <= tx <= w - 2:
                 if age_ratio < 0.3:
                     ch = "·"
-                    attr = base_dim_attr
                 elif age_ratio < 0.6:
                     ch = ":"
-                    attr = base_attr
                 elif age_ratio < 0.8:
                     ch = "+"
-                    attr = soft_attr
                 elif age_ratio < 0.95:
                     ch = "*"
-                    attr = accent_attr
                 else:
                     ch = "◈"
-                    attr = bright_attr
+                # phase marches along the trail length — colors chase the head
+                phase = (hue_base + age_ratio * 0.6) % 1.0
+                attr = _hue_attr(age_ratio, phase, color_pairs)
                 try:
                     stdscr.addstr(ty, tx, ch, attr)
                 except curses.error:
@@ -814,16 +827,10 @@ class PulseMatrixPlugin(ThemePlugin):
                 v = max(0.0, min(1.0, v)) * intensity
                 ci = int(v * n)
                 ch = chars[ci]
-                if v > 0.8:
-                    attr = curses.color_pair(color_pairs["bright"]) | curses.A_BOLD
-                elif v > 0.6:
-                    attr = curses.color_pair(color_pairs["accent"])
-                elif v > 0.4:
-                    attr = curses.color_pair(color_pairs["soft"])
-                elif v > 0.2:
-                    attr = curses.color_pair(color_pairs["base"])
-                else:
-                    attr = curses.color_pair(color_pairs["base"]) | curses.A_DIM
+                # phase uses angle so colors rotate around the center ring by ring
+                hue_base = (f * 0.0035) % 1.0
+                phase = (hue_base + angle / (2 * math.pi) + dist * 0.05) % 1.0
+                attr = _hue_attr(v, phase, color_pairs)
                 try:
                     stdscr.addstr(y, x, ch, attr)
                 except curses.error:
