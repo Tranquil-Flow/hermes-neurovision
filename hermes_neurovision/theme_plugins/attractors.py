@@ -422,9 +422,18 @@ class ThomasLabyrinthPlugin(_AttractorBase):
         return sx, sy
 
     def _spatial_hue(self, x, y, w, h):
-        # Diagonal rainbow: top-left = red, bottom-right = magenta
-        t = (x / max(w - 1, 1) + (1.0 - y / max(h - 1, 1))) * 0.5
-        return _rainbow_pair(t)
+        # Diagonal rainbow that slowly rotates over time
+        # The _draw_extras base calls this per-pixel but doesn't pass frame,
+        # so we store a slow clock on the instance updated in draw_extras.
+        t_diag = (x / max(w - 1, 1) + (1.0 - y / max(h - 1, 1))) * 0.5
+        t_shift = getattr(self, "_hue_shift", 0.0)
+        return _rainbow_pair((t_diag + t_shift) % 1.0)
+
+    def draw_extras(self, stdscr, state, color_pairs):
+        # Advance the hue shift before letting the base render
+        shift = getattr(self, "_hue_shift", 0.0)
+        self._hue_shift = (shift + 0.0012) % 1.0
+        super().draw_extras(stdscr, state, color_pairs)
 
 
 register(ThomasLabyrinthPlugin())

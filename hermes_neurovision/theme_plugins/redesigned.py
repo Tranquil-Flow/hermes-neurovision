@@ -254,25 +254,32 @@ class SupernovaV2Plugin(ThemePlugin):
                         attr = accent_attr
 
                 elif phase < 550:
-                    # Nebula expansion
+                    # Nebula expansion — colors sweep by angle + time
                     t = (phase - 350) / 200.0
                     nebula_v = max(0.0, (1 - dist_n * (0.8 + t * 0.4)) * abs(math.sin(dist_n * 15 + f * 0.03)) * 0.8) * intensity
                     if nebula_v > 0.05:
-                        dense_chars = " \u00b7.:+*"
+                        dense_chars = " ·.:+*"
                         ci = int(nebula_v * (len(dense_chars) - 1))
                         ch = dense_chars[ci]
-                        if (x + y) % 2 == 0:
+                        # Angle-based color sweeping over time — sector rotates
+                        angle = math.atan2(dy, dx)
+                        sector = int((angle + math.pi + f * 0.015) / (math.pi / 3)) % 3
+                        if sector == 0:
                             attr = soft_attr
-                        else:
+                        elif sector == 1:
                             attr = accent_attr
+                        else:
+                            attr = bright_attr if nebula_v > 0.45 else accent_attr
 
                 else:
-                    # Fade — sparse remnant
+                    # Fade — remnant wisps drift outward
                     t = (phase - 550) / 50.0
-                    v = max(0.0, math.sin(x * 0.7 + y * 0.5 + f * 0.02) * 0.3 * (1 - t)) * intensity
-                    if v > 0.1:
-                        ch = "\u00b7"
-                        attr = base_dim_attr
+                    angle = math.atan2(dy, dx)
+                    v = max(0.0, math.sin(x * 0.5 + y * 0.4 + f * 0.025 + angle) * 0.35 * (1 - t)) * intensity
+                    if v > 0.08:
+                        ch = "·" if v < 0.2 else ":"
+                        sector = int((angle + math.pi + f * 0.01) / (math.pi / 2)) % 2
+                        attr = soft_attr if sector == 0 else accent_attr
 
                 try:
                     stdscr.addstr(y, x, ch, attr)
@@ -453,19 +460,23 @@ class TerraV2Plugin(ThemePlugin):
 
                 if r2 > 1.0:
                     # Space — sparse stars
-                    # Use deterministic pseudo-random based on position
                     seed_val = (x * 1000 + y * 7 + 13) % 100
                     if seed_val < 5:
                         try:
-                            stdscr.addstr(y, x, "\u00b7", base_dim_attr)
+                            stdscr.addstr(y, x, "·", base_dim_attr)
                         except curses.error:
                             pass
-                    # Atmosphere glow at edge
+                    # Atmosphere glow at edge — pulses with frame
                     elif r2 < 1.3:
                         atm_v = (1.3 - r2) / 0.3
-                        if atm_v > 0.3:
+                        # Atmosphere shimmers — brighter on the day side
+                        atm_angle = math.atan2(ny_adj, nx_adj)
+                        atm_day = math.cos(atm_angle - f * 0.003)
+                        if atm_v > 0.25 and atm_day > -0.3:
+                            atm_ch = "░" if atm_day > 0.5 else "·"
+                            atm_attr = soft_attr if atm_day > 0.3 else base_dim_attr
                             try:
-                                stdscr.addstr(y, x, "\u2591", soft_attr)
+                                stdscr.addstr(y, x, atm_ch, atm_attr)
                             except curses.error:
                                 pass
                     continue
@@ -478,35 +489,51 @@ class TerraV2Plugin(ThemePlugin):
                 polar = abs(ny_adj) > 0.85
 
                 edge_fade = max(0.0, 1.0 - r2)
-                day_side = nx_adj * math.cos(f * 0.003) + z * 0.3
-                night_mult = 0.2 if day_side < 0 else 1.0
+                # Day/night terminator sweeps across over time
+                terminator_angle = f * 0.003
+                day_side = nx_adj * math.cos(terminator_angle) + ny_adj * math.sin(terminator_angle) * 0.4 + z * 0.2
+                # Smooth transition across terminator
+                night_mult = max(0.08, min(1.0, 0.5 + day_side * 3.0))
 
                 ch = " "
                 attr = base_dim_attr
 
                 if polar:
-                    ch = "*" if edge_fade > 0.5 else "\u2588"
-                    attr = bright_attr
+                    ch = "*" if edge_fade > 0.5 else "█"
+                    attr = bright_attr if night_mult > 0.7 else soft_attr
                 elif terrain > 0:
-                    # Land
-                    land_v = terrain * edge_fade * night_mult * intensity
-                    if land_v > 0.3:
-                        ch = "\u2593"
+                    # Land — lit by day/night + cloud shadows
+                    cloud = math.sin(lon * 6 + f * 0.005) * 0.15
+                    land_v = terrain * edge_fade * night_mult * intensity + cloud
+                    if land_v > 0.35:
+                        ch = "▓"
                         attr = accent_attr
-                    elif land_v > 0.1:
-                        ch = "\u2592"
+                    elif land_v > 0.18:
+                        ch = "▒"
                         attr = accent_attr
+                    elif land_v > 0.08:
+                        ch = "░"
+                        attr = soft_attr
                     else:
-                        ch = "\u00b7"
-                        attr = soft_attr
+                        # Night side land — city lights
+                        if night_mult < 0.25 and (int(lon * 8 + lat * 5) % 7 == 0):
+                            ch = "·"
+                            attr = bright_attr
+                        else:
+                            ch = "·"
+                            attr = base_dim_attr
                 else:
-                    # Ocean
+                    # Ocean — waves animate at full speed per frame
+                    wave = math.sin(lon * 9 + f * 0.07) * 0.5 + 0.5
                     ocean_v = edge_fade * night_mult * intensity
-                    if ocean_v > 0.5:
-                        ch = "\u2248" if (x + y + f // 10) % 3 == 0 else "~"
+                    if ocean_v > 0.55:
+                        ch = "≈" if wave > 0.6 else "~"
                         attr = soft_attr
-                    elif ocean_v > 0.2:
-                        ch = "~"
+                    elif ocean_v > 0.25:
+                        ch = "~" if wave > 0.5 else "·"
+                        attr = soft_attr if wave > 0.5 else base_dim_attr
+                    elif ocean_v > 0.08:
+                        ch = "·"
                         attr = base_dim_attr
                     else:
                         ch = " "

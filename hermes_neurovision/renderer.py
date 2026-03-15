@@ -146,7 +146,8 @@ class Renderer:
                 pass
 
     def draw(self, state: "ThemeState", gallery_index: int, gallery_total: int,
-             end_time: Optional[float], hide_hud: bool = False) -> None:
+             end_time: Optional[float], hide_hud: bool = False,
+             skip_refresh: bool = False) -> None:
         stdscr = self.stdscr
         h, w = stdscr.getmaxyx()
         state.resize(w, h)
@@ -282,7 +283,8 @@ class Renderer:
             self._draw_hide_hint(h, w)
         else:
             self._draw_overlay(state, gallery_index, gallery_total, end_time)
-        stdscr.refresh()
+        if not skip_refresh:
+            stdscr.refresh()
 
     # ── HUD (direct to stdscr) ────────────────────────────────────────
 

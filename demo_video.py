@@ -2,19 +2,109 @@
 """
 demo_video.py — Hermes Neurovision Demo Sequence (~90 seconds)
 
-Plays a timed demo using the real theme engine with text overlays in curses.
-Run from project venv: python3 demo_video.py
+RECORDING NOTES:
+- Record fullscreen (any 16:9 terminal, min 120 cols wide)
+- Keep original recording as-is for full quality
+- Twitter 9:16 crop: ffmpeg -i input.mp4 -vf "crop=ih*9/16:ih:(iw-ih*9/16)/2:0" twitter.mp4
+- Twitter square:    ffmpeg -i input.mp4 -vf "crop=ih:ih:(iw-ih)/2:0" twitter_sq.mp4
+- All content is centered so any crop works cleanly
+
+Run: cd hermes-neurovision && source .venv/bin/activate && python3 demo_video.py
 """
 
 import curses
 import time
 import sys
+import random
+import math
 
 from hermes_neurovision.scene import ThemeState
 from hermes_neurovision.themes import build_theme_config, FRAME_DELAY
 from hermes_neurovision.renderer import Renderer
 from hermes_neurovision.tune import TuneSettings
 from hermes_neurovision.theme_editor import apply_custom_overrides
+
+
+# ---------------------------------------------------------------------------
+# Big block font — 5 rows tall, for large readable overlays
+# ---------------------------------------------------------------------------
+FONT = {
+    ' ': ["    ", "    ", "    ", "    ", "    "],
+    'A': [" ▄█▄ ", "█   █", "█████", "█   █", "█   █"],
+    'B': ["████ ", "█   █", "████ ", "█   █", "████ "],
+    'C': [" ████", "█    ", "█    ", "█    ", " ████"],
+    'D': ["████ ", "█   █", "█   █", "█   █", "████ "],
+    'E': ["█████", "█    ", "████ ", "█    ", "█████"],
+    'F': ["█████", "█    ", "████ ", "█    ", "█    "],
+    'G': [" ████", "█    ", "█  ██", "█   █", " ████"],
+    'H': ["█   █", "█   █", "█████", "█   █", "█   █"],
+    'I': ["█████", "  █  ", "  █  ", "  █  ", "█████"],
+    'J': ["█████", "   █ ", "   █ ", "█  █ ", " ██  "],
+    'K': ["█   █", "█  █ ", "███  ", "█  █ ", "█   █"],
+    'L': ["█    ", "█    ", "█    ", "█    ", "█████"],
+    'M': ["█   █", "██ ██", "█ █ █", "█   █", "█   █"],
+    'N': ["█   █", "██  █", "█ █ █", "█  ██", "█   █"],
+    'O': [" ███ ", "█   █", "█   █", "█   █", " ███ "],
+    'P': ["████ ", "█   █", "████ ", "█    ", "█    "],
+    'Q': [" ███ ", "█   █", "█ █ █", "█  █ ", " ██▄█"],
+    'R': ["████ ", "█   █", "████ ", "█  █ ", "█   █"],
+    'S': [" ████", "█    ", " ███ ", "    █", "████ "],
+    'T': ["█████", "  █  ", "  █  ", "  █  ", "  █  "],
+    'U': ["█   █", "█   █", "█   █", "█   █", " ███ "],
+    'V': ["█   █", "█   █", "█   █", " █ █ ", "  █  "],
+    'W': ["█   █", "█   █", "█ █ █", "██ ██", "█   █"],
+    'X': ["█   █", " █ █ ", "  █  ", " █ █ ", "█   █"],
+    'Y': ["█   █", " █ █ ", "  █  ", "  █  ", "  █  "],
+    'Z': ["█████", "   █ ", "  █  ", " █   ", "█████"],
+    '0': [" ███ ", "█  ██", "█ █ █", "██  █", " ███ "],
+    '1': [" ██  ", "  █  ", "  █  ", "  █  ", "█████"],
+    '2': [" ███ ", "█   █", "  ██ ", " █   ", "█████"],
+    '3': ["████ ", "    █", " ███ ", "    █", "████ "],
+    '4': ["█   █", "█   █", "█████", "    █", "    █"],
+    '5': ["█████", "█    ", "████ ", "    █", "████ "],
+    '6': [" ███ ", "█    ", "████ ", "█   █", " ███ "],
+    '7': ["█████", "    █", "   █ ", "  █  ", "  █  "],
+    '8': [" ███ ", "█   █", " ███ ", "█   █", " ███ "],
+    '9': [" ███ ", "█   █", " ████", "    █", " ███ "],
+    '.': ["   ", "   ", "   ", " █ ", " █ "],
+    '!': [" █ ", " █ ", " █ ", "   ", " █ "],
+    ':': ["   ", " █ ", "   ", " █ ", "   "],
+    '/': ["    █", "   █ ", "  █  ", " █   ", "█    "],
+    '-': ["     ", "     ", "█████", "     ", "     "],
+    '·': ["  ", "  ", " █", "  ", "  "],
+}
+
+def big_text_width(text):
+    """Return pixel width of text rendered in FONT."""
+    GAP = 1
+    total = 0
+    for ch in text.upper():
+        letter = FONT.get(ch, FONT[' '])
+        total += len(letter[0]) + GAP
+    return max(0, total - GAP)
+
+def draw_big_text(stdscr, row, text, attr, center=True, gap=1):
+    """Draw text using 5-row-tall block font. Skips space chars so theme shows through."""
+    h, w = stdscr.getmaxyx()
+    text = text.upper()
+    letters = [FONT.get(ch, FONT[' ']) for ch in text]
+    total_w = sum(len(l[0]) for l in letters) + gap * max(0, len(letters) - 1)
+    start_x = max(0, (w - total_w) // 2) if center else 0
+    x = start_x
+    for li, letter in enumerate(letters):
+        for r in range(5):
+            if row + r >= h - 1:
+                continue
+            line = letter[r]
+            # Draw char by char, skipping spaces so theme background shows through
+            for ci, ch in enumerate(line):
+                if ch != ' ':
+                    try:
+                        stdscr.addstr(row + r, x + ci, ch, attr)
+                    except curses.error:
+                        pass
+        x += len(letter[0]) + gap
+    return row + 5
 
 
 # ---------------------------------------------------------------------------
@@ -159,26 +249,24 @@ BOOT_LINES = [
     "\u2501" * 51,
 ]
 
-# Lines that are final [OK] summary lines (rendered differently)
-BOOT_SUMMARY_START = len(BOOT_LINES) - 5  # last separator + 4 OK lines + last separator
-
 # ---------------------------------------------------------------------------
-# Feature highlight cards
+# Feature highlight cards (duration, title, subtitle)
 # ---------------------------------------------------------------------------
 FEATURE_CARDS = [
-    (3.0,  "RAW STATS",          "83 themes  \u00b7  12 reactive categories\n54 event types  \u00b7  9 post-processing effects\n6 emergent systems  \u00b7  10 data sources"),
-    (2.5,  "AUDIO ENGINE",       "Sound that reacts to your agent's thoughts"),
-    (2.0,  "GALLERY MODE",       "Auto-opens from scheduled jobs"),
-    (1.5,  "AGENT TOOLING",      "AI builds screens for you"),
-    (1.0,  "LIVE AGENT LOGS",    "See what your agent sees"),
-    (0.6,  "IMPORT \u00b7 EXPORT \u00b7 SHARE", ""),
-    (0.3,  "FULL CUSTOMIZATION", ""),
-    (0.15, "PURE PYTHON  \u00b7  ZERO DEPENDENCIES", ""),
-    (0.08, "OPEN SOURCE", ""),
+    (3.0,  "100+ SCREENS",       "83 active themes  \u00b7  18 legacy themes\n14 categories  \u00b7  and growing"),
+    (2.5,  "RAW STATS",          "12 reactive types  \u00b7  9 post-FX\n6 emergent systems  \u00b7  54 event types"),
+    (2.0,  "AUDIO ENGINE",       "Sound that reacts to your agent's thoughts"),
+    (1.5,  "GALLERY MODE",       "Auto-opens from scheduled jobs"),
+    (1.0,  "AGENT TOOLING",      "AI builds screens for you"),
+    (0.6,  "LIVE AGENT LOGS",    "See what your agent sees"),
+    (0.4,  "IMPORT EXPORT SHARE", ""),
+    (0.25, "FULL CUSTOMIZATION", ""),
+    (0.12, "PURE PYTHON",        ""),
+    (0.06, "OPEN SOURCE",        ""),
 ]
 
 # ---------------------------------------------------------------------------
-# Finale banner (box-drawing ASCII art)
+# Finale banner (box-drawing ASCII art, pre-encoded)
 # ---------------------------------------------------------------------------
 HERMES_BANNER = [
     " \u2588\u2588\u2557  \u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2557   \u2588\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557",
@@ -188,7 +276,6 @@ HERMES_BANNER = [
     " \u2588\u2588\u2551  \u2588\u2588\u2551\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2551  \u2588\u2588\u2551\u2588\u2588\u2551 \u255a\u2550\u255d \u2588\u2588\u2551\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2551",
     " \u255a\u2550\u255d  \u255a\u2550\u255d\u255a\u2550\u2550\u2550\u2550\u2550\u2550\u255d\u255a\u2550\u255d  \u255a\u2550\u255d\u255a\u2550\u255d     \u255a\u2550\u255d\u255a\u2550\u2550\u2550\u2550\u2550\u2550\u255d\u255a\u2550\u2550\u2550\u2550\u2550\u2550\u255d",
 ]
-
 NEUROVISION_BANNER = [
     " \u2588\u2588\u2588\u2557   \u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2557   \u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2557   \u2588\u2588\u2557\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2557   \u2588\u2588\u2557",
     " \u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255d\u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255d\u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2551",
@@ -198,41 +285,65 @@ NEUROVISION_BANNER = [
     " \u255a\u2550\u255d  \u255a\u2550\u2550\u2550\u255d\u255a\u2550\u2550\u2550\u2550\u2550\u2550\u255d \u255a\u2550\u2550\u2550\u2550\u255d \u255a\u2550\u255d  \u255a\u2550\u255d \u255a\u2550\u2550\u2550\u2550\u255d   \u255a\u2550\u2550\u2550\u255d  \u255a\u2550\u255d\u255a\u2550\u2550\u2550\u2550\u2550\u2550\u255d\u255a\u2550\u255d \u255a\u2550\u2550\u2550\u2550\u255d \u255a\u2550\u255d  \u255a\u2550\u2550\u2550\u255d",
 ]
 
-
 # ---------------------------------------------------------------------------
-# Color pair constants
+# Color pair constants — use pairs 10+ so renderer._apply_palette() (pairs 1-5)
+# never overwrites our overlay pairs.  Re-init after every renderer.draw() call.
 # ---------------------------------------------------------------------------
-CP_GREEN = 1       # green on black  (boot [TAG] + OK)
-CP_CYAN = 2        # cyan on black   (boot headers/separators)
-CP_WHITE = 3       # white on black  (boot body text)
-CP_MAGENTA = 4     # magenta on black (v0.2.0 labels + banner)
-CP_BRIGHT = 5      # bright white    (feature card titles)
+CP_GREEN   = 10  # green on black   — boot [TAG] + OK
+CP_CYAN    = 11  # cyan on black    — boot headers
+CP_WHITE   = 12  # white on black   — body text, boot middle
+CP_MAGENTA = 13  # magenta on black — v0.2.0 label
+CP_YELLOW  = 14  # yellow on black  — energy/warning
+CP_BLACK   = 15  # black on black   — backing strips
+# Purple gradient pairs for outro banner (16-21)
+CP_PUR0    = 16  # brightest magenta-purple
+CP_PUR1    = 17
+CP_PUR2    = 18
+CP_PUR3    = 19
+CP_PUR4    = 20
+CP_PUR5    = 21  # deepest violet
+CP_PINK    = 22  # pink-magenta for link text
 
 
 def init_colors():
-    """Initialize all curses color pairs."""
+    """Init all overlay color pairs. Call once at startup AND after every renderer.draw()."""
     curses.start_color()
     curses.use_default_colors()
     curses.init_pair(CP_GREEN,   curses.COLOR_GREEN,   curses.COLOR_BLACK)
     curses.init_pair(CP_CYAN,    curses.COLOR_CYAN,    curses.COLOR_BLACK)
     curses.init_pair(CP_WHITE,   curses.COLOR_WHITE,   curses.COLOR_BLACK)
     curses.init_pair(CP_MAGENTA, curses.COLOR_MAGENTA, curses.COLOR_BLACK)
-    curses.init_pair(CP_BRIGHT,  curses.COLOR_WHITE,   curses.COLOR_BLACK)
+    curses.init_pair(CP_YELLOW,  curses.COLOR_YELLOW,  curses.COLOR_BLACK)
+    curses.init_pair(CP_BLACK,   curses.COLOR_BLACK,   curses.COLOR_BLACK)
+    # Purple gradient — all map to MAGENTA since curses only has 8 base colors.
+    # A_BOLD gives the bright variant, A_DIM gives the dim. Combined they make a gradient.
+    for cp in [CP_PUR0, CP_PUR1, CP_PUR2, CP_PUR3, CP_PUR4, CP_PUR5, CP_PINK]:
+        curses.init_pair(cp, curses.COLOR_MAGENTA, curses.COLOR_BLACK)
+
+
+def reinit_overlay_colors():
+    """Re-assert overlay pairs after renderer.draw() stomps pairs 1-5."""
+    # Renderer only touches 1-5, ours are 10-22, so actually safe — but call
+    # init_colors() here defensively in case curses resets.
+    try:
+        init_colors()
+    except Exception:
+        pass
 
 
 # ---------------------------------------------------------------------------
-# Helper: safe addstr that won't crash at screen edge
+# Helpers
 # ---------------------------------------------------------------------------
 def safe_addstr(win, y, x, text, attr=0):
     h, w = win.getmaxyx()
-    if y < 0 or y >= h:
+    if y < 0 or y >= h - 1:
         return
-    if x >= w:
+    if x >= w - 1:
         return
     if x < 0:
         text = text[-x:]
         x = 0
-    max_len = w - x - 1  # leave last col safe
+    max_len = w - x - 1
     if max_len <= 0:
         return
     try:
@@ -242,259 +353,519 @@ def safe_addstr(win, y, x, text, attr=0):
 
 
 def draw_centered(win, row, text, attr=0):
-    """Draw text centered horizontally at the given row."""
     h, w = win.getmaxyx()
     x = max(0, (w - len(text)) // 2)
     safe_addstr(win, row, x, text, attr)
 
 
-# ---------------------------------------------------------------------------
-# Theme screen helpers
-# ---------------------------------------------------------------------------
-def make_state(theme_name, w, h, seed=42):
-    """Build a ThemeState for the given theme name."""
+def draw_black_strip(stdscr, start_row, num_rows):
+    """Draw black-on-black strip to back overlays."""
+    h, w = stdscr.getmaxyx()
+    blank = " " * (w - 2)
+    attr = curses.color_pair(CP_BLACK)
+    for r in range(start_row, min(start_row + num_rows, h - 1)):
+        safe_addstr(stdscr, r, 0, blank, attr)
+
+
+def make_state(theme_name, w, h, seed=42, speed=1.0):
     config = build_theme_config(theme_name)
     config = apply_custom_overrides(config)
     state = ThemeState(config, w, h, seed=seed, quiet=True)
-    state.tune = TuneSettings()
+    tune = TuneSettings()
+    tune.animation_speed = speed
+    state.tune = tune
     return state
 
 
-def draw_version_label(win, version, row=3):
-    """Draw bold white version label centered at the given row."""
-    h, w = win.getmaxyx()
-    label = f"  {version}  "
-    attr = curses.color_pair(CP_WHITE) | curses.A_BOLD
-    draw_centered(win, row, label, attr)
+def draw_version_label(stdscr, version, is_v020=False):
+    """Draw big version label near top, floating over the theme."""
+    row = 1
+    attr = curses.color_pair(CP_MAGENTA) | curses.A_BOLD if is_v020 else curses.color_pair(CP_WHITE) | curses.A_BOLD
+    draw_big_text(stdscr, row, version, attr)
 
 
-def draw_body_text(win, text, base_row=None):
-    """Draw normal-weight cyan body text centered, optionally multiline."""
-    h, w = win.getmaxyx()
-    if base_row is None:
-        base_row = h // 2 + 2
-    lines = text.split("\n")
-    attr = curses.color_pair(CP_CYAN)
-    for i, line in enumerate(lines):
-        draw_centered(win, base_row + i, line, attr)
-
-
-def run_theme_screen(stdscr, renderer, theme_name, duration, version_label, body_text="", seed=42):
-    """Run a single themed screen for the given duration with overlays."""
+def draw_body_big(stdscr, text, is_v020=False):
+    """Draw big body text centered vertically, floating over theme."""
     h, w = stdscr.getmaxyx()
-    state = make_state(theme_name, w, h, seed=seed)
-    deadline = time.time() + duration
+    row = max(8, h // 2 - 3)
+    attr = curses.color_pair(CP_CYAN) | curses.A_BOLD if not is_v020 else curses.color_pair(CP_MAGENTA) | curses.A_BOLD
+    draw_big_text(stdscr, row, text, attr)
 
+
+# ---------------------------------------------------------------------------
+# Theme screen runner
+# ---------------------------------------------------------------------------
+def run_theme_screen(stdscr, renderer, theme_name, duration, version, body="", seed=42, is_v020=False, speed=1.0):
+    h, w = stdscr.getmaxyx()
+    state = make_state(theme_name, w, h, seed=seed, speed=speed)
+    deadline = time.time() + duration
     while time.time() < deadline:
         h, w = stdscr.getmaxyx()
         state.step()
         try:
-            renderer.draw(state, 0, 1, deadline, hide_hud=True)
+            renderer.draw(state, 0, 1, deadline, hide_hud=True, skip_refresh=True)
         except Exception:
             pass
-
-        # Draw version label overlay
-        draw_version_label(stdscr, version_label)
-
-        # Draw body text if provided
-        if body_text:
-            draw_body_text(stdscr, body_text)
-
+        reinit_overlay_colors()
+        draw_version_label(stdscr, version, is_v020=is_v020)
+        if body:
+            draw_body_big(stdscr, body, is_v020=is_v020)
         stdscr.refresh()
         time.sleep(FRAME_DELAY)
 
 
 # ---------------------------------------------------------------------------
-# SECTION 1: Early Builds
+# SECTION 1: Early Builds (27 sec)
 # ---------------------------------------------------------------------------
 def section_early_builds(stdscr, renderer):
     screens = [
-        # v0.1.0 — no body text
-        ("black-hole",      "v0.1.0", ""),
-        ("neural-sky",      "v0.1.0", ""),
-        ("binary-rain",     "v0.1.0", ""),
-        # v0.1.1
-        ("aurora-borealis", "v0.1.1", "Built for Hermes Agent. Reacts to your agent \u2014 live."),
-        ("lava-lamp",       "v0.1.1", "Every tool call, memory write, and session is a signal."),
-        ("beach-lighthouse","v0.1.1", "A visual language for AI activity. Not a screensaver."),
-        # v0.1.2
-        ("starfall",        "v0.1.2", "Hook it in. One install. Your agent starts talking."),
-        ("stellar-weave",   "v0.1.2", "10 live data sources. 54 event types. All wired up."),
-        ("sol",             "v0.1.2", "Build your own screens. The plugin API is yours."),
+        # theme                      version   body text                      seed
+        ("legacy-black-hole",       "V0.1.0", "",                             100),
+        ("binary-rain",             "V0.1.0", "",                             101),
+        ("legacy-binary-star",      "V0.1.0", "",                             102),
+        ("lava-lamp",               "V0.1.1", "BUILT FOR HERMES AGENT",       103),
+        ("aurora-borealis",         "V0.1.1", "EVERY EVENT IS A SIGNAL",      104),
+        ("legacy-beach-lighthouse", "V0.1.1", "NOT A SCREENSAVER",            105),
+        ("sol",                     "V0.1.2", "ONE INSTALL. AGENT TALKS.",    106),
+        ("starfall",                "V0.1.2", "10 SOURCES. 54 EVENT TYPES.",  107),
+        ("stellar-weave",           "V0.1.2", "BUILD YOUR OWN SCREENS.",      108),
     ]
-    for i, (theme, ver, body) in enumerate(screens):
-        run_theme_screen(stdscr, renderer, theme, 3.0, ver, body, seed=100 + i)
+    for (theme, ver, body, seed) in screens:
+        run_theme_screen(stdscr, renderer, theme, 3.0, ver, body, seed=seed)
 
 
 # ---------------------------------------------------------------------------
-# SECTION 2: Terminal Boot Sequence
+# SECTION 2: Terminal Boot — custom ASCII particle system builds up, then EXPLODES
 # ---------------------------------------------------------------------------
+
+# Particle chars — sparse at first, dense later
+SPARK_CHARS   = list("·∙•*+×✦✧⋆⋅")
+STREAK_CHARS  = list("─│╱╲╮╯╭╰═║╔╗╚╝╠╣╦╩╬")
+GLYPH_CHARS   = list("░▒▓█▄▀▌▐▖▗▘▙▚▛▜▝▞▟")
+ENERGY_CHARS  = list("◆◇◈◉○●◎⬡⬢⬣▲△▼▽◀▶◁▷")
+MATRIX_CHARS  = list("01アイウエオカキクケコサシスセソタチツテトナニヌネノ")
+RUNE_CHARS    = list("ᚠᚢᚦᚨᚱᚲᚷᚹᚺᚾᛁᛃᛇᛈᛉᛊᛏᛒᛖᛗᛚᛜᛞᛟ")
+MATH_CHARS    = list("∑∏∫∂∇∞∈∉∩∪⊂⊃⊆⊇∧∨¬⊕⊗⊥∥∦∠∡∢")
+
+ALL_PHASE_CHARS = {
+    0.0: SPARK_CHARS,
+    0.2: SPARK_CHARS + STREAK_CHARS,
+    0.4: SPARK_CHARS + STREAK_CHARS + GLYPH_CHARS,
+    0.55: SPARK_CHARS + STREAK_CHARS + GLYPH_CHARS + ENERGY_CHARS,
+    0.7: SPARK_CHARS + STREAK_CHARS + GLYPH_CHARS + ENERGY_CHARS + MATRIX_CHARS,
+    0.85: SPARK_CHARS + STREAK_CHARS + GLYPH_CHARS + ENERGY_CHARS + MATRIX_CHARS + RUNE_CHARS + MATH_CHARS,
+}
+
+def chars_for_phase(phase):
+    best = SPARK_CHARS
+    for threshold, chars in sorted(ALL_PHASE_CHARS.items()):
+        if phase >= threshold:
+            best = chars
+    return best
+
+
+class BootParticle:
+    """A single animated particle in the boot sequence."""
+    MODE_DRIFT   = 0   # random drift across screen
+    MODE_RAIN    = 1   # falling column (matrix rain)
+    MODE_ORBIT   = 2   # circular orbit around a point
+    MODE_SPIRAL  = 3   # outward spiral from center
+    MODE_STREAK  = 4   # fast horizontal/diagonal streak
+
+    def __init__(self, h, w, phase):
+        self.h = h
+        self.w = w
+        self.mode = MODE_DRIFT = 0
+        self.reset(phase)
+
+    def reset(self, phase=0):
+        self.age = 0.0
+        chars = chars_for_phase(phase)
+        self.char = random.choice(chars)
+
+        # Mode selection — more variety at higher phase
+        if phase < 0.25:
+            self.mode = self.MODE_DRIFT
+        elif phase < 0.45:
+            self.mode = random.choice([self.MODE_DRIFT, self.MODE_RAIN])
+        elif phase < 0.65:
+            self.mode = random.choice([self.MODE_DRIFT, self.MODE_RAIN, self.MODE_ORBIT])
+        elif phase < 0.80:
+            self.mode = random.choice([self.MODE_DRIFT, self.MODE_RAIN, self.MODE_ORBIT, self.MODE_SPIRAL])
+        else:
+            self.mode = random.choice([self.MODE_DRIFT, self.MODE_RAIN, self.MODE_ORBIT,
+                                       self.MODE_SPIRAL, self.MODE_STREAK])
+
+        if self.mode == self.MODE_DRIFT:
+            self.x = random.uniform(0, self.w - 1)
+            self.y = random.uniform(0, self.h - 1)
+            angle = random.uniform(0, math.pi * 2)
+            speed = random.uniform(0.05, 0.3 + phase * 2.0)
+            self.vx = math.cos(angle) * speed
+            self.vy = math.sin(angle) * speed * 0.45
+            self.life = random.uniform(1.0, 3.0 + phase * 2.0)
+
+        elif self.mode == self.MODE_RAIN:
+            self.x = random.uniform(0, self.w - 1)
+            self.y = random.uniform(-self.h, 0)
+            self.vx = random.uniform(-0.05, 0.05)
+            self.vy = random.uniform(0.5 + phase * 1.5, 1.5 + phase * 3.0)
+            self.life = self.h / max(self.vy, 0.1) * 0.05
+            self.char = random.choice(MATRIX_CHARS + GLYPH_CHARS)
+
+        elif self.mode == self.MODE_ORBIT:
+            self.cx = random.uniform(self.w * 0.2, self.w * 0.8)
+            self.cy = random.uniform(self.h * 0.2, self.h * 0.8)
+            self.radius = random.uniform(3, min(self.w, self.h * 2) * 0.2)
+            self.angle = random.uniform(0, math.pi * 2)
+            self.omega = random.uniform(1.0, 3.0) * random.choice([-1, 1])
+            self.x = self.cx + math.cos(self.angle) * self.radius
+            self.y = self.cy + math.sin(self.angle) * self.radius * 0.45
+            self.vx = self.vy = 0
+            self.life = random.uniform(2.0, 5.0)
+
+        elif self.mode == self.MODE_SPIRAL:
+            self.cx = self.w / 2
+            self.cy = self.h / 2
+            self.angle = random.uniform(0, math.pi * 2)
+            self.r = random.uniform(0, 2)
+            self.omega = random.uniform(2.0, 5.0) * random.choice([-1, 1])
+            self.dr = random.uniform(0.3, 1.0) * (phase + 0.2)
+            self.x = self.cx
+            self.y = self.cy
+            self.vx = self.vy = 0
+            self.life = random.uniform(1.5, 4.0)
+
+        elif self.mode == self.MODE_STREAK:
+            side = random.choice(['l', 'r', 't', 'b'])
+            if side == 'l':
+                self.x, self.y = 0, random.uniform(0, self.h)
+                self.vx = random.uniform(3, 8 + phase * 6)
+                self.vy = random.uniform(-0.5, 0.5)
+            elif side == 'r':
+                self.x, self.y = self.w, random.uniform(0, self.h)
+                self.vx = -random.uniform(3, 8 + phase * 6)
+                self.vy = random.uniform(-0.5, 0.5)
+            elif side == 't':
+                self.x, self.y = random.uniform(0, self.w), 0
+                self.vx = random.uniform(-1, 1)
+                self.vy = random.uniform(1, 3 + phase * 3)
+            else:
+                self.x, self.y = random.uniform(0, self.w), self.h
+                self.vx = random.uniform(-1, 1)
+                self.vy = -random.uniform(1, 3 + phase * 3)
+            self.life = random.uniform(0.3, 1.0)
+            self.char = random.choice(STREAK_CHARS + ENERGY_CHARS)
+
+        # Color
+        if phase < 0.25:
+            self.cp = CP_CYAN
+        elif phase < 0.45:
+            self.cp = random.choice([CP_CYAN, CP_GREEN])
+        elif phase < 0.65:
+            self.cp = random.choice([CP_CYAN, CP_GREEN, CP_WHITE])
+        elif phase < 0.80:
+            self.cp = random.choice([CP_CYAN, CP_GREEN, CP_WHITE, CP_YELLOW])
+        else:
+            self.cp = random.choice([CP_CYAN, CP_GREEN, CP_WHITE, CP_YELLOW, CP_MAGENTA])
+        self.bold = phase > 0.4 and random.random() < phase
+
+    def step(self, dt):
+        self.age += dt
+        if self.mode == self.MODE_ORBIT:
+            self.angle += self.omega * dt
+            self.x = self.cx + math.cos(self.angle) * self.radius
+            self.y = self.cy + math.sin(self.angle) * self.radius * 0.45
+        elif self.mode == self.MODE_SPIRAL:
+            self.angle += self.omega * dt
+            self.r += self.dr * dt * 20
+            self.x = self.cx + math.cos(self.angle) * self.r
+            self.y = self.cy + math.sin(self.angle) * self.r * 0.45
+        else:
+            self.x += self.vx * dt * 20
+            self.y += self.vy * dt * 20
+        # Wrap for drift/rain
+        if self.mode in (self.MODE_DRIFT,):
+            if self.x < 0: self.x += self.w
+            if self.x >= self.w: self.x -= self.w
+            if self.y < 0: self.y += self.h
+            if self.y >= self.h: self.y -= self.h
+
+    @property
+    def dead(self):
+        if self.mode == self.MODE_SPIRAL:
+            return self.r > max(self.w, self.h) or self.age >= self.life
+        if self.mode == self.MODE_STREAK:
+            return (self.x < -2 or self.x >= self.w + 2 or
+                    self.y < -2 or self.y >= self.h + 2 or self.age >= self.life)
+        return self.age >= self.life
+
+    def draw(self, stdscr):
+        ix, iy = int(self.x), int(self.y)
+        if iy < 0 or iy >= self.h - 1 or ix < 0 or ix >= self.w - 1:
+            return
+        attr = curses.color_pair(self.cp)
+        if self.bold:
+            attr |= curses.A_BOLD
+        try:
+            stdscr.addstr(iy, ix, self.char, attr)
+        except curses.error:
+            pass
+
+
 def draw_boot_line(stdscr, line, row):
-    """Draw a single boot line with appropriate coloring."""
     h, w = stdscr.getmaxyx()
     if row >= h - 1:
         return
-
-    # Determine line type and color
     stripped = line.strip()
-
-    # Separator lines ━━━
     if stripped and all(c in '\u2501\u2500-=' for c in stripped[:3]):
         safe_addstr(stdscr, row, 1, line[:w-2], curses.color_pair(CP_CYAN) | curses.A_BOLD)
         return
-
-    # Header line (first line)
     if stripped.startswith("[HERMES NEUROVISION"):
         safe_addstr(stdscr, row, 1, line[:w-2], curses.color_pair(CP_CYAN) | curses.A_BOLD)
         return
-
-    # Final [OK] summary lines
     if stripped.startswith("[OK]"):
         safe_addstr(stdscr, row, 1, line[:w-2], curses.color_pair(CP_GREEN) | curses.A_BOLD)
         return
-
-    # Regular [TAG] ... OK lines
-    # Find the tag portion [XXX]
     if line.startswith("["):
         bracket_end = line.find("]")
         if bracket_end != -1:
             tag_part = line[:bracket_end + 1]
             rest = line[bracket_end + 1:]
-
-            # Find " OK" at end
             ok_suffix = ""
             middle_part = rest
             if rest.rstrip().endswith(" OK"):
                 ok_pos = rest.rfind(" OK")
                 middle_part = rest[:ok_pos]
                 ok_suffix = rest[ok_pos:]
-
             x = 1
-            # Draw tag in dim green
-            tag_attr = curses.color_pair(CP_GREEN) | curses.A_DIM
-            safe_addstr(stdscr, row, x, tag_part, tag_attr)
+            safe_addstr(stdscr, row, x, tag_part, curses.color_pair(CP_GREEN) | curses.A_DIM)
             x += len(tag_part)
-
-            # Draw middle in white
-            mid_attr = curses.color_pair(CP_WHITE)
             avail = w - x - len(ok_suffix) - 2
-            middle_disp = middle_part[:avail] if avail > 0 else ""
-            safe_addstr(stdscr, row, x, middle_disp, mid_attr)
-            x += len(middle_disp)
-
-            # Draw OK in bright green
+            mid_disp = middle_part[:avail] if avail > 0 else ""
+            safe_addstr(stdscr, row, x, mid_disp, curses.color_pair(CP_WHITE))
+            x += len(mid_disp)
             if ok_suffix:
-                ok_attr = curses.color_pair(CP_GREEN) | curses.A_BOLD
-                safe_addstr(stdscr, row, x, ok_suffix[:w - x - 1], ok_attr)
+                safe_addstr(stdscr, row, x, ok_suffix[:w-x-1], curses.color_pair(CP_GREEN) | curses.A_BOLD)
             return
-
-    # Fallback: white
     safe_addstr(stdscr, row, 1, line[:w-2], curses.color_pair(CP_WHITE))
 
 
-def section_terminal_boot(stdscr):
+def section_terminal_boot(stdscr, renderer):
     h, w = stdscr.getmaxyx()
-
-    # Fade to black (instant clear)
     stdscr.clear()
     stdscr.refresh()
-    time.sleep(0.5)  # Hold 0.5s black
+    time.sleep(0.3)
 
-    # Compute timing: 4 seconds for all lines
     n_lines = len(BOOT_LINES)
-    per_line_delay = 4.0 / max(n_lines, 1)
+    print_duration = 4.0
+    per_line = print_duration / max(n_lines, 1)
 
-    displayed_lines = []
-    start_time = time.time()
+    # Particle pool — starts empty, grows as phase increases
+    particles = []
+    MAX_PARTICLES = 600
 
-    for line in BOOT_LINES:
-        displayed_lines.append(line)
+    displayed = []
+    print_start = time.time()
+    last_frame = time.time()
+
+    for line_idx, line in enumerate(BOOT_LINES):
+        displayed.append(line)
+        phase = line_idx / max(n_lines - 1, 1)  # 0.0 → 1.0
+
+        # Spawn new particles proportional to phase
+        target_count = int(phase * phase * MAX_PARTICLES)  # quadratic ramp
+        while len(particles) < target_count:
+            particles.append(BootParticle(h, w, phase))
+
+        line_deadline = print_start + (line_idx + 1) * per_line
+
+        while time.time() < line_deadline:
+            now = time.time()
+            dt = now - last_frame
+            last_frame = now
+
+            # Black background
+            stdscr.clear()
+
+            # Step and draw particles
+            alive = []
+            for p in particles:
+                p.step(dt)
+                if p.dead:
+                    p.reset(phase)  # recycle
+                p.draw(stdscr)
+                alive.append(p)
+            particles[:] = alive
+
+            # Draw boot text ON TOP of particles
+            visible = displayed[-(h - 2):]
+            for i, dl in enumerate(visible):
+                draw_boot_line(stdscr, dl, i + 1)
+
+            stdscr.refresh()
+            time.sleep(FRAME_DELAY)
+
+    # Hold 2 seconds at max density
+    hold_end = time.time() + 2.0
+    phase = 1.0
+    # Top up to max particles
+    while len(particles) < MAX_PARTICLES:
+        particles.append(BootParticle(h, w, phase))
+
+    while time.time() < hold_end:
+        now = time.time()
+        dt = now - last_frame
+        last_frame = now
         stdscr.clear()
-        stdscr.bkgd(' ', curses.color_pair(CP_WHITE))
-
-        # Show last (h-2) lines
-        visible = displayed_lines[-(h - 2):]
+        for p in particles:
+            p.step(dt)
+            if p.dead:
+                p.reset(phase)
+            p.draw(stdscr)
+        visible = displayed[-(h - 2):]
         for i, dl in enumerate(visible):
             draw_boot_line(stdscr, dl, i + 1)
-
         stdscr.refresh()
-        time.sleep(per_line_delay)
+        time.sleep(FRAME_DELAY)
 
-    # Hold 2 seconds on final summary
-    time.sleep(2.0)
+    # === EXPLOSION ===
+    # Convergence: particles race toward center
+    cx, cy = w // 2, h // 2
+    for p in particles:
+        dx = cx - p.x
+        dy = cy - p.y
+        dist = max(1.0, math.sqrt(dx*dx + dy*dy))
+        speed = random.uniform(3.0, 8.0)
+        p.vx = (dx / dist) * speed
+        p.vy = (dy / dist) * speed * 0.5
+        p.life = 9999
+        p.cp = random.choice([CP_WHITE, CP_YELLOW, CP_MAGENTA, CP_CYAN])
+        p.bold = True
+
+    conv_end = time.time() + 0.5
+    while time.time() < conv_end:
+        now = time.time()
+        dt = now - last_frame
+        last_frame = now
+        stdscr.clear()
+        for p in particles:
+            p.step(dt)
+            p.draw(stdscr)
+        stdscr.refresh()
+        time.sleep(FRAME_DELAY)
+
+    # Flash white
+    flash_attr = curses.color_pair(CP_WHITE) | curses.A_BOLD | curses.A_REVERSE
+    blank = " " * (w - 1)
+    for r in range(h - 1):
+        safe_addstr(stdscr, r, 0, blank, flash_attr)
+    stdscr.refresh()
+    time.sleep(0.1)
+
+    # Explode outward — particles scatter from center
+    for p in particles:
+        p.x = cx + random.uniform(-3, 3)
+        p.y = cy + random.uniform(-2, 2)
+        angle = random.uniform(0, math.pi * 2)
+        speed = random.uniform(5.0, 15.0)
+        p.vx = math.cos(angle) * speed
+        p.vy = math.sin(angle) * speed * 0.5
+        p.cp = random.choice([CP_WHITE, CP_YELLOW, CP_MAGENTA, CP_CYAN, CP_GREEN])
+        p.bold = True
+        p.life = 9999
+
+    blast_end = time.time() + 0.6
+    while time.time() < blast_end:
+        now = time.time()
+        dt = now - last_frame
+        last_frame = now
+        stdscr.clear()
+        for p in particles:
+            p.step(dt)
+            p.draw(stdscr)
+        stdscr.refresh()
+        time.sleep(FRAME_DELAY)
+
+    # Final flash
+    for r in range(h - 1):
+        safe_addstr(stdscr, r, 0, blank, flash_attr)
+    stdscr.refresh()
+    time.sleep(0.1)
+
+    stdscr.clear()
+    stdscr.refresh()
+    time.sleep(0.1)
 
 
 # ---------------------------------------------------------------------------
-# SECTION 3: v0.2.0 Showcase
+# SECTION 3: v0.2.0 Showcase — accelerating
 # ---------------------------------------------------------------------------
 def section_v020_showcase(stdscr, renderer):
     screens = [
-        "pulse-matrix",
+        "plasma-rainbow",
         "electric-storm",
+        "synaptic-plasma",
         "dna-strand",
-        "mandala-scope",
         "storm-core",
         "swarm-mind",
         "quasar",
         "fractal-engine",
-        "barnsley-fern",   # last: fade out v0.2.0 label
+        "barnsley-fern",
     ]
-
-    label_attr_full = curses.color_pair(CP_MAGENTA) | curses.A_BOLD
+    durations = [4.0, 3.5, 3.0, 2.5, 2.0, 1.5, 1.0, 0.75, 0.5]
 
     for i, theme_name in enumerate(screens):
         h, w = stdscr.getmaxyx()
         state = make_state(theme_name, w, h, seed=200 + i)
-        duration = 3.0
+        duration = durations[i]
         deadline = time.time() + duration
         is_last = (i == len(screens) - 1)
         screen_start = time.time()
+        label_attr = curses.color_pair(CP_MAGENTA) | curses.A_BOLD
 
         while time.time() < deadline:
             h, w = stdscr.getmaxyx()
             state.step()
             try:
-                renderer.draw(state, 0, 1, deadline, hide_hud=True)
+                renderer.draw(state, 0, 1, deadline, hide_hud=True, skip_refresh=True)
             except Exception:
                 pass
+            reinit_overlay_colors()
 
-            # On last screen, fade out label over the 3 seconds
+            show_label = True
             if is_last:
                 elapsed = time.time() - screen_start
-                fade_frac = 1.0 - min(1.0, elapsed / duration)
-                # Simulate fade: only show label in first 2/3 of duration
-                if fade_frac > 0.33:
-                    draw_centered(stdscr, 3, "  v0.2.0  ", label_attr_full)
-                # else: label gone (faded out)
-            else:
-                draw_centered(stdscr, 3, "  v0.2.0  ", label_attr_full)
+                show_label = elapsed < (duration * 0.7)
+
+            if show_label:
+                draw_big_text(stdscr, 1, "V0.2.0", label_attr)
 
             stdscr.refresh()
             time.sleep(FRAME_DELAY)
 
 
 # ---------------------------------------------------------------------------
-# SECTION 4: Feature Highlights
+# SECTION 4: Feature Highlights — pure black, accelerating
 # ---------------------------------------------------------------------------
 def draw_feature_card(stdscr, title, subtitle):
-    """Draw a centered feature card on black background."""
     stdscr.clear()
-    stdscr.bkgd(' ', curses.color_pair(CP_WHITE))
     h, w = stdscr.getmaxyx()
 
-    subtitle_lines = [l for l in subtitle.split("\n") if subtitle] if subtitle else []
-    total_lines = 1 + (1 if subtitle_lines else 0) + len(subtitle_lines)
-    start_row = max(0, h // 2 - total_lines // 2)
+    # Compute vertical center for big title (5 rows) + subtitle lines
+    sub_lines = [l for l in subtitle.split("\n")] if subtitle else []
+    total_h = 5 + (2 + len(sub_lines) if sub_lines else 0)
+    start_row = max(1, (h - total_h) // 2)
 
-    # Title
-    title_attr = curses.color_pair(CP_BRIGHT) | curses.A_BOLD
-    draw_centered(stdscr, start_row, title, title_attr)
+    title_attr = curses.color_pair(CP_WHITE) | curses.A_BOLD
+    draw_big_text(stdscr, start_row, title, title_attr)
 
-    # Subtitle lines
-    if subtitle_lines:
-        sub_attr = curses.color_pair(CP_WHITE) | curses.A_DIM
-        for j, sl in enumerate(subtitle_lines):
-            draw_centered(stdscr, start_row + 2 + j, sl, sub_attr)
+    if sub_lines:
+        sub_attr = curses.color_pair(CP_CYAN) | curses.A_DIM
+        sub_row = start_row + 7
+        for sl in sub_lines:
+            draw_centered(stdscr, sub_row, sl, sub_attr)
+            sub_row += 1
 
     stdscr.refresh()
 
@@ -503,71 +874,76 @@ def section_feature_highlights(stdscr):
     for (dur, title, subtitle) in FEATURE_CARDS:
         draw_feature_card(stdscr, title, subtitle)
         time.sleep(dur)
-
-        # Fade to black (instant)
         stdscr.clear()
         stdscr.refresh()
-        time.sleep(0.05)
+        time.sleep(0.04)
 
 
 # ---------------------------------------------------------------------------
-# SECTION 5: Finale
+# SECTION 5: Finale — synaptic-plasma + banner overlay
 # ---------------------------------------------------------------------------
 def draw_outro_overlay(stdscr, alpha=1.0):
-    """Draw the finale text overlay. alpha: 0.0 (invisible) to 1.0 (full)."""
-    h, w = stdscr.getmaxyx()
-
-    # Determine attrs based on alpha
     if alpha <= 0:
         return
+    h, w = stdscr.getmaxyx()
 
-    banner_attr = curses.color_pair(CP_MAGENTA) | curses.A_BOLD
-    link_attr   = curses.color_pair(CP_MAGENTA) | curses.A_BOLD
-    sub1_attr   = curses.color_pair(CP_WHITE) | curses.A_DIM
-    sub2_attr   = curses.color_pair(CP_WHITE) | curses.A_DIM
-
-    # If alpha < 0.5, use dim versions
+    # Purple gradient — 6 rows of HERMES, 6 rows of NEUROVISION
+    # Row 0 = brightest, row 5 = deepest. Use A_BOLD for top half, A_DIM for bottom.
+    HERMES_GRAD = [
+        curses.color_pair(CP_PUR0) | curses.A_BOLD,
+        curses.color_pair(CP_PUR1) | curses.A_BOLD,
+        curses.color_pair(CP_PUR2) | curses.A_BOLD,
+        curses.color_pair(CP_PUR3),
+        curses.color_pair(CP_PUR4),
+        curses.color_pair(CP_PUR5) | curses.A_DIM,
+    ]
+    NEURO_GRAD = [
+        curses.color_pair(CP_PUR1) | curses.A_BOLD,
+        curses.color_pair(CP_PUR2) | curses.A_BOLD,
+        curses.color_pair(CP_PUR3),
+        curses.color_pair(CP_PUR4),
+        curses.color_pair(CP_PUR5),
+        curses.color_pair(CP_PUR5) | curses.A_DIM,
+    ]
     if alpha < 0.5:
-        banner_attr = curses.color_pair(CP_MAGENTA) | curses.A_DIM
-        link_attr   = curses.color_pair(CP_MAGENTA) | curses.A_DIM
-        sub1_attr   = curses.color_pair(CP_WHITE) | curses.A_DIM
-        sub2_attr   = curses.color_pair(CP_WHITE) | curses.A_DIM
+        HERMES_GRAD = [a | curses.A_DIM for a in HERMES_GRAD]
+        NEURO_GRAD  = [a | curses.A_DIM for a in NEURO_GRAD]
 
-    # Total block height:
-    # 6 lines HERMES + 1 blank + 6 lines NEUROVISION + 1 blank + 1 link + 1 blank + 1 tagline + 1 sub
-    total_height = 6 + 1 + 6 + 1 + 1 + 1 + 1 + 1
+    link_attr = curses.color_pair(CP_PINK) | curses.A_BOLD
+    sub_attr  = curses.color_pair(CP_WHITE) | curses.A_DIM
+
+    # Total block height: 6 + 1 + 6 + 1 + 1 + 1 + 1 + 1 = 18
+    total_height = 18
     start_row = max(0, (h - total_height) // 2)
-
     row = start_row
 
-    # HERMES banner
-    for bline in HERMES_BANNER:
-        # Center it
+    for ri, bline in enumerate(HERMES_BANNER):
         x = max(0, (w - len(bline)) // 2)
-        safe_addstr(stdscr, row, x, bline, banner_attr)
+        attr = HERMES_GRAD[ri] if ri < len(HERMES_GRAD) else HERMES_GRAD[-1]
+        for ci, ch in enumerate(bline):
+            if ch != ' ':
+                try:
+                    stdscr.addstr(row, x + ci, ch, attr)
+                except curses.error:
+                    pass
         row += 1
-
-    row += 1  # blank line
-
-    # NEUROVISION banner
-    for bline in NEUROVISION_BANNER:
+    row += 1  # blank
+    for ri, bline in enumerate(NEUROVISION_BANNER):
         x = max(0, (w - len(bline)) // 2)
-        safe_addstr(stdscr, row, x, bline, banner_attr)
+        attr = NEURO_GRAD[ri] if ri < len(NEURO_GRAD) else NEURO_GRAD[-1]
+        for ci, ch in enumerate(bline):
+            if ch != ' ':
+                try:
+                    stdscr.addstr(row, x + ci, ch, attr)
+                except curses.error:
+                    pass
         row += 1
-
-    row += 1  # blank line
-
-    # Link
-    link = "github.com/Tranquil-Flow/hermes-neurovision"
-    draw_centered(stdscr, row, link, link_attr)
+    row += 1  # blank
+    draw_centered(stdscr, row, "github.com/Tranquil-Flow/hermes-neurovision", link_attr)
+    row += 2
+    draw_centered(stdscr, row, "Build your own screen today!", sub_attr)
     row += 1
-
-    row += 1  # blank line
-
-    # Taglines
-    draw_centered(stdscr, row, "Build your own screen today!", sub1_attr)
-    row += 1
-    draw_centered(stdscr, row, "Then ask your agent to generate a screen based on your idea!", sub2_attr)
+    draw_centered(stdscr, row, "Then ask your agent to generate a screen based on your idea!", sub_attr)
 
 
 def section_finale(stdscr, renderer):
@@ -578,9 +954,8 @@ def section_finale(stdscr, renderer):
     stdscr.refresh()
     time.sleep(3.0)
 
-    # Fade in synaptic-plasma + outro text over remaining ~4 seconds
-    state = make_state("synaptic-plasma", w, h, seed=999)
-    fade_duration = 4.0
+    state = make_state("halvorsen-star", w, h, seed=999)
+    fade_duration = 2.0
     total_hold = 7.0
     fade_start = time.time()
     deadline = fade_start + total_hold
@@ -591,75 +966,52 @@ def section_finale(stdscr, renderer):
         alpha = min(1.0, elapsed / fade_duration)
 
         state.step()
-
-        if alpha > 0.1:
-            # Only render theme once fading in begins
+        if alpha > 0.05:
             try:
-                renderer.draw(state, 0, 1, deadline, hide_hud=True)
+                renderer.draw(state, 0, 1, deadline, hide_hud=True, skip_refresh=True)
             except Exception:
                 pass
+            reinit_overlay_colors()
         else:
             stdscr.clear()
 
-        # Draw outro overlay
         draw_outro_overlay(stdscr, alpha)
-
         stdscr.refresh()
         time.sleep(FRAME_DELAY)
 
 
 # ---------------------------------------------------------------------------
-# Main demo runner
+# Main
 # ---------------------------------------------------------------------------
 def run_demo(stdscr):
-    """Main demo sequence entry point (called by curses.wrapper)."""
-    # Basic curses setup
     curses.curs_set(0)
     stdscr.nodelay(True)
     stdscr.timeout(0)
-
     init_colors()
-    stdscr.bkgd(' ', curses.color_pair(CP_WHITE))
 
-    # Build renderer once (reused for all theme screens)
     renderer = Renderer(stdscr)
 
     try:
-        # --- SECTION 1: Early Builds (27 sec) ---
         section_early_builds(stdscr, renderer)
-
-        # --- SECTION 2: Terminal Boot (6 sec) ---
-        section_terminal_boot(stdscr)
-
-        # --- SECTION 3: v0.2.0 Showcase (27 sec) ---
+        section_terminal_boot(stdscr, renderer)
         section_v020_showcase(stdscr, renderer)
-
-        # --- SECTION 4: Feature Highlights (~14 sec) ---
         section_feature_highlights(stdscr)
-
-        # --- SECTION 5: Finale (7 sec) ---
         section_finale(stdscr, renderer)
-
     except KeyboardInterrupt:
         pass
 
-    # Clean exit
     stdscr.clear()
     stdscr.refresh()
 
 
-# ---------------------------------------------------------------------------
-# Entry points
-# ---------------------------------------------------------------------------
 def main():
-    """CLI entry point."""
     try:
         curses.wrapper(run_demo)
     except KeyboardInterrupt:
         pass
     except Exception as e:
         print(f"Demo error: {e}", file=sys.stderr)
-        sys.exit(1)
+        raise
 
 
 if __name__ == "__main__":
