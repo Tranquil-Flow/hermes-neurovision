@@ -212,6 +212,99 @@ class LorenzButterflyPlugin(_AttractorBase):
         return _rainbow_pair(x / max(w - 1, 1))
 
 
+    # ── v0.2: Post-FX ─────────────────────────────────────────────────────────
+
+    def echo_decay(self):
+        return 4
+
+    def glow_radius(self):
+        return 1
+
+    def warp_field(self, x, y, w, h, frame, intensity):
+        """The attractor's chaotic field warps nearby space."""
+        xf = x / max(w, 1) - 0.5
+        yf = y / max(h, 1) - 0.5
+        t = frame * 0.025
+        # Chaotic butterfly-like warp: x warps y more than itself
+        amp = intensity * 1.5
+        wx = int(amp * math.sin(t * 1.1 + yf * 8.0))
+        wy = int(amp * 0.6 * math.cos(t * 0.9 + xf * 6.0))
+        nx = max(0, min(w - 1, x + wx))
+        ny = max(0, min(h - 1, y + wy))
+        return (nx, ny)
+
+    # ── v0.2: Intensity curve ─────────────────────────────────────────────────
+
+    def intensity_curve(self, raw):
+        return raw ** 0.8
+
+    # ── v0.2: Reactive system ─────────────────────────────────────────────────
+
+    def react(self, event_kind, data):
+        cx, cy = 0.5, 0.5
+        rng = random
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.9,
+                            origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "llm_start":
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.8,
+                            origin=(0.0, cy), color_key="accent", duration=3.5,
+                            data={"direction": "horizontal"})
+        if event_kind == "llm_chunk":
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.4,
+                            origin=(rng.random(), rng.random()),
+                            color_key="bright", duration=0.5)
+        if event_kind == "tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.65,
+                            origin=(rng.random(), rng.random()),
+                            color_key="accent", duration=1.5)
+        if event_kind == "memory_save":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.75,
+                            origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "error":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                            origin=(rng.random(), rng.random()),
+                            color_key="warning", duration=2.0)
+        if event_kind == "reasoning_change":
+            return Reaction(element=ReactiveElement.GLYPH, intensity=0.7,
+                            origin=(cx, cy), color_key="accent", duration=2.0,
+                            data={"bifurcation": True})
+        return None
+
+    # ── v0.2: Palette shift ───────────────────────────────────────────────────
+
+    def palette_shift(self, trigger_effect, intensity, base_palette):
+        return None
+
+    # ── v0.2: Special effects ─────────────────────────────────────────────────
+
+    def special_effects(self):
+        return [SpecialEffect(name="butterfly-effect", trigger_kinds=["burst"],
+                              min_intensity=0.3, cooldown=5.0, duration=3.0)]
+
+    def draw_special(self, stdscr, state, color_pairs, special_name, progress, intensity):
+        if special_name != "butterfly-effect":
+            return
+        w, h = state.width, state.height
+        _ensure_rainbow()
+        cx2, cy2 = w // 2, h // 2
+        # Two expanding wings — butterfly shape
+        for wing in (-1, 1):
+            max_r = int(min(w // 2, h // 2) * progress * 1.5)
+            for r in range(1, max(2, max_r), 2):
+                for a_deg in range(-60, 61, 8):
+                    a = math.radians(a_deg)
+                    px = cx2 + wing * int(r * math.cos(a) * 2)
+                    py = cy2 + int(r * math.sin(a))
+                    if 1 <= py < h - 1 and 0 <= px < w - 1:
+                        hue_t = (r / max(max_r, 1) + state.frame * 0.01) % 1.0
+                        pair = _rainbow_pair(hue_t)
+                        try:
+                            stdscr.addstr(py, px, "·", pair | curses.A_BOLD)
+                        except curses.error:
+                            pass
+
+
 register(LorenzButterflyPlugin())
 
 
@@ -289,6 +382,99 @@ class RosslerRibbonPlugin(_AttractorBase):
         self._fast_decay = True
         super().draw_extras(stdscr, state, color_pairs)
         self._fast_decay = False
+
+    # ── v0.2: Post-FX ─────────────────────────────────────────────────────────
+
+    def emergent_layer(self):
+        return "background"
+
+    def echo_decay(self):
+        return 5
+
+    def glow_radius(self):
+        return 1
+
+    def warp_field(self, x, y, w, h, frame, intensity):
+        """Gentle sinusoidal ripple following the ribbon's curvature."""
+        xf = x / max(w, 1)
+        yf = y / max(h, 1)
+        t = frame * 0.018
+        amp = intensity * 1.2
+        wx = int(amp * math.sin(t + yf * 5.0))
+        wy = int(amp * 0.5 * math.sin(t * 0.7 + xf * 4.0))
+        nx = max(0, min(w - 1, x + wx))
+        ny = max(0, min(h - 1, y + wy))
+        return (nx, ny)
+
+    def wave_config(self):
+        return {"speed": 0.3, "damping": 0.98}
+
+    # ── v0.2: Intensity curve ─────────────────────────────────────────────────
+
+    def intensity_curve(self, raw):
+        return raw ** 0.8
+
+    # ── v0.2: Reactive system ─────────────────────────────────────────────────
+
+    def react(self, event_kind, data):
+        cx, cy = 0.5, 0.5
+        rng = random
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.9,
+                            origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "llm_start":
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.8,
+                            origin=(cx, cy), color_key="accent", duration=3.5)
+        if event_kind == "llm_chunk":
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.4,
+                            origin=(rng.random(), rng.random()),
+                            color_key="bright", duration=0.5)
+        if event_kind == "tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.65,
+                            origin=(rng.random(), rng.random()),
+                            color_key="accent", duration=1.5)
+        if event_kind == "memory_save":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.75,
+                            origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "error":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                            origin=(rng.random(), rng.random()),
+                            color_key="warning", duration=2.0)
+        return None
+
+    # ── v0.2: Palette shift ───────────────────────────────────────────────────
+
+    def palette_shift(self, trigger_effect, intensity, base_palette):
+        return None
+
+    # ── v0.2: Special effects ─────────────────────────────────────────────────
+
+    def special_effects(self):
+        return [SpecialEffect(name="ribbon-spiral", trigger_kinds=["burst"],
+                              min_intensity=0.3, cooldown=5.0, duration=3.0)]
+
+    def draw_special(self, stdscr, state, color_pairs, special_name, progress, intensity):
+        if special_name != "ribbon-spiral":
+            return
+        w, h = state.width, state.height
+        _ensure_rainbow()
+        cx2, cy2 = w // 2, h // 2
+        # Expanding spiral
+        t = state.frame * 0.05
+        max_turns = int(progress * 5)
+        for i in range(max_turns * 30):
+            frac = i / max(max_turns * 30, 1)
+            angle = frac * math.tau * max_turns + t
+            r = frac * min(w // 2, h // 2)
+            px = cx2 + int(r * math.cos(angle) * 2)
+            py = cy2 + int(r * math.sin(angle))
+            if 1 <= py < h - 1 and 0 <= px < w - 1:
+                hue_t = (frac + state.frame * 0.005) % 1.0
+                pair = _rainbow_pair(hue_t)
+                try:
+                    stdscr.addstr(py, px, "·", pair | curses.A_BOLD)
+                except curses.error:
+                    pass
 
 
 # Patch _AttractorBase.draw_extras to respect _fast_decay flag on subclasses
@@ -782,6 +968,103 @@ class AizawaTorusPlugin(_AttractorBase):
         return _rainbow_pair(t)
 
 
+    # ── v0.2: Post-FX ─────────────────────────────────────────────────────────
+
+    def emergent_layer(self):
+        return "background"
+
+    def echo_decay(self):
+        return 6
+
+    def glow_radius(self):
+        return 2
+
+    def warp_field(self, x, y, w, h, frame, intensity):
+        """Toroidal warp — pixels curve around the torus axis."""
+        xf = x / max(w, 1) - 0.5
+        yf = y / max(h, 1) - 0.5
+        # Torus: major radius in xy, minor radius in z
+        # Warp in circular fashion around center
+        t = frame * 0.01
+        dist = math.sqrt(xf * xf + yf * yf) + 0.001
+        # Angular warp — pixels rotate slightly around the center
+        angle = math.atan2(yf, xf)
+        warp_angle = angle + intensity * 0.15 * math.sin(t + dist * 6.0)
+        r_warped = dist * (1.0 + 0.08 * math.sin(t * 2.0 + angle * 4.0) * intensity)
+        nx = max(0, min(w - 1, int(w * (0.5 + r_warped * math.cos(warp_angle)))))
+        ny = max(0, min(h - 1, int(h * (0.5 + r_warped * math.sin(warp_angle)))))
+        return (nx, ny)
+
+    def wave_config(self):
+        return {"speed": 0.2, "damping": 0.99}
+
+    # ── v0.2: Intensity curve ─────────────────────────────────────────────────
+
+    def intensity_curve(self, raw):
+        return raw ** 0.9
+
+    # ── v0.2: Reactive system ─────────────────────────────────────────────────
+
+    def react(self, event_kind, data):
+        cx, cy = 0.5, 0.5
+        rng = random
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.9,
+                            origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "llm_start":
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.8,
+                            origin=(cx, cy), color_key="accent", duration=3.5)
+        if event_kind == "tool_call":
+            return Reaction(element=ReactiveElement.ORBIT, intensity=0.65,
+                            origin=(cx, cy), color_key="accent", duration=3.0)
+        if event_kind == "memory_save":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.75,
+                            origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "error":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                            origin=(rng.random(), rng.random()),
+                            color_key="warning", duration=2.0)
+        if event_kind == "cron_tick":
+            return Reaction(element=ReactiveElement.ORBIT, intensity=0.5,
+                            origin=(rng.random(), rng.random()),
+                            color_key="soft", duration=2.0)
+        return None
+
+    # ── v0.2: Palette shift ───────────────────────────────────────────────────
+
+    def palette_shift(self, trigger_effect, intensity, base_palette):
+        return None
+
+    # ── v0.2: Special effects ─────────────────────────────────────────────────
+
+    def special_effects(self):
+        return [SpecialEffect(name="torus-resonance", trigger_kinds=["burst"],
+                              min_intensity=0.3, cooldown=5.0, duration=3.0)]
+
+    def draw_special(self, stdscr, state, color_pairs, special_name, progress, intensity):
+        if special_name != "torus-resonance":
+            return
+        w, h = state.width, state.height
+        _ensure_rainbow()
+        cx2, cy2 = w // 2, h // 2
+        # Concentric torus rings radiating outward
+        max_rings = int(progress * 8)
+        for ring in range(1, max_rings + 1):
+            r_x = int(w * 0.35 * ring / max(max_rings, 1))
+            r_y = int(h * 0.35 * ring / max(max_rings, 1))
+            hue_t = (ring / max(max_rings, 1) + state.frame * 0.01) % 1.0
+            pair = _rainbow_pair(hue_t)
+            for a_deg in range(0, 360, 5):
+                a = math.radians(a_deg)
+                px = cx2 + int(r_x * math.cos(a))
+                py = cy2 + int(r_y * math.sin(a) * 0.6)
+                if 1 <= py < h - 1 and 0 <= px < w - 1:
+                    try:
+                        stdscr.addstr(py, px, "○", pair | curses.A_BOLD)
+                    except curses.error:
+                        pass
+
+
 register(AizawaTorusPlugin())
 
 
@@ -862,6 +1145,106 @@ class ThomasLabyrinthPlugin(_AttractorBase):
         self._fast_decay = True
         super().draw_extras(stdscr, state, color_pairs)
         self._fast_decay = False
+
+
+    # ── v0.2: Post-FX ─────────────────────────────────────────────────────────
+
+    def emergent_layer(self):
+        return "background"
+
+    def glow_radius(self):
+        return 1
+
+    def echo_decay(self):
+        return 5
+
+    def decay_sequence(self):
+        return "▓▒░·."
+
+    def physarum_config(self):
+        return {"n_agents": 200, "sensor_angle": 0.4, "sensor_dist": 4,
+                "speed": 0.9, "deposit": 1.2, "decay": 0.96}
+
+    # ── v0.2: Intensity curve ─────────────────────────────────────────────────
+
+    def intensity_curve(self, raw):
+        return raw ** 0.8
+
+    # ── v0.2: Reactive system ─────────────────────────────────────────────────
+
+    def react(self, event_kind, data):
+        cx, cy = 0.5, 0.5
+        rng = random
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.9,
+                            origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "llm_start":
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.8,
+                            origin=(cx, cy), color_key="accent", duration=3.5)
+        if event_kind == "llm_chunk":
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.4,
+                            origin=(rng.random(), rng.random()),
+                            color_key="bright", duration=0.5)
+        if event_kind == "tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.65,
+                            origin=(rng.random(), rng.random()),
+                            color_key="accent", duration=1.5)
+        if event_kind == "memory_save":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.75,
+                            origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "error":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                            origin=(rng.random(), rng.random()),
+                            color_key="warning", duration=2.0)
+        if event_kind == "browser_navigate":
+            return Reaction(element=ReactiveElement.TRAIL, intensity=0.55,
+                            origin=(0.0, rng.random()),
+                            color_key="accent", duration=2.0)
+        if event_kind == "file_edit":
+            return Reaction(element=ReactiveElement.TRAIL, intensity=0.5,
+                            origin=(0.0, rng.random()),
+                            color_key="soft", duration=2.0)
+        return None
+
+    # ── v0.2: Palette shift ───────────────────────────────────────────────────
+
+    def palette_shift(self, trigger_effect, intensity, base_palette):
+        return None
+
+    # ── v0.2: Special effects ─────────────────────────────────────────────────
+
+    def special_effects(self):
+        return [SpecialEffect(name="maze-solve", trigger_kinds=["burst"],
+                              min_intensity=0.3, cooldown=5.0, duration=3.0)]
+
+    def draw_special(self, stdscr, state, color_pairs, special_name, progress, intensity):
+        if special_name != "maze-solve":
+            return
+        w, h = state.width, state.height
+        _ensure_rainbow()
+        # A bright path traces from edge to center
+        cx2, cy2 = w // 2, h // 2
+        steps = int(progress * max(w, h) * 0.7)
+        f = state.frame
+        # Wandering path toward center
+        x = int(w * 0.1)
+        y = int(h * 0.5)
+        for i in range(steps):
+            t = i / max(steps, 1)
+            hue_t = (t + f * 0.005) % 1.0
+            pair = _rainbow_pair(hue_t)
+            # Simple path: move toward center with noise
+            dx = cx2 - x + int(math.sin(i * 0.3) * 3)
+            dy = cy2 - y + int(math.cos(i * 0.4) * 2)
+            if abs(dx) > abs(dy):
+                x += 1 if dx > 0 else -1
+            else:
+                y += 1 if dy > 0 else -1
+            if 1 <= y < h - 1 and 0 <= x < w - 1:
+                try:
+                    stdscr.addstr(y, x, "·", pair | curses.A_BOLD)
+                except curses.error:
+                    pass
 
 
 register(ThomasLabyrinthPlugin())

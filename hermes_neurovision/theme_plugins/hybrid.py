@@ -15,7 +15,7 @@ import curses
 import math
 from typing import List, Optional, Tuple
 
-from hermes_neurovision.plugin import ThemePlugin
+from hermes_neurovision.plugin import ThemePlugin, Reaction, ReactiveElement, SpecialEffect
 from hermes_neurovision.theme_plugins import register
 
 
@@ -86,6 +86,93 @@ class PlasmaGridPlugin(ThemePlugin):
                     stdscr.addstr(y, x, char, attr)
                 except curses.error:
                     pass
+
+
+    # ── v0.2: Emergent system ─────────────────────────────────────────────────
+
+    def wave_config(self):
+        return {"speed": 0.4, "damping": 0.97}
+
+    def emergent_layer(self):
+        return "background"
+
+    # ── v0.2: Post-FX ─────────────────────────────────────────────────────────
+
+    def glow_radius(self):
+        return 1
+
+    # ── v0.2: Intensity curve ─────────────────────────────────────────────────
+
+    def intensity_curve(self, raw):
+        return raw ** 0.8
+
+    # ── v0.2: Reactive system ─────────────────────────────────────────────────
+
+    def react(self, event_kind, data):
+        cx, cy = 0.5, 0.5
+        rng = __import__("random")
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.9,
+                            origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "llm_start":
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.8,
+                            origin=(cx, cy), color_key="accent", duration=3.5)
+        if event_kind == "llm_chunk":
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.4,
+                            origin=(rng.random(), rng.random()),
+                            color_key="bright", duration=0.5)
+        if event_kind == "tool_call":
+            # At grid node position (random 0.25/0.5/0.75)
+            pos = rng.choice([0.25, 0.5, 0.75])
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.65,
+                            origin=(pos, pos), color_key="accent", duration=1.5)
+        if event_kind == "memory_save":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.75,
+                            origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "error":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                            origin=(rng.random(), rng.random()),
+                            color_key="warning", duration=2.0)
+        if event_kind == "context_pressure":
+            return Reaction(element=ReactiveElement.GAUGE,
+                            intensity=data.get("level", 0.5),
+                            origin=(cx, cy), color_key="accent", duration=2.0)
+        return None
+
+    # ── v0.2: Palette shift ───────────────────────────────────────────────────
+
+    def palette_shift(self, trigger_effect, intensity, base_palette):
+        return None
+
+    # ── v0.2: Special effects ─────────────────────────────────────────────────
+
+    def special_effects(self):
+        return [SpecialEffect(name="grid-surge", trigger_kinds=["burst"],
+                              min_intensity=0.3, cooldown=5.0, duration=2.5)]
+
+    def draw_special(self, stdscr, state, color_pairs, special_name, progress, intensity):
+        if special_name != "grid-surge":
+            return
+        w, h = state.width, state.height
+        cp_bright = curses.color_pair(color_pairs.get("bright", 0)) | curses.A_BOLD
+        cp_accent = curses.color_pair(color_pairs.get("accent", 0))
+        # Flash all grid nodes with bright surging signal
+        cols = [int(w * 0.25), int(w * 0.50), int(w * 0.75)]
+        rows = [int(h * 0.30), int(h * 0.50), int(h * 0.70)]
+        surge_r = int(min(w, h) * 0.3 * math.sin(progress * math.pi))
+        for row in rows:
+            for col in cols:
+                for r in range(1, max(2, surge_r), 2):
+                    for a_deg in range(0, 360, 30):
+                        a = math.radians(a_deg)
+                        px = col + int(r * math.cos(a) * 2)
+                        py = row + int(r * math.sin(a))
+                        if 1 <= py < h - 1 and 0 <= px < w - 1:
+                            try:
+                                stdscr.addstr(py, px, "+",
+                                              cp_bright if r < surge_r // 2 else cp_accent)
+                            except curses.error:
+                                pass
 
 
 # ── Deep Signal ───────────────────────────────────────────────────────────────
@@ -159,6 +246,114 @@ class DeepSignalPlugin(ThemePlugin):
                     stdscr.addstr(y, x, char, cp_base)
                 except curses.error:
                     pass
+
+
+    # ── v0.2: Emergent system ─────────────────────────────────────────────────
+
+    def neural_field_config(self):
+        return {"threshold": 2, "fire_duration": 2, "refractory": 6}
+
+    def emergent_layer(self):
+        return "background"
+
+    # ── v0.2: Post-FX ─────────────────────────────────────────────────────────
+
+    def glow_radius(self):
+        return 1
+
+    def echo_decay(self):
+        return 4
+
+    # ── v0.2: Intensity curve ─────────────────────────────────────────────────
+
+    def intensity_curve(self, raw):
+        return raw ** 0.4
+
+    # ── v0.2: Reactive system ─────────────────────────────────────────────────
+
+    def react(self, event_kind, data):
+        cx, cy = 0.5, 0.5
+        rng = __import__("random")
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.9,
+                            origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "llm_start":
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.8,
+                            origin=(cx, cy), color_key="accent", duration=3.5)
+        if event_kind == "llm_chunk":
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.4,
+                            origin=(rng.random(), rng.random()),
+                            color_key="bright", duration=0.5)
+        if event_kind == "tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.6,
+                            origin=(rng.random(), rng.random()),
+                            color_key="accent", duration=1.5)
+        if event_kind == "memory_save":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.75,
+                            origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "error":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                            origin=(rng.random(), rng.random()),
+                            color_key="warning", duration=2.0)
+        if event_kind == "mcp_connected":
+            return Reaction(element=ReactiveElement.CONSTELLATION, intensity=0.8,
+                            origin=(cx, cy), color_key="bright", duration=3.0)
+        if event_kind == "provider_health":
+            return Reaction(element=ReactiveElement.CONSTELLATION, intensity=0.6,
+                            origin=(cx, cy), color_key="accent", duration=2.5)
+        if event_kind == "cron_tick":
+            return Reaction(element=ReactiveElement.ORBIT, intensity=0.5,
+                            origin=(rng.random(), rng.random()),
+                            color_key="soft", duration=2.0)
+        return None
+
+    # ── v0.2: Palette shift ───────────────────────────────────────────────────
+
+    def palette_shift(self, trigger_effect, intensity, base_palette):
+        return None
+
+    # ── v0.2: Special effects ─────────────────────────────────────────────────
+
+    def special_effects(self):
+        return [SpecialEffect(name="signal-contact", trigger_kinds=["burst"],
+                              min_intensity=0.2, cooldown=5.0, duration=3.0)]
+
+    def draw_special(self, stdscr, state, color_pairs, special_name, progress, intensity):
+        if special_name != "signal-contact":
+            return
+        w, h = state.width, state.height
+        cp_bright = curses.color_pair(color_pairs.get("bright", 0)) | curses.A_BOLD
+        cp_accent = curses.color_pair(color_pairs.get("accent", 0))
+        # Constellation flash — connect all 6 nodes with bright lines
+        cx2, cy2 = w / 2.0, h / 2.0
+        r_x, r_y = w * 0.28, h * 0.28
+        nodes = [(cx2 + math.cos(math.tau * k / 6) * r_x,
+                  cy2 + math.sin(math.tau * k / 6) * r_y)
+                 for k in range(6)]
+        flash = math.sin(progress * math.pi)
+        if flash > 0.3:
+            for i, (nx, ny) in enumerate(nodes):
+                try:
+                    stdscr.addstr(int(ny), int(nx), "◈", cp_bright)
+                except curses.error:
+                    pass
+                # Connect to next node
+                nx2, ny2 = nodes[(i + 1) % 6]
+                steps = max(abs(int(nx2) - int(nx)), abs(int(ny2) - int(ny)))
+                for s in range(1, max(1, steps)):
+                    t = s / max(steps, 1)
+                    px = int(nx + (nx2 - nx) * t)
+                    py = int(ny + (ny2 - ny) * t)
+                    if 1 <= py < h - 1 and 0 <= px < w - 1:
+                        try:
+                            stdscr.addstr(py, px, "·", cp_accent)
+                        except curses.error:
+                            pass
+
+    # ── v0.2: Ambient tick ────────────────────────────────────────────────────
+
+    def ambient_tick(self, stdscr, state, color_pairs, idle_seconds):
+        pass  # slow scan signal pulses continuously via draw_background
 
 
 register(PlasmaGridPlugin())
