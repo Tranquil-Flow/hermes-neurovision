@@ -479,16 +479,29 @@ class KaleidoscopePlugin(ThemePlugin):
 
     def render_mask(self, w: int, h: int, frame: int,
                     intensity: float) -> Optional[List[List[bool]]]:
-        """Circular aperture mask."""
-        cx, cy = w / 2, h / 2
-        r = min(cx - 1, cy - 1) * 0.92
+        """Slow-rotating diamond aperture — distinct from round kaleidoscopes.
+
+        The diamond itself rotates one full turn every ~1200 frames so the
+        mask shape evolves while the physarum patterns grow inside it.
+        """
+        cx, cy = w / 2.0, h / 2.0
+        rx = cx * 0.90
+        ry = cy * 0.88
+        # Rotate the test angle slowly
+        rot = frame * 0.00524  # 2pi / 1200 frames
+        cos_r, sin_r = math.cos(rot), math.sin(rot)
         mask = []
         for row in range(h):
             line = []
             for col in range(w):
-                dx = (col - cx) / 2.0  # aspect correction
-                dy = row - cy
-                line.append((dx * dx + dy * dy) <= r * r)
+                # Aspect-corrected displacement
+                ndx = (col - cx) / max(rx, 1.0)
+                ndy = (row - cy) / max(ry, 1.0)
+                # Rotate point into diamond's local frame
+                lx = ndx * cos_r + ndy * sin_r
+                ly = -ndx * sin_r + ndy * cos_r
+                # Diamond: L1 norm <= 1
+                line.append(abs(lx) + abs(ly) <= 0.97)
             mask.append(line)
         return mask
 

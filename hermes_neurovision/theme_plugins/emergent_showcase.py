@@ -573,16 +573,24 @@ class TidePoolTheme(ThemePlugin):
 
     def render_mask(self, w: int, h: int, frame: int,
                     intensity: float) -> Optional[List[List[bool]]]:
-        """Circular stencil mask — only render inside a large circle."""
-        cx, cy = w / 2, h / 2
-        r = min(cx - 2, (cy - 1) * 2) * 0.9  # adjusted for aspect
+        """Hexagonal pool mask — six-sided aperture matching tide-pool shape."""
+        cx, cy = w / 2.0, h / 2.0
+        # Inscribed hex radius in terminal units
+        rx = cx * 0.92
+        ry = cy * 0.88
         mask: List[List[bool]] = []
         for row in range(h):
             line: List[bool] = []
             for col in range(w):
-                dx = (col - cx) / 2.0  # aspect correction
-                dy = row - cy
-                line.append((dx * dx + dy * dy) <= (r / 2) ** 2)
+                # Normalise to unit space with aspect correction
+                nx = (col - cx) / max(rx, 1.0)
+                ny = (row - cy) / max(ry, 1.0)
+                # Hex inside test: max(|x|, |x/2 + y*sqrt3/2|, |x/2 - y*sqrt3/2|) <= 1
+                s3 = 0.866
+                inside = max(abs(nx),
+                             abs(nx * 0.5 + ny * s3),
+                             abs(nx * 0.5 - ny * s3)) <= 0.96
+                line.append(inside)
             mask.append(line)
         return mask
 

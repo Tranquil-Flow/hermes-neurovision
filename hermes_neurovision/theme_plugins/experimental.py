@@ -103,6 +103,10 @@ class CliffordAttractorPlugin(ThemePlugin):
         decay  = 0.975 - 0.01 * intensity
         chars  = " \u00b7.,:;=+*#\u2593\u2588"
         n_chars = len(chars)
+        # hue rotates around the attractor geometry — angle from center
+        cx_f = w / 2.0
+        cy_f = h / 2.0
+        hue_base = (f * 0.0028) % 1.0
 
         for y in range(1, h - 1):
             row = grid[y]
@@ -112,14 +116,20 @@ class CliffordAttractorPlugin(ThemePlugin):
                 idx = int(v * (n_chars - 1))
                 idx = max(0, min(n_chars - 1, idx))
                 ch  = chars[idx]
-                if v > 0.75:
-                    attr = bright_attr
-                elif v > 0.40:
-                    attr = accent_attr
-                elif v > 0.15:
-                    attr = soft_attr
-                else:
+                if v < 0.05:
                     attr = base_dim
+                else:
+                    # phase: angle from center so colors form a slow angular sweep
+                    angle = math.atan2(y - cy_f, x - cx_f)
+                    phase = (hue_base + angle / (2 * math.pi)) % 1.0
+                    if (v + phase) % 1.0 > 0.72:
+                        attr = bright_attr
+                    elif (v + phase) % 1.0 > 0.48:
+                        attr = accent_attr
+                    elif (v + phase) % 1.0 > 0.24:
+                        attr = soft_attr
+                    else:
+                        attr = base_dim
                 try:
                     stdscr.addstr(y, x, ch, attr)
                 except curses.error:
@@ -243,6 +253,8 @@ class BarnsleyFernPlugin(ThemePlugin):
         decay  = 0.984
         chars  = " \u00b7.;+*@\u2593\u2588"
         n_chars = len(chars)
+        # For fern/IFS: hue flows along y axis (growth direction) + time
+        hue_base = (f * 0.0032) % 1.0
 
         for y in range(1, h - 1):
             row = grid[y]
@@ -251,14 +263,21 @@ class BarnsleyFernPlugin(ThemePlugin):
                 row[x] = v
                 idx = max(0, min(n_chars - 1, int(v * (n_chars - 1))))
                 ch  = chars[idx]
-                if v > 0.7:
-                    attr = bright_attr
-                elif v > 0.35:
-                    attr = accent_attr
-                elif v > 0.12:
-                    attr = soft_attr
-                else:
+                if v < 0.04:
                     attr = base_dim
+                else:
+                    # phase climbs from root (bottom) to tip — green→white gradient
+                    # that sweeps upward over time
+                    phase = (hue_base + (h - y) / max(h, 1) * 0.5
+                             + x / max(w, 1) * 0.15) % 1.0
+                    if (v + phase) % 1.0 > 0.72:
+                        attr = bright_attr
+                    elif (v + phase) % 1.0 > 0.48:
+                        attr = accent_attr
+                    elif (v + phase) % 1.0 > 0.24:
+                        attr = soft_attr
+                    else:
+                        attr = base_dim
                 try:
                     stdscr.addstr(y, x, ch, attr)
                 except curses.error:
@@ -380,12 +399,22 @@ class FlowFieldPlugin(ThemePlugin):
                 row[x] = v
 
                 if v > 0.08:
-                    chars = "\u00b7.:+*\u2593"
-                    idx   = int(v * (len(chars) - 1))
-                    idx   = max(0, min(len(chars) - 1, idx))
-                    attr  = soft_attr if v < 0.4 else (accent_attr if v < 0.75 else bright_attr)
+                    fchars = "\u00b7.:+*\u2593"
+                    idx   = int(v * (len(fchars) - 1))
+                    idx   = max(0, min(len(fchars) - 1, idx))
+                    # phase: trail color follows the field angle + time
+                    # so particles leave color-coded streaks by direction
+                    fvx, fvy = self._field(x, y, t, w, h)
+                    fang  = math.atan2(fvy, fvx)
+                    phase = (t * 0.08 + fang / (2 * math.pi) + v * 0.3) % 1.0
+                    if (v + phase) % 1.0 > 0.72:
+                        attr = bright_attr
+                    elif (v + phase) % 1.0 > 0.48:
+                        attr = accent_attr
+                    else:
+                        attr = soft_attr
                     try:
-                        stdscr.addstr(y, x, chars[idx], attr)
+                        stdscr.addstr(y, x, fchars[idx], attr)
                     except curses.error:
                         pass
                 elif (x % 5 == 2) and (y % 3 == 1):
