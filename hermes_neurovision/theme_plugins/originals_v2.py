@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import curses
 import math
+import random
 from typing import List, Optional, Tuple
 
 from hermes_neurovision.plugin import ThemePlugin
@@ -17,99 +18,199 @@ from hermes_neurovision.theme_plugins import register
 # ── Black Hole ─────────────────────────────────────────────────────────────────
 
 class BlackHoleV2Plugin(ThemePlugin):
-    """Relativistic black hole: event horizon, photon sphere, accretion disk, jets, lensed stars."""
+    """Relativistic black hole — Keplerian particle orbits, frame-drag, fast Keplerian disk shear.
+
+    Every star particle orbits at its own angular velocity (omega ∝ r^-1.5) so
+    inner orbits spin dramatically faster than outer ones.  The accretion disk
+    co-rotates with the same Keplerian shear.  Frame-drag (Kerr metric approx)
+    bends the lensed-star field each frame.  Captured stars are replaced at the
+    outer edge so the field never empties.
+    """
     name = "black-hole"
+
+    _N_STARS = 90
+    _AY      = 2.1   # terminal cell aspect ratio (height/width of a character)
+
+    def __init__(self):
+        super().__init__()
+        self._stars = []   # [x, y, r, theta, omega, brightness, char_idx]
+        self._rng   = random.Random(31415)
+        self._rs    = 0.0  # cached Schwarzschild radius from last frame
 
     def build_nodes(self, w, h, cx, cy, count, rng):
         return []
 
+    def _spawn_star(self, cx, cy, rs, rng, r=None):
+        ay = self._AY
+        if r is None:
+            # Flat random in log-space so inner region has real coverage
+            r = math.exp(rng.uniform(math.log(rs * 2.8), math.log(rs * 10.0)))
+        theta = rng.uniform(0, math.tau)
+        # Keplerian: omega = K * r^-1.5, calibrated so innermost stars lap ~every 60 frames
+        omega = 0.55 * (rs / r) ** 1.5
+        bright = rng.uniform(0.45, 1.0)
+        ci = rng.randint(0, 3)
+        x = cx + math.cos(theta) * r
+        y = cy + math.sin(theta) * r / ay
+        return [x, y, r, theta, omega, bright, ci]
+
     def draw_extras(self, stdscr, state, color_pairs):
         w, h, f = state.width, state.height, state.frame
-        cx, cy = w / 2.0, h / 2.0
+        cx, cy  = w / 2.0, h / 2.0
         intensity = state.intensity_multiplier
+        ay = self._AY
 
-        bright_attr = curses.color_pair(color_pairs["bright"]) | curses.A_BOLD
-        accent_attr = curses.color_pair(color_pairs["accent"]) | curses.A_BOLD
-        soft_attr   = curses.color_pair(color_pairs["soft"])
-        base_attr   = curses.color_pair(color_pairs["base"])
-        base_dim    = curses.color_pair(color_pairs["base"]) | curses.A_DIM
-        warn_attr   = curses.color_pair(color_pairs["warning"]) | curses.A_BOLD
+        bright_attr = curses.color_pair(color_pairs.get("bright", 1)) | curses.A_BOLD
+        accent_attr = curses.color_pair(color_pairs.get("accent", 1)) | curses.A_BOLD
+        soft_attr   = curses.color_pair(color_pairs.get("soft",   1))
+        base_attr   = curses.color_pair(color_pairs.get("base",   1))
+        base_dim    = curses.color_pair(color_pairs.get("base",   1)) | curses.A_DIM
+        warn_attr   = curses.color_pair(color_pairs.get("warning",1)) | curses.A_BOLD
 
-        rs = min(w * 0.07, h * 0.14)   # Schwarzschild radius
-        ay = 2.1                         # terminal cell aspect ratio
+        rs = min(w * 0.07, h * 0.14)
+        self._rs = rs
+
+        # ── Initialise / re-init star pool on first frame or resize ──
+        if not self._stars:
+            for _ in range(self._N_STARS):
+                self._stars.append(self._spawn_star(cx, cy, rs, self._rng))
+
+        # ── Step every star: Keplerian orbit + slow inward spiral ──────
+        stepped = []
+        for star in self._stars:
+            sx, sy, r, theta, omega, bright, ci = star
+            theta += omega
+            r     *= 0.99985      # tiny inward drift — accretion
+            if r < rs * 1.25:
+                # Captured — respawn far out
+                star = self._spawn_star(cx, cy, rs, self._rng,
+                                        r=self._rng.uniform(rs * 7.0, rs * 10.5))
+                stepped.append(star)
+                continue
+            sx = cx + math.cos(theta) * r
+            sy = cy + math.sin(theta) * r / ay
+            stepped.append([sx, sy, r, theta, omega, bright, ci])
+        self._stars = stepped
+
+        # ── Per-pixel analytical field ──────────────────────────────────
+        # Keplerian disk speed calibration constant (matches star omega formula)
+        K_disk = 0.55
 
         for y in range(1, h - 1):
             for x in range(0, w - 1):
-                dx = x - cx
-                dy = (y - cy) * ay
-                r  = math.sqrt(dx * dx + dy * dy)
-                theta = math.atan2(dy, dx)
+                dx     = x - cx
+                dy     = (y - cy) * ay
+                r      = math.sqrt(dx * dx + dy * dy)
+                theta  = math.atan2(dy, dx)
 
-                # Event horizon
+                # ── Event horizon void ──
+                if r < rs * 0.92:
+                    try: stdscr.addstr(y, x, " ", base_dim)
+                    except curses.error: pass
+                    continue
+
                 if r < rs:
-                    try:
-                        stdscr.addstr(y, x, "\u2588", base_dim)
-                    except curses.error:
-                        pass
+                    try: stdscr.addstr(y, x, "█", base_dim)
+                    except curses.error: pass
                     continue
 
-                # Photon sphere glowing ring
-                if abs(r - rs * 1.5) < rs * 0.35:
-                    glow = 1.0 - abs(r - rs * 1.5) / (rs * 0.35)
-                    ch = "\u2593" if glow > 0.65 else "\u2592"
+                # ── Kerr frame-drag: angular shift ∝ 1/r² ──────────────
+                frame_drag   = (rs * rs) / (r * r + 0.01) * 1.2
+                dragged_theta = theta + frame_drag
+
+                # ── Photon sphere — rotating glyph ring ────────────────
+                photon_r = rs * 1.5
+                ph_dist  = abs(r - photon_r)
+                if ph_dist < rs * 0.45:
+                    glow      = 1.0 - ph_dist / (rs * 0.45)
+                    # Characters advance around the ring at frame speed
+                    ring_phase = (dragged_theta + f * 0.10) % math.tau
+                    rchars     = "◉●◎○·∘"
+                    rci        = int(ring_phase / math.tau * len(rchars)) % len(rchars)
+                    ch         = rchars[rci]
                     try:
-                        stdscr.addstr(y, x, ch, warn_attr if glow > 0.65 else accent_attr)
-                    except curses.error:
-                        pass
+                        stdscr.addstr(y, x, ch,
+                                      warn_attr if glow > 0.65
+                                      else (accent_attr if glow > 0.35 else soft_attr))
+                    except curses.error: pass
                     continue
 
-                # Relativistic jets (vertical bands above/below)
-                jet_hw = rs * 0.45
-                if abs(dx) < jet_hw and r > rs * 1.1:
+                # ── Relativistic jets — very fast wave ─────────────────
+                jet_hw = rs * 0.55
+                if abs(dx) < jet_hw and r > rs * 1.05:
                     frac = 1.0 - abs(dx) / jet_hw
-                    wave = math.sin(r * 0.35 - f * 0.18) * 0.5 + 0.5
-                    v = frac * wave * intensity
-                    if v > 0.25:
-                        ch = "\u2502\u2551\u2503|!"[int(v * 4.9)]
+                    wave = math.sin(r * 0.5 - f * 0.30) * 0.5 + 0.5
+                    v    = frac * wave * intensity
+                    if v > 0.18:
+                        jchars = "│║┃|!▒░"
+                        jci    = min(len(jchars) - 1, int(v * len(jchars)))
                         try:
-                            stdscr.addstr(y, x, ch, bright_attr if v > 0.6 else accent_attr)
-                        except curses.error:
-                            pass
+                            stdscr.addstr(y, x, jchars[jci],
+                                          bright_attr if v > 0.6 else accent_attr)
+                        except curses.error: pass
                         continue
 
-                # Accretion disk (thin torus seen at ~15° inclination)
-                # Disk plane: we see it foreshortened — sin(theta) measures out-of-plane
-                in_disk = abs(math.sin(theta)) < 0.18
-                if rs * 1.8 <= r <= rs * 6.5 and in_disk:
-                    # Doppler: left side = approaching (bright), right = receding (dim)
-                    doppler     = math.cos(theta - f * 0.007)
-                    radial_fade = 1.0 - (r - rs * 1.8) / (rs * 4.7)
-                    density     = radial_fade * (0.5 + 0.5 * doppler) * intensity
-                    chars = " .:+*#@"
-                    idx = max(1, min(len(chars) - 1, int(density * (len(chars) - 1))))
-                    ch  = chars[idx]
-                    attr = warn_attr if doppler > 0.4 else (accent_attr if density > 0.4 else soft_attr)
-                    try:
-                        stdscr.addstr(y, x, ch, attr)
-                    except curses.error:
-                        pass
+                # ── Accretion disk — Keplerian shear ───────────────────
+                # 15° inclination: disk visible where |sin(θ)| < 0.22
+                in_disk = abs(math.sin(dragged_theta)) < 0.22
+                if rs * 1.8 <= r <= rs * 7.5 and in_disk:
+                    local_omega  = K_disk * (rs / r) ** 1.5
+                    orbit_phase  = dragged_theta - f * local_omega
+                    # Relativistic Doppler: approaching side is blueshift-bright
+                    doppler      = math.cos(orbit_phase)
+                    radial_fade  = 1.0 - (r - rs * 1.8) / (rs * 5.7)
+                    density      = radial_fade * (0.4 + 0.6 * (doppler + 1.0) / 2.0) * intensity
+                    temp         = rs * 3.5 / r  # inner disk hotter
+                    dchars       = " ·:+*#@█"
+                    idx          = max(1, min(len(dchars) - 1, int(density * (len(dchars) - 1))))
+                    ch           = dchars[idx]
+                    if temp > 1.3:
+                        attr = warn_attr if doppler > 0.2 else accent_attr
+                    elif density > 0.55:
+                        attr = accent_attr
+                    else:
+                        attr = soft_attr
+                    try: stdscr.addstr(y, x, ch, attr)
+                    except curses.error: pass
                     continue
 
-                # Gravitational lensing of background stars
-                lens_angle = theta + (rs * rs) / (r * r + 0.1) * 0.4
-                star_hash  = math.sin(lens_angle * 19.3) * math.cos(r * 0.07 + lens_angle * 7.1)
-                if star_hash > 0.88:
-                    bright = (star_hash - 0.88) / 0.12
-                    try:
-                        stdscr.addstr(y, x, "*" if bright > 0.6 else "\u00b7",
-                                      bright_attr if bright > 0.6 else soft_attr)
-                    except curses.error:
-                        pass
+                # ── Gravitationally lensed star background ─────────────
+                # Lens bends apparent positions; add f-dependent shimmer
+                lens       = (rs * rs) / (r * r + 0.01) * 2.0
+                lens_theta = dragged_theta + lens * math.sin(dragged_theta + f * 0.003)
+                sv         = (math.sin(lens_theta * 17.3)
+                              * math.cos(r * 0.09 + lens_theta * 5.7))
+                if sv > 0.82:
+                    bright = (sv - 0.82) / 0.18
+                    # Phase-shifted color so lensed stars aren't all one colour
+                    phase  = (f * 0.003 + lens_theta / math.tau) % 1.0
+                    if (bright + phase) % 1.0 > 0.55:
+                        attr = bright_attr
+                    else:
+                        attr = soft_attr
+                    try: stdscr.addstr(y, x, "*" if bright > 0.55 else "·", attr)
+                    except curses.error: pass
                 else:
-                    try:
-                        stdscr.addstr(y, x, " ", base_dim)
-                    except curses.error:
-                        pass
+                    try: stdscr.addstr(y, x, " ", base_dim)
+                    except curses.error: pass
+
+        # ── Draw live orbiting star particles on top ────────────────────
+        schars = ["✦", "·", "*", "○"]
+        for sx, sy, r, theta, omega, bright, ci in self._stars:
+            px, py = int(sx), int(sy)
+            if 1 <= py < h - 1 and 0 <= px < w - 1:
+                blueshift = min(1.0, rs * 3.5 / max(r, 0.1))
+                ch        = schars[ci % len(schars)]
+                if blueshift > 0.65:
+                    attr = warn_attr
+                elif blueshift > 0.35 or bright > 0.75:
+                    attr = bright_attr
+                elif bright > 0.5:
+                    attr = soft_attr
+                else:
+                    attr = base_attr
+                try: stdscr.addstr(py, px, ch, attr)
+                except curses.error: pass
 
 
 register(BlackHoleV2Plugin())
