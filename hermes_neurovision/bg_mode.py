@@ -194,16 +194,22 @@ def _terminal_set_opacity(opacity: float) -> bool:
 
     Sets every open window so tab/split setups are also covered.
     backgroundAlpha convention matches ours: 1.0 = opaque, 0.0 = transparent.
+
+    Uses multiple -e flags (one per line) instead of a single multi-line
+    string — osascript does not parse embedded newlines inside a single -e arg.
     """
     opacity = max(0.0, min(1.0, opacity))
-    script = (
-        f'tell application "Terminal" to repeat with w in windows\n'
-        f'  set backgroundAlpha of w to {round(opacity, 4)}\n'
-        f'end repeat'
-    )
+    val = str(round(opacity, 4))
     try:
         result = subprocess.run(
-            ["osascript", "-e", script],
+            [
+                "osascript",
+                "-e", 'tell application "Terminal"',
+                "-e", "repeat with w in windows",
+                "-e", f"  set backgroundAlpha of w to {val}",
+                "-e", "end repeat",
+                "-e", "end tell",
+            ],
             capture_output=True, text=True, timeout=3
         )
         return result.returncode == 0

@@ -507,13 +507,12 @@ def test_terminal_set_opacity_success():
     with patch("subprocess.run", return_value=mock_result) as mock_run:
         result = _terminal_set_opacity(0.5)
     assert result is True
-    cmd = mock_run.call_args[0][0]
-    # Should call osascript
-    assert "osascript" in cmd
-    # The script arg should contain the opacity value
-    script = mock_run.call_args[0][0][-1]
-    assert "0.5" in script
-    assert "backgroundAlpha" in script
+    argv = mock_run.call_args[0][0]
+    assert argv[0] == "osascript"
+    # All -e args joined should contain the opacity value and backgroundAlpha
+    all_args = " ".join(argv)
+    assert "0.5" in all_args
+    assert "backgroundAlpha" in all_args
 
 
 def test_terminal_set_opacity_clamps():
@@ -522,20 +521,34 @@ def test_terminal_set_opacity_clamps():
     mock_result.returncode = 0
     with patch("subprocess.run", return_value=mock_result) as mock_run:
         _terminal_set_opacity(1.5)   # over max
-    script = mock_run.call_args[0][0][-1]
-    # Should clamp to 1.0
-    assert "1.0" in script or "1" in script
+    argv = mock_run.call_args[0][0]
+    all_args = " ".join(argv)
+    assert "1.0" in all_args or "1" in all_args
 
 
 def test_terminal_set_opacity_all_windows():
-    """Script should iterate all windows, not just front window."""
+    """Script must use repeat/windows loop, not just front window."""
     from hermes_neurovision.bg_mode import _terminal_set_opacity
     mock_result = MagicMock()
     mock_result.returncode = 0
     with patch("subprocess.run", return_value=mock_result) as mock_run:
         _terminal_set_opacity(0.4)
-    script = mock_run.call_args[0][0][-1]
-    assert "repeat" in script or "windows" in script
+    all_args = " ".join(mock_run.call_args[0][0])
+    assert "repeat" in all_args
+    assert "windows" in all_args
+
+
+def test_terminal_set_opacity_uses_multiple_e_flags():
+    """Must pass multiple -e flags rather than a single multi-line string."""
+    from hermes_neurovision.bg_mode import _terminal_set_opacity
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    with patch("subprocess.run", return_value=mock_result) as mock_run:
+        _terminal_set_opacity(0.5)
+    argv = mock_run.call_args[0][0]
+    # Count the number of -e flags — must be more than one
+    e_count = argv.count("-e")
+    assert e_count >= 3, f"Expected multiple -e flags, got {e_count}"
 
 
 def test_terminal_roundtrip(tmp_config):
