@@ -83,12 +83,12 @@ def test_tune_overlay_exposes_current_settings():
 
 def test_tune_overlay_slider_count():
     overlay = TuneOverlay(TuneSettings())
-    assert overlay.slider_count == 6
+    assert overlay.slider_count == 13
 
 
 def test_tune_overlay_toggle_count():
     overlay = TuneOverlay(TuneSettings())
-    assert overlay.toggle_count == 12
+    assert overlay.toggle_count == 16
 
 
 def test_tune_overlay_row_count_equals_slider_plus_toggle():

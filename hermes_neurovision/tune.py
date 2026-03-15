@@ -19,6 +19,16 @@ _SLIDERS: List[Tuple[str, str, float, float, float]] = [
     ("Animation speed",   "animation_speed",   0.1, 5.0, 0.1),
 ]
 
+_SLIDERS += [
+    ("Warp strength",    "warp_strength",    0.0, 3.0, 0.1),
+    ("Void intensity",   "void_intensity",   0.0, 3.0, 0.1),
+    ("Force strength",   "force_strength",   0.0, 3.0, 0.1),
+    ("Decay rate",       "decay_rate",       0.0, 3.0, 0.1),
+    ("Emergent speed",   "emergent_speed",   0.0, 3.0, 0.1),
+    ("Emergent opacity", "emergent_opacity", 0.0, 1.0, 0.05),
+    ("Sound volume",     "sound_volume",     0.0, 1.0, 0.05),
+]
+
 # (label, attr_name)
 _TOGGLES: List[Tuple[str, str]] = [
     ("packets",    "show_packets"),
@@ -33,6 +43,13 @@ _TOGGLES: List[Tuple[str, str]] = [
     ("specials",   "show_specials"),
     ("overlays",   "show_overlays"),
     ("color_shifts", "color_shifts"),
+]
+
+_TOGGLES += [
+    ("mask",      "mask_enabled"),
+    ("symmetry",  "symmetry_enabled"),
+    ("reactive",  "reactive_elements"),
+    ("sound",     "sound_enabled"),
 ]
 
 
@@ -64,6 +81,28 @@ class TuneSettings:
     show_overlays: bool = True
     color_shifts: bool = True
 
+    # NEW — post-processing (Phase 4)
+    warp_strength: float = 1.0       # 0 = disabled
+    void_intensity: float = 1.0      # 0 = disabled
+    echo_frames: int = 0             # 0 = disabled (uses plugin default)
+    glow_radius: int = 0             # 0 = uses plugin default
+    mask_enabled: bool = True
+    force_strength: float = 1.0      # 0 = disabled
+    decay_rate: float = 1.0          # 0 = disabled
+    parallax_depth: int = 1          # 1 = flat (disabled)
+    symmetry_enabled: bool = True
+
+    # NEW — emergent systems (Phase 5, adding fields now)
+    emergent_speed: float = 1.0      # 0 = paused, 2.0 = double speed
+    emergent_opacity: float = 1.0    # 0 = invisible, 1.0 = full
+
+    # NEW — reactive element system (Phase 10)
+    reactive_elements: bool = True   # master toggle
+
+    # NEW — sound system (Phase 11)
+    sound_enabled: bool = True       # master toggle
+    sound_volume: float = 0.5        # 0.0-1.0
+
     def is_default(self) -> bool:
         return (
             self.burst_scale == 1.0
@@ -84,6 +123,20 @@ class TuneSettings:
             and self.show_specials
             and self.show_overlays
             and self.color_shifts
+            and self.warp_strength == 1.0
+            and self.void_intensity == 1.0
+            and self.echo_frames == 0
+            and self.glow_radius == 0
+            and self.mask_enabled
+            and self.force_strength == 1.0
+            and self.decay_rate == 1.0
+            and self.parallax_depth == 1
+            and self.symmetry_enabled
+            and self.emergent_speed == 1.0
+            and self.emergent_opacity == 1.0
+            and self.reactive_elements
+            and self.sound_enabled
+            and self.sound_volume == 0.5
         )
 
     def reset(self) -> None:
@@ -105,6 +158,20 @@ class TuneSettings:
         self.show_specials = True
         self.show_overlays = True
         self.color_shifts = True
+        self.warp_strength = 1.0
+        self.void_intensity = 1.0
+        self.echo_frames = 0
+        self.glow_radius = 0
+        self.mask_enabled = True
+        self.force_strength = 1.0
+        self.decay_rate = 1.0
+        self.parallax_depth = 1
+        self.symmetry_enabled = True
+        self.emergent_speed = 1.0
+        self.emergent_opacity = 1.0
+        self.reactive_elements = True
+        self.sound_enabled = True
+        self.sound_volume = 0.5
 
 
 # ── TuneOverlay ───────────────────────────────────────────────────────────────

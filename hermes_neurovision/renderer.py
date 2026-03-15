@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Dict, Iterable, Optional, Tuple
 
 from hermes_neurovision.themes import ThemeConfig, STAR_CHARS, PULSE_CHARS
+from hermes_neurovision import postfx
 
 if TYPE_CHECKING:
     from hermes_neurovision.scene import ThemeState
@@ -94,6 +95,7 @@ class Renderer:
         self.color_pairs = self._init_colors()
         self._current_palette: Optional[Tuple[int, int, int, int]] = None
         self._buffer: Optional[FrameBuffer] = None
+        self._echo_ring: list = []  # ring buffer for echo effect
 
     def _init_colors(self) -> Dict[str, int]:
         pairs = {
@@ -174,9 +176,69 @@ class Renderer:
         if not tune or tune.show_background:
             state.plugin.draw_extras(shim, state, self.color_pairs)
 
+        # ── Post-processing pipeline ──────────────────────────────────
+        plugin = state.plugin
+
+        # P1: Warp
+        warp_str = getattr(tune, 'warp_strength', 1.0) if tune else 1.0
+        if warp_str > 0:
+            postfx.apply_warp(self._buffer, plugin, state.frame, warp_str)
+
+        # P6: Symmetry (before other effects so they're mirrored)
+        sym_enabled = getattr(tune, 'symmetry_enabled', True) if tune else True
+        if sym_enabled:
+            sym_mode = plugin.symmetry()
+            postfx.apply_symmetry(self._buffer, sym_mode)
+
+        # P8: Glow
+        glow_r = getattr(tune, 'glow_radius', 0) if tune else 0
+        plugin_glow = plugin.glow_radius()
+        if plugin_glow > 0 and glow_r >= 0:  # glow_r=0 uses plugin default
+            postfx.apply_glow(self._buffer, plugin_glow if glow_r == 0 else glow_r)
+
+        # P2: Void
+        void_int = getattr(tune, 'void_intensity', 1.0) if tune else 1.0
+        if void_int > 0:
+            postfx.apply_void(self._buffer, plugin, state.frame, void_int)
+
+        # P3: Echo (afterimage)
+        echo_n = getattr(tune, 'echo_frames', 0) if tune else 0
+        plugin_echo = plugin.echo_decay()
+        actual_echo = plugin_echo if echo_n == 0 else echo_n
+        if actual_echo > 0:
+            postfx.apply_echo(self._buffer, self._echo_ring, actual_echo)
+
+        # P4: Force field
+        force_str = getattr(tune, 'force_strength', 1.0) if tune else 1.0
+        if force_str > 0:
+            postfx.apply_force_field(self._buffer, plugin, state.frame, force_str)
+
+        # P5: Decay
+        decay_r = getattr(tune, 'decay_rate', 1.0) if tune else 1.0
+        if decay_r > 0:
+            seq = plugin.decay_sequence()
+            postfx.apply_decay(self._buffer, seq)
+
+        # P9: Mask (last, clips everything)
+        mask_en = getattr(tune, 'mask_enabled', True) if tune else True
+        if mask_en:
+            mask = plugin.render_mask(self._buffer.w, self._buffer.h, state.frame, 1.0)
+            postfx.apply_mask(self._buffer, mask)
+
         # Blit buffer → screen -----------------------------------------
         stdscr.erase()
         self._buffer.blit_to_screen(stdscr)
+
+        # Save to echo ring buffer
+        plugin_echo = state.plugin.echo_decay()
+        echo_n = getattr(tune, 'echo_frames', 0) if tune else 0
+        actual_echo = plugin_echo if echo_n == 0 else echo_n
+        if actual_echo > 0:
+            self._echo_ring.append(postfx.snapshot_buffer(self._buffer))
+            while len(self._echo_ring) > actual_echo:
+                self._echo_ring.pop(0)
+        else:
+            self._echo_ring.clear()
 
         # Overlay effects (drawn on stdscr after blit, before HUD)
         if not tune or getattr(tune, 'show_overlays', True):
