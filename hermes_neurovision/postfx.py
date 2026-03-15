@@ -5,9 +5,8 @@ Each function is standalone with defaults that disable the effect.
 """
 from __future__ import annotations
 
-import curses
 import math
-from typing import List, Optional, Tuple, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from hermes_neurovision.renderer import FrameBuffer
@@ -57,6 +56,7 @@ def apply_echo(buf: FrameBuffer, echo_ring: list, echo_frames: int) -> None:
     Empty cells in current buffer get filled with dimmed content from oldest echo frame."""
     if echo_frames <= 0 or not echo_ring:
         return
+    import curses
     # Use the oldest frame in the ring for echo
     oldest = echo_ring[0]
     w, h = buf.w, buf.h
@@ -86,6 +86,7 @@ def apply_glow(buf: FrameBuffer, radius: int) -> None:
     radius=0 means disabled. 1-3 = subtle to strong."""
     if radius <= 0:
         return
+    import curses
     w, h = buf.w, buf.h
     # Collect bright cells (non-space cells with BOLD attr or non-DIM)
     bright_cells = []
@@ -115,13 +116,15 @@ def apply_decay(buf: FrameBuffer, sequence: Optional[str]) -> None:
     Example sequence: '█▓▒░·. ' — chars age through this."""
     if not sequence:
         return
+    import curses
+    seq_map = {ch: i for i, ch in enumerate(sequence)}
     for row in buf.cells:
         for cell in row:
             if cell.char == ' ':
                 continue
             cell.age += 1
-            if cell.age > 0 and cell.char in sequence:
-                idx = sequence.index(cell.char)
+            idx = seq_map.get(cell.char)
+            if cell.age > 0 and idx is not None:
                 # Advance through sequence every few frames
                 new_idx = min(idx + (cell.age // 3), len(sequence) - 1)
                 cell.char = sequence[new_idx]
@@ -162,10 +165,10 @@ def apply_symmetry(buf: FrameBuffer, mode: Optional[str]) -> None:
             for x in range(w // 2):
                 src = buf.cells[y][x]
                 if src.char != ' ':
-                    for dy, dx in [(y, w - 1 - x), (h - 1 - y, x), (h - 1 - y, w - 1 - x)]:
-                        buf.cells[dy][dx].char = src.char
-                        buf.cells[dy][dx].color_pair = src.color_pair
-                        buf.cells[dy][dx].attr = src.attr
+                    for ty, tx in [(y, w - 1 - x), (h - 1 - y, x), (h - 1 - y, w - 1 - x)]:
+                        buf.cells[ty][tx].char = src.char
+                        buf.cells[ty][tx].color_pair = src.color_pair
+                        buf.cells[ty][tx].attr = src.attr
     elif mode == 'rotate_4':
         # 4-fold rotational symmetry from top-left quadrant
         hw, hh = w // 2, h // 2
@@ -240,8 +243,13 @@ def apply_force_field(buf: FrameBuffer, plugin, frame: int, strength: float) -> 
                     ny = max(0, min(h - 1, int(round(y + fy_total))))
                     if nx != x or ny != y:
                         movers.append((x, y, nx, ny, cell.char, cell.color_pair, cell.attr))
-    # Apply moves (clear old, write new)
+    # Apply moves with collision detection (first-writer wins)
+    occupied: dict = {}
     for ox, oy, nx, ny, ch, cp, attr in movers:
+        dest = (nx, ny)
+        if dest in occupied:
+            continue  # skip — another cell already claimed this spot
+        occupied[dest] = True
         buf.cells[oy][ox].char = ' '
         buf.cells[oy][ox].color_pair = 0
         buf.cells[oy][ox].attr = 0

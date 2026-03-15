@@ -267,7 +267,11 @@ class ThemePlugin:
 
     def force_points(self, w: int, h: int, frame: int,
                      intensity: float) -> List[Tuple[int, int, float, float]]:
-        """Return list of (x, y, fx, fy) force vectors. Default: none."""
+        """Return list of (x, y, strength, ftype) force descriptors.
+
+        strength: scalar force magnitude.
+        ftype: 'vortex' for tangential or 'radial' for push/pull.
+        Default: none."""
         return []
 
     def decay_sequence(self) -> Optional[str]:
@@ -275,7 +279,7 @@ class ThemePlugin:
         return None
 
     def symmetry(self) -> Optional[str]:
-        """Symmetry mode: 'horizontal', 'vertical', 'quad', 'radial', or None."""
+        """Symmetry mode: 'mirror_x', 'mirror_y', 'mirror_xy', 'rotate_4', or None."""
         return None
 
     def depth_layers(self) -> int:
@@ -439,6 +443,6 @@ class ThemePlugin:
 
     # ── Sound System ─────────────────────────────────────────────
 
-    def sound_cues(self) -> Dict[str, Any]:
+    def sound_cues(self) -> "Dict[str, SoundCue]":
         """Map event kinds to SoundCue objects. Default: no sounds."""
         return {}

@@ -47,8 +47,8 @@ class PhysarumSim:
             best_val = -1.0
             for da in (-self.sensor_angle, 0.0, self.sensor_angle):
                 sa = angle + da
-                sx = int(ax + math.cos(sa) * self.sensor_dist) % self.w
-                sy = int(ay + math.sin(sa) * self.sensor_dist) % self.h
+                sx = int(round(ax + math.cos(sa) * self.sensor_dist)) % self.w
+                sy = int(round(ay + math.sin(sa) * self.sensor_dist)) % self.h
                 val = self.trails[sy][sx]
                 if val > best_val:
                     best_val = val
