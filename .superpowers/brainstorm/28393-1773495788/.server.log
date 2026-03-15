@@ -1,0 +1,3 @@
+{"type":"server-started","port":57092,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:57092","screen_dir":"/Users/evinova/Projects/hermes-neurovision/.superpowers/brainstorm/28393-1773495788"}
+{"type":"screen-added","file":"/Users/evinova/Projects/hermes-neurovision/.superpowers/brainstorm/28393-1773495788/screens.html"}
+{"type":"server-stopped","reason":"idle timeout"}
