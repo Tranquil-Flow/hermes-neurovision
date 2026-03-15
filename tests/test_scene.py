@@ -242,3 +242,73 @@ def test_tune_none_means_no_gating():
     assert len(state.particles) > 0
     state.apply_trigger(FakeTrigger("packet", target="random_edge"))
     assert len(state.packets) > 0
+
+
+# ── Node placement quality ────────────────────────────────────────────────────
+
+def _node_spread(theme_name, w=120, h=30, seed=42):
+    """Return (x_fraction, y_fraction) of usable terminal covered by nodes."""
+    config = build_theme_config(theme_name)
+    state = ThemeState(config, w, h, seed=seed)
+    if not state.nodes:
+        return None, None
+    xs = [n[0] for n in state.nodes]
+    ys = [n[1] for n in state.nodes]
+    usable_w = w - 8
+    usable_h = h - 6
+    return (max(xs) - min(xs)) / usable_w, (max(ys) - min(ys)) / usable_h
+
+
+def test_default_cluster_logic_spreads_across_width():
+    """stellar-weave uses the default cluster logic — must cover ≥50% of usable width."""
+    xf, _ = _node_spread("stellar-weave")
+    assert xf is not None and xf >= 0.50, (
+        f"stellar-weave default cluster logic only covers {xf:.0%} of width"
+    )
+
+
+def test_default_cluster_logic_spreads_across_height():
+    """stellar-weave uses the default cluster logic — must cover ≥35% of usable height."""
+    _, yf = _node_spread("stellar-weave")
+    assert yf is not None and yf >= 0.35, (
+        f"stellar-weave default cluster logic only covers {yf:.0%} of height"
+    )
+
+
+def test_default_cluster_logic_consistent_across_seeds():
+    """Default cluster logic must not collapse to <30% height for common seeds."""
+    for seed in (42, 7, 99, 13, 17, 31):
+        _, yf = _node_spread("stellar-weave", seed=seed)
+        if yf is None:
+            continue
+        assert yf >= 0.30, f"stellar-weave seed={seed}: only {yf:.0%} y coverage"
+
+
+def test_edge_building_uses_aspect_ratio_correction():
+    """Aspect ratio correction must produce more diagonal than vertical edges
+    on a wide terminal (120x30) where chars are ~2:1 tall:wide in pixels."""
+    config = build_theme_config("aurora-borealis")
+    state = ThemeState(config, 120, 30, seed=42)
+    if not state.edges or not state.nodes:
+        return
+
+    vert = diag = 0
+    for ia, ib in state.edges:
+        if ia >= len(state.nodes) or ib >= len(state.nodes):
+            continue
+        dx = abs(state.nodes[ib][0] - state.nodes[ia][0])
+        dy = abs(state.nodes[ib][1] - state.nodes[ia][1])
+        if dx < dy * 0.45:
+            vert += 1
+        elif dy < dx * 0.35:
+            pass  # horizontal
+        else:
+            diag += 1
+
+    total = vert + diag
+    if total > 0:
+        # After aspect ratio correction, vertical-only edges should be rare
+        assert vert / total <= 0.40, (
+            f"Too many vertical edges: {vert}/{total} ({vert/total:.0%}) — "
+            f"aspect ratio correction may not be working"
+        )
