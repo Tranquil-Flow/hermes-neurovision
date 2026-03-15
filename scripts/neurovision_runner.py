@@ -55,7 +55,7 @@ log = logging.getLogger("neurovision-runner")
 # Model config (local Ollama — no API key needed)
 # ---------------------------------------------------------------------------
 MODEL = "qwen3:30b"
-BASE_URL = "http://localhost:11434/v1"
+BASE_URL = "http://192.168.1.112:11434/v1"   # M4 Pro GPU — fast; falls back to localhost
 API_KEY = "ollama"
 
 # ---------------------------------------------------------------------------
