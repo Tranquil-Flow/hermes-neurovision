@@ -110,6 +110,113 @@ class HypnoticTunnelPlugin(ThemePlugin):
         glyph = "◉" if f % 20 < 10 else "◎"
         _safe(stdscr, int(cy2), int(cx2), glyph, bright)
 
+    # ── v0.2: Emergent system ─────────────────────────────────────────────────
+
+    def wave_config(self):
+        return {"speed": 0.5, "damping": 0.96}
+
+    def emergent_layer(self):
+        return "background"
+
+    # ── v0.2: Post-FX ─────────────────────────────────────────────────────────
+
+    def glow_radius(self):
+        return 2
+
+    def echo_decay(self):
+        return 2
+
+    def warp_field(self, x, y, w, h, frame, intensity):
+        """Barrel distortion — mild fisheye makes tunnel feel curved."""
+        xf = x / max(w, 1)
+        yf = y / max(h, 1)
+        dx = xf - 0.5
+        dy = yf - 0.5
+        r2 = dx * dx + dy * dy
+        k = 0.25 * intensity
+        factor = 1.0 + k * r2
+        nx = max(0, min(w - 1, int(w * (0.5 + dx * factor))))
+        ny = max(0, min(h - 1, int(h * (0.5 + dy * factor))))
+        return (nx, ny)
+
+    # ── v0.2: Intensity curve ─────────────────────────────────────────────────
+
+    def intensity_curve(self, raw):
+        return raw ** 0.7
+
+    # ── v0.2: Reactive system ─────────────────────────────────────────────────
+
+    def react(self, event_kind, data):
+        cx, cy = 0.5, 0.5
+        rng = random
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.9,
+                            origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "llm_start":
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.85,
+                            origin=(0.0, cy), color_key="accent", duration=3.5,
+                            data={"direction": "horizontal"})
+        if event_kind == "llm_chunk":
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.4,
+                            origin=(rng.random(), rng.random()),
+                            color_key="bright", duration=0.5)
+        if event_kind == "tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.65,
+                            origin=(rng.random(), rng.random()),
+                            color_key="accent", duration=1.5)
+        if event_kind == "memory_save":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.75,
+                            origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "error":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                            origin=(rng.random(), rng.random()),
+                            color_key="warning", duration=2.0)
+        if event_kind == "compression_started":
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.9,
+                            origin=(cx, cy), color_key="accent", duration=3.0)
+        return None
+
+    # ── v0.2: Palette shift ───────────────────────────────────────────────────
+
+    def palette_shift(self, trigger_effect, intensity, base_palette):
+        return None
+
+    # ── v0.2: Special effects ─────────────────────────────────────────────────
+
+    def special_effects(self):
+        return [SpecialEffect(name="warp-surge", trigger_kinds=["burst"],
+                              min_intensity=0.4, cooldown=5.0, duration=3.0)]
+
+    def draw_special(self, stdscr, state, color_pairs, special_name, progress, intensity):
+        if special_name != "warp-surge":
+            return
+        w, h = state.width, state.height
+        _ensure_rainbow()
+        f = state.frame
+        cx2, cy2 = w / 2.0, h / 2.0
+        for i in range(6):
+            t = (i / 6.0 + progress * 1.5) % 1.0
+            rw = int(cx2 * t * 2.0)
+            rh = int(cy2 * t * 1.1)
+            hue_t = (i / 6.0 + f * 0.025) % 1.0
+            pair = _rainbow_pair(hue_t)
+            if rw < 2 or rh < 2:
+                continue
+            for dx in range(-rw, rw + 1, max(1, rw // 10)):
+                for ry_off in (-rh, rh):
+                    rx = int(cx2) + dx
+                    ry = int(cy2) + ry_off
+                    if 1 <= ry < h - 1 and 0 <= rx < w - 1:
+                        try:
+                            stdscr.addstr(ry, rx, "=", pair | curses.A_BOLD)
+                        except curses.error:
+                            pass
+
+    # ── v0.2: Ambient tick ────────────────────────────────────────────────────
+
+    def ambient_tick(self, stdscr, state, color_pairs, idle_seconds):
+        pass  # color rotation is built into the per-ring hue_t calculation
+
 
 register(HypnoticTunnelPlugin())
 
@@ -592,6 +699,110 @@ class FractalZoomPlugin(ThemePlugin):
                 _safe(stdscr, py, px, ch, pair | bold)
 
 
+    # ── v0.2: Emergent system ─────────────────────────────────────────────────
+
+    def reaction_diffusion_config(self):
+        return {"feed": 0.037, "kill": 0.060, "update_interval": 3}
+
+    def emergent_layer(self):
+        return "background"
+
+    # ── v0.2: Post-FX ─────────────────────────────────────────────────────────
+
+    def glow_radius(self):
+        return 2
+
+    def echo_decay(self):
+        return 3
+
+    def warp_field(self, x, y, w, h, frame, intensity):
+        """Zoom acceleration — pixels near boundary get pulled toward it."""
+        xf = x / max(w, 1)
+        yf = y / max(h, 1)
+        dx = xf - 0.5
+        dy = yf - 0.5
+        dist = math.sqrt(dx * dx + dy * dy) + 0.001
+        # pull toward boundary ring at ~0.45 radius
+        boundary = 0.45
+        pull = (dist - boundary) * intensity * 2.0
+        nx = max(0, min(w - 1, int(w * (0.5 + dx * (1.0 + pull / (dist + 0.001))))))
+        ny = max(0, min(h - 1, int(h * (0.5 + dy * (1.0 + pull / (dist + 0.001))))))
+        return (nx, ny)
+
+    # ── v0.2: Intensity curve ─────────────────────────────────────────────────
+
+    def intensity_curve(self, raw):
+        return raw ** 0.9
+
+    # ── v0.2: Reactive system ─────────────────────────────────────────────────
+
+    def react(self, event_kind, data):
+        cx, cy = 0.5, 0.5
+        rng = random
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.85,
+                            origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "llm_start":
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.8,
+                            origin=(cx, cy), color_key="accent", duration=4.0,
+                            data={"direction": "outward"})
+        if event_kind == "llm_chunk":
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.4,
+                            origin=(rng.random(), rng.random()),
+                            color_key="bright", duration=0.6)
+        if event_kind == "tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.65,
+                            origin=(rng.random(), rng.random()),
+                            color_key="accent", duration=1.6)
+        if event_kind == "memory_save":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.75,
+                            origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "skill_create":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=1.0,
+                            origin=(cx, cy), color_key="bright", duration=3.5,
+                            data={"maximal": True})
+        if event_kind == "error":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                            origin=(rng.random(), rng.random()),
+                            color_key="warning", duration=2.0)
+        if event_kind == "reasoning_change":
+            return Reaction(element=ReactiveElement.GLYPH, intensity=0.7,
+                            origin=(cx, cy), color_key="bright", duration=2.0)
+        return None
+
+    # ── v0.2: Palette shift ───────────────────────────────────────────────────
+
+    def palette_shift(self, trigger_effect, intensity, base_palette):
+        return None
+
+    # ── v0.2: Special effects ─────────────────────────────────────────────────
+
+    def special_effects(self):
+        return [SpecialEffect(name="deep-zoom", trigger_kinds=["burst"],
+                              min_intensity=0.4, cooldown=6.0, duration=3.0)]
+
+    def draw_special(self, stdscr, state, color_pairs, special_name, progress, intensity):
+        if special_name != "deep-zoom":
+            return
+        w, h = state.width, state.height
+        _ensure_rainbow()
+        f = state.frame
+        cx2, cy2 = w // 2, h // 2
+        max_r = int(min(w, h) * 0.5 * progress)
+        for r in range(1, max(1, max_r), 3):
+            hue_t = (r / max(max_r, 1) + f * 0.01) % 1.0
+            pair = _rainbow_pair(hue_t)
+            for angle_deg in range(0, 360, 15):
+                angle = math.radians(angle_deg)
+                px = cx2 + int(r * math.cos(angle) * 2)
+                py = cy2 + int(r * math.sin(angle))
+                if 1 <= py < h - 1 and 0 <= px < w - 1:
+                    try:
+                        stdscr.addstr(py, px, "·", pair | curses.A_BOLD)
+                    except curses.error:
+                        pass
+
+
 register(FractalZoomPlugin())
 
 
@@ -714,6 +925,113 @@ class ParticleVortexPlugin(ThemePlugin):
             _safe(stdscr, int(cy_f), int(cx_v), "◉",
                   curses.color_pair(color_pairs.get("bright", 0)) | curses.A_BOLD)
 
+    # ── v0.2: Emergent system ─────────────────────────────────────────────────
+
+    def boids_config(self):
+        return {"n_boids": 50, "sep_dist": 2.0, "align_dist": 5.0,
+                "cohesion_dist": 8.0, "max_speed": 2.5}
+
+    def emergent_layer(self):
+        return "midground"
+
+    # ── v0.2: Post-FX ─────────────────────────────────────────────────────────
+
+    def glow_radius(self):
+        return 1
+
+    def echo_decay(self):
+        return 3
+
+    def force_points(self, w, h, frame, intensity):
+        """2 counter-rotating vortex attractors that orbit each other."""
+        cx = w / 2.0
+        cy = h / 2.0
+        t = frame * 0.008
+        orbit_r_x = w * 0.20
+        orbit_r_y = h * 0.18
+        strength = 0.4 + intensity * 0.4
+        return [
+            {"x": int(cx + math.cos(t) * orbit_r_x),
+             "y": int(cy + math.sin(t) * orbit_r_y),
+             "strength": strength, "type": "vortex"},
+            {"x": int(cx + math.cos(t + math.pi) * orbit_r_x),
+             "y": int(cy + math.sin(t + math.pi) * orbit_r_y),
+             "strength": strength, "type": "vortex"},
+        ]
+
+    # ── v0.2: Intensity curve ─────────────────────────────────────────────────
+
+    def intensity_curve(self, raw):
+        return raw ** 0.8
+
+    # ── v0.2: Reactive system ─────────────────────────────────────────────────
+
+    def react(self, event_kind, data):
+        cx, cy = 0.5, 0.5
+        rng = random
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.9,
+                            origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "llm_start":
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.8,
+                            origin=(cx, cy), color_key="accent", duration=3.5)
+        if event_kind == "llm_chunk":
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.4,
+                            origin=(rng.random(), rng.random()),
+                            color_key="bright", duration=0.5)
+        if event_kind == "tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.65,
+                            origin=(rng.random(), rng.random()),
+                            color_key="accent", duration=1.5)
+        if event_kind == "memory_save":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.75,
+                            origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "error":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                            origin=(rng.random(), rng.random()),
+                            color_key="warning", duration=2.0)
+        if event_kind == "subagent_started":
+            return Reaction(element=ReactiveElement.ORBIT, intensity=0.65,
+                            origin=(rng.random(), rng.random()),
+                            color_key="soft", duration=2.5)
+        if event_kind == "context_pressure":
+            return Reaction(element=ReactiveElement.GAUGE,
+                            intensity=data.get("level", 0.5),
+                            origin=(cx, cy), color_key="accent", duration=2.0)
+        return None
+
+    # ── v0.2: Palette shift ───────────────────────────────────────────────────
+
+    def palette_shift(self, trigger_effect, intensity, base_palette):
+        return None
+
+    # ── v0.2: Special effects ─────────────────────────────────────────────────
+
+    def special_effects(self):
+        return [SpecialEffect(name="vortex-collapse", trigger_kinds=["burst"],
+                              min_intensity=0.4, cooldown=5.0, duration=2.5)]
+
+    def draw_special(self, stdscr, state, color_pairs, special_name, progress, intensity):
+        if special_name != "vortex-collapse":
+            return
+        w, h = state.width, state.height
+        _ensure_rainbow()
+        cx, cy = w // 2, h // 2
+        # Converging spiral toward center
+        max_r = int(min(w, h) * 0.45 * (1.0 - progress))
+        for r in range(max(1, max_r), 0, -3):
+            hue_t = (r / max(max_r + 1, 1) + state.frame * 0.02) % 1.0
+            pair = _rainbow_pair(hue_t)
+            for angle_deg in range(0, 360, 20):
+                angle = math.radians(angle_deg + r * 5)
+                px = cx + int(r * math.cos(angle) * 2)
+                py = cy + int(r * math.sin(angle))
+                if 1 <= py < h - 1 and 0 <= px < w - 1:
+                    try:
+                        stdscr.addstr(py, px, "●", pair | curses.A_BOLD)
+                    except curses.error:
+                        pass
+
 
 register(ParticleVortexPlugin())
 
@@ -809,6 +1127,97 @@ class ChladniSandPlugin(ThemePlugin):
         if h > 4:
             pair = _rainbow_pair(base_hue)
             _safe(stdscr, 1, lx, label, pair | curses.A_BOLD)
+
+    # ── v0.2: Emergent system ─────────────────────────────────────────────────
+
+    def wave_config(self):
+        return {"speed": 0.4, "damping": 0.97}
+
+    def emergent_layer(self):
+        return "background"
+
+    # ── v0.2: Post-FX ─────────────────────────────────────────────────────────
+
+    def glow_radius(self):
+        return 1
+
+    def echo_decay(self):
+        return 4
+
+    # ── v0.2: Intensity curve ─────────────────────────────────────────────────
+
+    def intensity_curve(self, raw):
+        return raw ** 0.6
+
+    # ── v0.2: Reactive system ─────────────────────────────────────────────────
+
+    def react(self, event_kind, data):
+        cx, cy = 0.5, 0.5
+        rng = random
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.85,
+                            origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "llm_start":
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.8,
+                            origin=(cx, cy), color_key="accent", duration=3.5)
+        if event_kind == "tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.65,
+                            origin=(rng.random(), rng.random()),
+                            color_key="accent", duration=1.5)
+        if event_kind == "memory_save":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.75,
+                            origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "skill_create":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=1.0,
+                            origin=(cx, cy), color_key="bright", duration=3.5,
+                            data={"maximal": True})
+        if event_kind == "error":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                            origin=(rng.random(), rng.random()),
+                            color_key="warning", duration=2.0)
+        if event_kind == "reasoning_change":
+            return Reaction(element=ReactiveElement.GLYPH, intensity=0.7,
+                            origin=(cx, cy), color_key="bright", duration=2.0)
+        return None
+
+    # ── v0.2: Palette shift ───────────────────────────────────────────────────
+
+    def palette_shift(self, trigger_effect, intensity, base_palette):
+        return None
+
+    # ── v0.2: Special effects ─────────────────────────────────────────────────
+
+    def special_effects(self):
+        return [SpecialEffect(name="mode-jump", trigger_kinds=["burst"],
+                              min_intensity=0.3, cooldown=4.0, duration=2.0)]
+
+    def draw_special(self, stdscr, state, color_pairs, special_name, progress, intensity):
+        if special_name != "mode-jump":
+            return
+        w, h = state.width, state.height
+        _ensure_rainbow()
+        # Flash the entire screen with the next mode pattern
+        next_mode_idx = (state.frame // 180 + 1) % len(self._MODES)
+        m2, n2 = self._MODES[next_mode_idx]
+        hue_base = (next_mode_idx / len(self._MODES))
+        flash = math.sin(progress * math.pi)
+        for y in range(1, h - 1):
+            for x in range(0, w - 1, 2):
+                xn = x / max(w - 1, 1)
+                yn = y / max(h - 1, 1)
+                z = math.cos(m2 * math.pi * xn) * math.cos(n2 * math.pi * yn)
+                if abs(z) < 0.18 * flash:
+                    hue_t = (hue_base + abs(z) * 0.3) % 1.0
+                    pair = _rainbow_pair(hue_t)
+                    try:
+                        stdscr.addstr(y, x, "·", pair | curses.A_BOLD)
+                    except curses.error:
+                        pass
+
+    # ── v0.2: Ambient tick ────────────────────────────────────────────────────
+
+    def ambient_tick(self, stdscr, state, color_pairs, idle_seconds):
+        pass  # mode evolution is driven by frame count in draw_extras
 
 
 register(ChladniSandPlugin())
