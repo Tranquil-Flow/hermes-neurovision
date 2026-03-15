@@ -618,6 +618,7 @@ class FractalZoomPlugin(ThemePlugin):
     def __init__(self):
         self._target_idx = 0
         self._phase      = 0  # 0..ZOOM_FRAMES+PAUSE_FRAMES
+        self._palette_state = "normal"
 
     def build_nodes(self, w, h, cx, cy, count, rng):
         return []
@@ -729,6 +730,24 @@ class FractalZoomPlugin(ThemePlugin):
         ny = max(0, min(h - 1, int(h * (0.5 + dy * (1.0 + pull / (dist + 0.001))))))
         return (nx, ny)
 
+    def force_points(self, w, h, frame, intensity):
+        """3 vortex attractors at Mandelbrot cardioid, period-2 bulb, and miniset."""
+        # Mandelbrot cardioid centre (roughly) → ~screen-centre
+        # Period-2 bulb → left of centre
+        # Mini-brot → lower-left area
+        cx = w / 2.0
+        cy = h / 2.0
+        strength = 0.30 + intensity * 0.35
+        # Approximate screen positions (they shift with the zoom, but these are anchors)
+        return [
+            {"x": int(cx),           "y": int(cy * 0.95),   # cardioid heart
+             "strength": strength, "type": "vortex"},
+            {"x": int(cx * 0.72),    "y": int(cy),           # period-2 bulb (left)
+             "strength": strength * 0.8, "type": "vortex"},
+            {"x": int(cx * 0.55),    "y": int(cy * 1.25),    # miniset (lower-left)
+             "strength": strength * 0.6, "type": "vortex"},
+        ]
+
     # ── v0.2: Intensity curve ─────────────────────────────────────────────────
 
     def intensity_curve(self, raw):
@@ -742,6 +761,9 @@ class FractalZoomPlugin(ThemePlugin):
         if event_kind == "agent_start":
             return Reaction(element=ReactiveElement.PULSE, intensity=0.85,
                             origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "agent_end":
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.6,
+                            origin=(cx, cy), color_key="soft", duration=2.5)
         if event_kind == "llm_start":
             return Reaction(element=ReactiveElement.STREAM, intensity=0.8,
                             origin=(cx, cy), color_key="accent", duration=4.0,
@@ -750,14 +772,25 @@ class FractalZoomPlugin(ThemePlugin):
             return Reaction(element=ReactiveElement.SPARK, intensity=0.4,
                             origin=(rng.random(), rng.random()),
                             color_key="bright", duration=0.6)
+        if event_kind == "llm_end":
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.65,
+                            origin=(cx, cy), color_key="soft", duration=2.0)
         if event_kind == "tool_call":
             return Reaction(element=ReactiveElement.RIPPLE, intensity=0.65,
                             origin=(rng.random(), rng.random()),
                             color_key="accent", duration=1.6)
+        if event_kind == "tool_complete":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.45,
+                            origin=(rng.random(), rng.random()),
+                            color_key="soft", duration=1.2)
+        if event_kind == "mcp_tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.55,
+                            origin=(cx * 0.72, cy), color_key="accent", duration=1.4)
         if event_kind == "memory_save":
             return Reaction(element=ReactiveElement.BLOOM, intensity=0.75,
                             origin=(cx, cy), color_key="bright", duration=2.5)
         if event_kind == "skill_create":
+            # Zoom to miniset — max bloom
             return Reaction(element=ReactiveElement.BLOOM, intensity=1.0,
                             origin=(cx, cy), color_key="bright", duration=3.5,
                             data={"maximal": True})
@@ -765,6 +798,37 @@ class FractalZoomPlugin(ThemePlugin):
             return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
                             origin=(rng.random(), rng.random()),
                             color_key="warning", duration=2.0)
+        if event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                            origin=(cx, cy), color_key="warning", duration=3.0)
+        if event_kind == "cron_tick":
+            return Reaction(element=ReactiveElement.ORBIT, intensity=0.50,
+                            origin=(cx, cy), color_key="soft", duration=2.0)
+        if event_kind == "background_proc":
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.3,
+                            origin=(rng.random(), rng.random()),
+                            color_key="base", duration=0.8)
+        if event_kind == "subagent_started":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.65,
+                            origin=(rng.random(), rng.random()),
+                            color_key="soft", duration=2.5)
+        if event_kind == "context_pressure":
+            return Reaction(element=ReactiveElement.GAUGE,
+                            intensity=data.get("level", 0.5),
+                            origin=(cx, cy), color_key="accent", duration=2.0)
+        if event_kind == "token_usage":
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.25,
+                            origin=(rng.random(), rng.random()),
+                            color_key="base", duration=0.6)
+        if event_kind == "dangerous_cmd":
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.9,
+                            origin=(cx, cy), color_key="warning", duration=1.5)
+        if event_kind == "approval_request":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.7,
+                            origin=(cx, cy), color_key="warning", duration=2.0)
+        if event_kind == "compression_started":
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.8,
+                            origin=(cx, cy), color_key="accent", duration=3.0)
         if event_kind == "reasoning_change":
             return Reaction(element=ReactiveElement.GLYPH, intensity=0.7,
                             origin=(cx, cy), color_key="bright", duration=2.0)
@@ -773,34 +837,83 @@ class FractalZoomPlugin(ThemePlugin):
     # ── v0.2: Palette shift ───────────────────────────────────────────────────
 
     def palette_shift(self, trigger_effect, intensity, base_palette):
+        if trigger_effect == "error":
+            self._palette_state = "error"   # divergence — red
+        elif trigger_effect == "skill_create":
+            self._palette_state = "skill"   # deep zoom discovery — cyan/white
+        elif trigger_effect == "agent_start":
+            self._palette_state = "bright"
         return None
 
     # ── v0.2: Special effects ─────────────────────────────────────────────────
 
     def special_effects(self):
-        return [SpecialEffect(name="deep-zoom", trigger_kinds=["burst"],
-                              min_intensity=0.4, cooldown=6.0, duration=3.0)]
+        return [
+            SpecialEffect(name="deep-zoom", trigger_kinds=["burst"],
+                          min_intensity=0.4, cooldown=6.0, duration=3.0),
+            SpecialEffect(name="julia-flash",
+                          trigger_kinds=["skill_create", "llm_end"],
+                          min_intensity=0.4, cooldown=8.0, duration=3.0),
+        ]
 
     def draw_special(self, stdscr, state, color_pairs, special_name, progress, intensity):
-        if special_name != "deep-zoom":
-            return
         w, h = state.width, state.height
         _ensure_rainbow()
         f = state.frame
         cx2, cy2 = w // 2, h // 2
-        max_r = int(min(w, h) * 0.5 * progress)
-        for r in range(1, max(1, max_r), 3):
-            hue_t = (r / max(max_r, 1) + f * 0.01) % 1.0
-            pair = _rainbow_pair(hue_t)
-            for angle_deg in range(0, 360, 15):
-                angle = math.radians(angle_deg)
-                px = cx2 + int(r * math.cos(angle) * 2)
-                py = cy2 + int(r * math.sin(angle))
-                if 1 <= py < h - 1 and 0 <= px < w - 1:
-                    try:
-                        stdscr.addstr(py, px, "·", pair | curses.A_BOLD)
-                    except curses.error:
-                        pass
+        if special_name == "deep-zoom":
+            max_r = int(min(w, h) * 0.5 * progress)
+            for r in range(1, max(1, max_r), 3):
+                hue_t = (r / max(max_r, 1) + f * 0.01) % 1.0
+                pair = _rainbow_pair(hue_t)
+                for angle_deg in range(0, 360, 15):
+                    angle = math.radians(angle_deg)
+                    px = cx2 + int(r * math.cos(angle) * 2)
+                    py = cy2 + int(r * math.sin(angle))
+                    if 1 <= py < h - 1 and 0 <= px < w - 1:
+                        try:
+                            stdscr.addstr(py, px, "·", pair | curses.A_BOLD)
+                        except curses.error:
+                            pass
+        elif special_name == "julia-flash":
+            # Render a brief Julia set overlay at the current Mandelbrot point
+            # c parameter for Julia: a point near the Seahorse valley
+            c_re = -0.7269 + math.sin(f * 0.015) * 0.03
+            c_im =  0.1889 + math.cos(f * 0.011) * 0.02
+            fade = math.sin(progress * math.pi)   # envelope: 0→1→0
+            max_iter = 24
+            step_x = max(1, w // 60)
+            step_y = max(1, h // 30)
+            for py in range(1, h - 1, step_y):
+                for px in range(0, w - 1, step_x):
+                    zr = (px / max(w - 1, 1) - 0.5) * 3.5
+                    zi = (py / max(h - 1, 1) - 0.5) * 2.5
+                    escaped = -1
+                    for i in range(max_iter):
+                        zr2 = zr * zr
+                        zi2 = zi * zi
+                        if zr2 + zi2 > 4.0:
+                            escaped = i
+                            break
+                        zi = 2.0 * zr * zi + c_im
+                        zr = zr2 - zi2 + c_re
+                    if escaped >= 0:
+                        hue_t = (escaped / max_iter + f * 0.01) % 1.0
+                        pair = _rainbow_pair(hue_t)
+                        bold = curses.A_BOLD if escaped > max_iter * 0.5 else 0
+                        ch = "·" if escaped < max_iter // 2 else "+"
+                        try:
+                            stdscr.addstr(py, px, ch, pair | bold)
+                        except curses.error:
+                            pass
+
+    # ── v0.2: Ambient tick ────────────────────────────────────────────────────
+
+    def ambient_tick(self, stdscr, state, color_pairs, idle_seconds):
+        """Slowly advance the zoom phase so the fractal keeps drifting when idle."""
+        if idle_seconds > 3.0 and state.frame % 90 == 0:
+            # Nudge the internal phase counter so the zoom target progresses
+            self._phase = (self._phase + 8) % (self._ZOOM_FRAMES + self._PAUSE_FRAMES)
 
 
 register(FractalZoomPlugin())
@@ -828,6 +941,7 @@ class ParticleVortexPlugin(ThemePlugin):
         self._trail: Optional[List[List[float]]] = None
         self._w = self._h = 0
         self._rng = random.Random(42)
+        self._palette_state = "normal"
 
     def build_nodes(self, w, h, cx, cy, count, rng):
         return []
@@ -931,6 +1045,10 @@ class ParticleVortexPlugin(ThemePlugin):
         return {"n_boids": 50, "sep_dist": 2.0, "align_dist": 5.0,
                 "cohesion_dist": 8.0, "max_speed": 2.5}
 
+    def neural_field_config(self):
+        """Neural field resonance in the vortex density."""
+        return {"threshold": 3, "fire_duration": 2, "refractory": 5}
+
     def emergent_layer(self):
         return "midground"
 
@@ -940,7 +1058,31 @@ class ParticleVortexPlugin(ThemePlugin):
         return 1
 
     def echo_decay(self):
-        return 3
+        """Vortex trails persist for 4 frames."""
+        return 4
+
+    def symmetry(self):
+        return None
+
+    def depth_layers(self):
+        return 2
+
+    def decay_sequence(self):
+        return "▓▒·."
+
+    def warp_field(self, x, y, w, h, frame, intensity):
+        """Angular momentum warp — pixels rotate around center proportional to 1/r."""
+        xf = x / max(w, 1) - 0.5
+        yf = y / max(h, 1) - 0.5
+        dist = math.sqrt(xf * xf + yf * yf) + 0.001
+        # Angular velocity scales with 1/r (faster near vortex core)
+        t = frame * 0.012
+        ang_vel = intensity * 0.12 / dist
+        angle = math.atan2(yf, xf) + ang_vel
+        r_warped = dist * (1.0 + 0.05 * math.sin(t + dist * 8.0) * intensity)
+        nx = max(0, min(w - 1, int(w * (0.5 + r_warped * math.cos(angle)))))
+        ny = max(0, min(h - 1, int(h * (0.5 + r_warped * math.sin(angle)))))
+        return (nx, ny)
 
     def force_points(self, w, h, frame, intensity):
         """2 counter-rotating vortex attractors that orbit each other."""
@@ -969,9 +1111,14 @@ class ParticleVortexPlugin(ThemePlugin):
     def react(self, event_kind, data):
         cx, cy = 0.5, 0.5
         rng = random
+        vortex_a = (0.30, 0.5)   # left vortex
+        vortex_b = (0.70, 0.5)   # right vortex
         if event_kind == "agent_start":
             return Reaction(element=ReactiveElement.PULSE, intensity=0.9,
                             origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "agent_end":
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.5,
+                            origin=(cx, cy), color_key="soft", duration=2.0)
         if event_kind == "llm_start":
             return Reaction(element=ReactiveElement.STREAM, intensity=0.8,
                             origin=(cx, cy), color_key="accent", duration=3.5)
@@ -979,18 +1126,45 @@ class ParticleVortexPlugin(ThemePlugin):
             return Reaction(element=ReactiveElement.SPARK, intensity=0.4,
                             origin=(rng.random(), rng.random()),
                             color_key="bright", duration=0.5)
+        if event_kind == "llm_end":
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.65,
+                            origin=(cx, cy), color_key="soft", duration=2.0)
         if event_kind == "tool_call":
             return Reaction(element=ReactiveElement.RIPPLE, intensity=0.65,
                             origin=(rng.random(), rng.random()),
                             color_key="accent", duration=1.5)
+        if event_kind == "tool_complete":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.45,
+                            origin=rng.choice([vortex_a, vortex_b]),
+                            color_key="soft", duration=1.2)
+        if event_kind == "mcp_tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.55,
+                            origin=rng.choice([vortex_a, vortex_b]),
+                            color_key="accent", duration=1.4)
         if event_kind == "memory_save":
             return Reaction(element=ReactiveElement.BLOOM, intensity=0.75,
                             origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "skill_create":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=1.0,
+                            origin=(cx, cy), color_key="bright", duration=3.5,
+                            data={"maximal": True})
         if event_kind == "error":
             return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
                             origin=(rng.random(), rng.random()),
                             color_key="warning", duration=2.0)
+        if event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                            origin=(cx, cy), color_key="warning", duration=3.0)
+        if event_kind == "cron_tick":
+            return Reaction(element=ReactiveElement.ORBIT, intensity=0.50,
+                            origin=rng.choice([vortex_a, vortex_b]),
+                            color_key="soft", duration=2.0)
+        if event_kind == "background_proc":
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.3,
+                            origin=(rng.random(), rng.random()),
+                            color_key="base", duration=0.8)
         if event_kind == "subagent_started":
+            # Spawn new vortex — orbit at a new random position
             return Reaction(element=ReactiveElement.ORBIT, intensity=0.65,
                             origin=(rng.random(), rng.random()),
                             color_key="soft", duration=2.5)
@@ -998,37 +1172,107 @@ class ParticleVortexPlugin(ThemePlugin):
             return Reaction(element=ReactiveElement.GAUGE,
                             intensity=data.get("level", 0.5),
                             origin=(cx, cy), color_key="accent", duration=2.0)
+        if event_kind == "token_usage":
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.25,
+                            origin=(rng.random(), rng.random()),
+                            color_key="base", duration=0.6)
+        if event_kind == "dangerous_cmd":
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.9,
+                            origin=(cx, cy), color_key="warning", duration=1.5)
+        if event_kind == "approval_request":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.7,
+                            origin=(cx, cy), color_key="warning", duration=2.0)
+        if event_kind == "compression_started":
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.8,
+                            origin=(cx, cy), color_key="accent", duration=3.0)
+        if event_kind == "reasoning_change":
+            return Reaction(element=ReactiveElement.GLYPH, intensity=0.7,
+                            origin=(cx, cy), color_key="bright", duration=2.0)
         return None
 
     # ── v0.2: Palette shift ───────────────────────────────────────────────────
 
     def palette_shift(self, trigger_effect, intensity, base_palette):
+        if trigger_effect == "error":
+            self._palette_state = "error"   # vortex breakdown — red/yellow
+        elif trigger_effect == "agent_start":
+            self._palette_state = "bright"  # white/cyan ignition
+        elif trigger_effect == "skill_create":
+            self._palette_state = "skill"
         return None
 
     # ── v0.2: Special effects ─────────────────────────────────────────────────
 
     def special_effects(self):
-        return [SpecialEffect(name="vortex-collapse", trigger_kinds=["burst"],
-                              min_intensity=0.4, cooldown=5.0, duration=2.5)]
+        return [
+            SpecialEffect(name="vortex-collapse", trigger_kinds=["burst"],
+                          min_intensity=0.4, cooldown=5.0, duration=2.5),
+            SpecialEffect(name="dual-spiral",
+                          trigger_kinds=["skill_create", "subagent_started"],
+                          min_intensity=0.4, cooldown=7.0, duration=3.0),
+        ]
 
     def draw_special(self, stdscr, state, color_pairs, special_name, progress, intensity):
-        if special_name != "vortex-collapse":
-            return
         w, h = state.width, state.height
         _ensure_rainbow()
+        f = state.frame
         cx, cy = w // 2, h // 2
-        # Converging spiral toward center
-        max_r = int(min(w, h) * 0.45 * (1.0 - progress))
-        for r in range(max(1, max_r), 0, -3):
-            hue_t = (r / max(max_r + 1, 1) + state.frame * 0.02) % 1.0
-            pair = _rainbow_pair(hue_t)
-            for angle_deg in range(0, 360, 20):
-                angle = math.radians(angle_deg + r * 5)
-                px = cx + int(r * math.cos(angle) * 2)
-                py = cy + int(r * math.sin(angle))
+        if special_name == "vortex-collapse":
+            # Converging spiral toward center
+            max_r = int(min(w, h) * 0.45 * (1.0 - progress))
+            for r in range(max(1, max_r), 0, -3):
+                hue_t = (r / max(max_r + 1, 1) + f * 0.02) % 1.0
+                pair = _rainbow_pair(hue_t)
+                for angle_deg in range(0, 360, 20):
+                    angle = math.radians(angle_deg + r * 5)
+                    px = cx + int(r * math.cos(angle) * 2)
+                    py = cy + int(r * math.sin(angle))
+                    if 1 <= py < h - 1 and 0 <= px < w - 1:
+                        try:
+                            stdscr.addstr(py, px, "●", pair | curses.A_BOLD)
+                        except curses.error:
+                            pass
+        elif special_name == "dual-spiral":
+            # Two counter-rotating spirals expanding outward from the vortex centres
+            ax = int(w * 0.30)
+            bx = int(w * 0.70)
+            cy_f = h // 2
+            max_r = int(min(w * 0.28, h * 0.40) * progress)
+            for vx, sign in [(ax, 1.0), (bx, -1.0)]:
+                for r in range(1, max(2, max_r), 2):
+                    angle = sign * r * 0.25 + f * 0.04
+                    px = vx + int(r * math.cos(angle) * 2)
+                    py = cy_f + int(r * math.sin(angle) * 0.85)
+                    if 1 <= py < h - 1 and 0 <= px < w - 1:
+                        hue_t = (r / max(max_r, 1) + f * 0.015) % 1.0
+                        pair = _rainbow_pair(hue_t)
+                        try:
+                            stdscr.addstr(py, px, "·", pair | curses.A_BOLD)
+                        except curses.error:
+                            pass
+
+    # ── v0.2: Ambient tick ────────────────────────────────────────────────────
+
+    def ambient_tick(self, stdscr, state, color_pairs, idle_seconds):
+        """Slight vortex spin indicator — single rotating dot on the outer rim."""
+        if idle_seconds < 1.0:
+            return
+        w, h = state.width, state.height
+        if w < 8 or h < 4:
+            return
+        _ensure_rainbow()
+        if state.frame % 4 == 0:
+            t = state.frame * 0.035
+            for vx in (int(w * 0.30), int(w * 0.70)):
+                cy_f = h // 2
+                r_x = int(min(w * 0.18, h * 0.30))
+                r_y = int(r_x * 0.5)
+                px = vx + int(r_x * math.cos(t))
+                py = cy_f + int(r_y * math.sin(t))
                 if 1 <= py < h - 1 and 0 <= px < w - 1:
+                    pair = _rainbow_pair_angle(t)
                     try:
-                        stdscr.addstr(py, px, "●", pair | curses.A_BOLD)
+                        stdscr.addstr(py, px, "·", pair | curses.A_DIM)
                     except curses.error:
                         pass
 
@@ -1056,6 +1300,10 @@ class ChladniSandPlugin(ThemePlugin):
         (1, 4), (4, 1), (2, 5), (5, 2), (3, 5), (5, 3),
         (1, 6), (6, 1), (4, 5), (5, 4),
     ]
+
+    def __init__(self):
+        super().__init__()
+        self._palette_state = "normal"
 
     def build_nodes(self, w, h, cx, cy, count, rng):
         return []
@@ -1133,6 +1381,11 @@ class ChladniSandPlugin(ThemePlugin):
     def wave_config(self):
         return {"speed": 0.4, "damping": 0.97}
 
+    def physarum_config(self):
+        """Sand grain agents collecting at antinodes."""
+        return {"n_agents": 120, "sensor_angle": 0.4, "sensor_dist": 3,
+                "turn_speed": 0.45, "speed": 0.8, "deposit": 1.0, "decay": 0.93}
+
     def emergent_layer(self):
         return "background"
 
@@ -1142,7 +1395,50 @@ class ChladniSandPlugin(ThemePlugin):
         return 1
 
     def echo_decay(self):
-        return 4
+        """Sand patterns persist for 5 frames."""
+        return 5
+
+    def symmetry(self):
+        return None
+
+    def depth_layers(self):
+        return 2
+
+    def decay_sequence(self):
+        return "▓▒·."
+
+    def warp_field(self, x, y, w, h, frame, intensity):
+        """Standing wave distortion — pixels pushed toward nodal lines."""
+        xn = x / max(w, 1)
+        yn = y / max(h, 1)
+        # Use the currently active mode
+        mode_idx = (frame // 180) % len(self._MODES)
+        m, n = self._MODES[mode_idx]
+        # Gradient of the standing wave pushes toward nodes (where |z| is smallest)
+        # Approximated by the derivative nudge
+        t = frame * 0.02
+        amp = intensity * 1.0
+        wx = int(amp * math.sin(m * math.pi * xn + t) * math.cos(n * math.pi * yn))
+        wy = int(amp * 0.7 * math.cos(m * math.pi * xn) * math.sin(n * math.pi * yn + t))
+        nx = max(0, min(w - 1, x + wx))
+        ny = max(0, min(h - 1, y + wy))
+        return (nx, ny)
+
+    def force_points(self, w, h, frame, intensity):
+        """Antinodes as gravity attractors — 4 antinode positions for current mode."""
+        mode_idx = (frame // 180) % len(self._MODES)
+        m, n = self._MODES[mode_idx]
+        strength = 0.25 + intensity * 0.30
+        pts = []
+        # Antinodes are at xn = k/(2m), yn = l/(2n) for k, l odd
+        for ki in range(1, min(m * 2, 5), 2):
+            for li in range(1, min(n * 2, 5), 2):
+                px = int(w * ki / (2 * m))
+                py = int(h * li / (2 * n))
+                if 0 < px < w - 1 and 0 < py < h - 1:
+                    pts.append({"x": px, "y": py,
+                                "strength": strength, "type": "gravity"})
+        return pts[:6]   # cap at 6
 
     # ── v0.2: Intensity curve ─────────────────────────────────────────────────
 
@@ -1157,17 +1453,37 @@ class ChladniSandPlugin(ThemePlugin):
         if event_kind == "agent_start":
             return Reaction(element=ReactiveElement.PULSE, intensity=0.85,
                             origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "agent_end":
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.5,
+                            origin=(cx, cy), color_key="soft", duration=2.0)
         if event_kind == "llm_start":
             return Reaction(element=ReactiveElement.STREAM, intensity=0.8,
                             origin=(cx, cy), color_key="accent", duration=3.5)
+        if event_kind == "llm_chunk":
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.4,
+                            origin=(rng.random(), rng.random()),
+                            color_key="bright", duration=0.5)
+        if event_kind == "llm_end":
+            # Mode change — wave completes
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.65,
+                            origin=(cx, cy), color_key="soft", duration=2.0)
         if event_kind == "tool_call":
             return Reaction(element=ReactiveElement.RIPPLE, intensity=0.65,
                             origin=(rng.random(), rng.random()),
                             color_key="accent", duration=1.5)
+        if event_kind == "tool_complete":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.45,
+                            origin=(rng.random(), rng.random()),
+                            color_key="soft", duration=1.2)
+        if event_kind == "mcp_tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.55,
+                            origin=(rng.random(), rng.random()),
+                            color_key="accent", duration=1.4)
         if event_kind == "memory_save":
             return Reaction(element=ReactiveElement.BLOOM, intensity=0.75,
                             origin=(cx, cy), color_key="bright", duration=2.5)
         if event_kind == "skill_create":
+            # Perfect Chladni mode achieved
             return Reaction(element=ReactiveElement.BLOOM, intensity=1.0,
                             origin=(cx, cy), color_key="bright", duration=3.5,
                             data={"maximal": True})
@@ -1175,6 +1491,38 @@ class ChladniSandPlugin(ThemePlugin):
             return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
                             origin=(rng.random(), rng.random()),
                             color_key="warning", duration=2.0)
+        if event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                            origin=(cx, cy), color_key="warning", duration=3.0)
+        if event_kind == "cron_tick":
+            return Reaction(element=ReactiveElement.ORBIT, intensity=0.50,
+                            origin=(cx, cy), color_key="soft", duration=2.0)
+        if event_kind == "background_proc":
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.3,
+                            origin=(rng.random(), rng.random()),
+                            color_key="base", duration=0.8)
+        if event_kind == "subagent_started":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.65,
+                            origin=(rng.random(), rng.random()),
+                            color_key="soft", duration=2.5)
+        if event_kind == "context_pressure":
+            return Reaction(element=ReactiveElement.GAUGE,
+                            intensity=data.get("level", 0.5),
+                            origin=(cx, cy), color_key="accent", duration=2.0)
+        if event_kind == "token_usage":
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.25,
+                            origin=(rng.random(), rng.random()),
+                            color_key="base", duration=0.6)
+        if event_kind == "dangerous_cmd":
+            # Mode instability
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.9,
+                            origin=(cx, cy), color_key="warning", duration=1.5)
+        if event_kind == "approval_request":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.7,
+                            origin=(cx, cy), color_key="warning", duration=2.0)
+        if event_kind == "compression_started":
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.8,
+                            origin=(cx, cy), color_key="accent", duration=3.0)
         if event_kind == "reasoning_change":
             return Reaction(element=ReactiveElement.GLYPH, intensity=0.7,
                             origin=(cx, cy), color_key="bright", duration=2.0)
@@ -1183,41 +1531,97 @@ class ChladniSandPlugin(ThemePlugin):
     # ── v0.2: Palette shift ───────────────────────────────────────────────────
 
     def palette_shift(self, trigger_effect, intensity, base_palette):
+        if trigger_effect == "error":
+            self._palette_state = "error"   # mode collapse — red
+        elif trigger_effect == "skill_create":
+            self._palette_state = "skill"   # perfect mode — white/cyan
+        elif trigger_effect == "memory_save":
+            self._palette_state = "memory"  # green/cyan
+        elif trigger_effect == "agent_start":
+            self._palette_state = "bright"
         return None
 
     # ── v0.2: Special effects ─────────────────────────────────────────────────
 
     def special_effects(self):
-        return [SpecialEffect(name="mode-jump", trigger_kinds=["burst"],
-                              min_intensity=0.3, cooldown=4.0, duration=2.0)]
+        return [
+            SpecialEffect(name="mode-jump", trigger_kinds=["burst"],
+                          min_intensity=0.3, cooldown=4.0, duration=2.0),
+            SpecialEffect(name="resonance-bloom",
+                          trigger_kinds=["skill_create", "llm_end"],
+                          min_intensity=0.4, cooldown=7.0, duration=3.0),
+        ]
 
     def draw_special(self, stdscr, state, color_pairs, special_name, progress, intensity):
-        if special_name != "mode-jump":
-            return
         w, h = state.width, state.height
         _ensure_rainbow()
-        # Flash the entire screen with the next mode pattern
-        next_mode_idx = (state.frame // 180 + 1) % len(self._MODES)
-        m2, n2 = self._MODES[next_mode_idx]
-        hue_base = (next_mode_idx / len(self._MODES))
-        flash = math.sin(progress * math.pi)
-        for y in range(1, h - 1):
-            for x in range(0, w - 1, 2):
-                xn = x / max(w - 1, 1)
-                yn = y / max(h - 1, 1)
-                z = math.cos(m2 * math.pi * xn) * math.cos(n2 * math.pi * yn)
-                if abs(z) < 0.18 * flash:
-                    hue_t = (hue_base + abs(z) * 0.3) % 1.0
-                    pair = _rainbow_pair(hue_t)
-                    try:
-                        stdscr.addstr(y, x, "·", pair | curses.A_BOLD)
-                    except curses.error:
-                        pass
+        f = state.frame
+        if special_name == "mode-jump":
+            # Flash the entire screen with the next mode pattern
+            next_mode_idx = (f // 180 + 1) % len(self._MODES)
+            m2, n2 = self._MODES[next_mode_idx]
+            hue_base = (next_mode_idx / len(self._MODES))
+            flash = math.sin(progress * math.pi)
+            for y in range(1, h - 1):
+                for x in range(0, w - 1, 2):
+                    xn = x / max(w - 1, 1)
+                    yn = y / max(h - 1, 1)
+                    z = math.cos(m2 * math.pi * xn) * math.cos(n2 * math.pi * yn)
+                    if abs(z) < 0.18 * flash:
+                        hue_t = (hue_base + abs(z) * 0.3) % 1.0
+                        pair = _rainbow_pair(hue_t)
+                        try:
+                            stdscr.addstr(y, x, "·", pair | curses.A_BOLD)
+                        except curses.error:
+                            pass
+        elif special_name == "resonance-bloom":
+            # Bright expanding wave centered on each antinode cluster
+            mode_idx = (f // 180) % len(self._MODES)
+            m, n = self._MODES[mode_idx]
+            hue_base = mode_idx / len(self._MODES)
+            max_r = int(min(w * 0.4, h * 0.35) * progress)
+            cx2, cy2 = w // 2, h // 2
+            # Draw rings expanding from the plate centre
+            for r in range(1, max(2, max_r), 3):
+                hue_t = (r / max(max_r, 1) + hue_base + f * 0.01) % 1.0
+                pair = _rainbow_pair(hue_t)
+                for a_deg in range(0, 360, 8):
+                    a = math.radians(a_deg)
+                    px = cx2 + int(r * math.cos(a) * 2)
+                    py = cy2 + int(r * math.sin(a))
+                    if 1 <= py < h - 1 and 0 <= px < w - 1:
+                        try:
+                            stdscr.addstr(py, px, "·", pair | curses.A_BOLD)
+                        except curses.error:
+                            pass
 
     # ── v0.2: Ambient tick ────────────────────────────────────────────────────
 
     def ambient_tick(self, stdscr, state, color_pairs, idle_seconds):
-        pass  # mode evolution is driven by frame count in draw_extras
+        """Sand grain movement — a single grain migrates toward an antinode."""
+        if idle_seconds < 0.5:
+            return
+        w, h = state.width, state.height
+        if w < 8 or h < 4:
+            return
+        _ensure_rainbow()
+        if state.frame % 5 == 0:
+            # Pick a random antinode and place a dim grain there
+            mode_idx = (state.frame // 180) % len(self._MODES)
+            m, n = self._MODES[mode_idx]
+            # Antinode positions: k/(2m), l/(2n) for odd k,l
+            ki = random.choice([k for k in range(1, m * 2, 2)])
+            li = random.choice([l for l in range(1, n * 2, 2)])
+            px = int(w * ki / (2 * m)) + random.randint(-2, 2)
+            py = int(h * li / (2 * n)) + random.randint(-1, 1)
+            px = max(0, min(w - 1, px))
+            py = max(1, min(h - 2, py))
+            hue_base = mode_idx / len(self._MODES)
+            pair = _rainbow_pair((hue_base + random.uniform(-0.05, 0.05)) % 1.0)
+            try:
+                stdscr.addstr(py, px, "·", pair | curses.A_DIM)
+            except curses.error:
+                pass
 
 
 register(ChladniSandPlugin())

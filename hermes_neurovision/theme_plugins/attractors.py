@@ -212,26 +212,59 @@ class LorenzButterflyPlugin(_AttractorBase):
         return _rainbow_pair(x / max(w - 1, 1))
 
 
+    # ── v0.2: Emergent system ─────────────────────────────────────────────────
+
+    def emergent_layer(self):
+        return "background"
+
+    def neural_field_config(self):
+        """Neural field excitations at butterfly density maxima."""
+        return {"threshold": 2, "fire_duration": 3, "refractory": 5}
+
     # ── v0.2: Post-FX ─────────────────────────────────────────────────────────
 
     def echo_decay(self):
-        return 4
+        """Butterfly trails linger for 5 frames."""
+        return 5
 
     def glow_radius(self):
         return 1
 
+    def symmetry(self):
+        return None
+
+    def depth_layers(self):
+        return 3
+
+    def decay_sequence(self):
+        return "▓▒░·."
+
     def warp_field(self, x, y, w, h, frame, intensity):
-        """The attractor's chaotic field warps nearby space."""
+        """Saddle-point instability warp — strongest at the centre transition between lobes."""
         xf = x / max(w, 1) - 0.5
         yf = y / max(h, 1) - 0.5
-        t = frame * 0.025
-        # Chaotic butterfly-like warp: x warps y more than itself
-        amp = intensity * 1.5
-        wx = int(amp * math.sin(t * 1.1 + yf * 8.0))
-        wy = int(amp * 0.6 * math.cos(t * 0.9 + xf * 6.0))
+        # Gaussian peak at center (saddle transition zone between the two lobes)
+        gauss = math.exp(-(xf * xf * 16.0 + yf * yf * 16.0))
+        t = frame * 0.04
+        amp = intensity * 2.0 * gauss
+        wx = int(amp * math.sin(t + yf * 0.2 * math.tau))
+        wy = int(amp * 0.5 * math.cos(t * 0.85 + xf * 5.0))
         nx = max(0, min(w - 1, x + wx))
         ny = max(0, min(h - 1, y + wy))
         return (nx, ny)
+
+    def force_points(self, w, h, frame, intensity):
+        """2 vortex attractors at the two lobe centres (x ±25%, y at lobe centroid)."""
+        cx = w / 2.0
+        cy = h * 0.40
+        lobe_x = w * 0.25
+        strength = 0.35 + intensity * 0.35
+        return [
+            {"x": int(cx - lobe_x), "y": int(cy),
+             "strength": strength, "type": "vortex"},
+            {"x": int(cx + lobe_x), "y": int(cy),
+             "strength": strength, "type": "vortex"},
+        ]
 
     # ── v0.2: Intensity curve ─────────────────────────────────────────────────
 
@@ -243,9 +276,15 @@ class LorenzButterflyPlugin(_AttractorBase):
     def react(self, event_kind, data):
         cx, cy = 0.5, 0.5
         rng = random
+        # Left lobe ≈ x=0.25, right lobe ≈ x=0.75; lobes sit in upper half
+        left_lobe  = (0.25, 0.40)
+        right_lobe = (0.75, 0.40)
         if event_kind == "agent_start":
             return Reaction(element=ReactiveElement.PULSE, intensity=0.9,
                             origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "agent_end":
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.5,
+                            origin=(cx, cy), color_key="soft", duration=2.0)
         if event_kind == "llm_start":
             return Reaction(element=ReactiveElement.STREAM, intensity=0.8,
                             origin=(0.0, cy), color_key="accent", duration=3.5,
@@ -254,17 +293,62 @@ class LorenzButterflyPlugin(_AttractorBase):
             return Reaction(element=ReactiveElement.SPARK, intensity=0.4,
                             origin=(rng.random(), rng.random()),
                             color_key="bright", duration=0.5)
+        if event_kind == "llm_end":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.65,
+                            origin=(cx, cy), color_key="soft", duration=1.8)
         if event_kind == "tool_call":
             return Reaction(element=ReactiveElement.RIPPLE, intensity=0.65,
                             origin=(rng.random(), rng.random()),
                             color_key="accent", duration=1.5)
+        if event_kind == "tool_complete":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.45,
+                            origin=(rng.random(), rng.random()),
+                            color_key="soft", duration=1.2)
+        if event_kind == "mcp_tool_call":
+            lobe = rng.choice([left_lobe, right_lobe])
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.55,
+                            origin=lobe, color_key="accent", duration=1.4)
         if event_kind == "memory_save":
             return Reaction(element=ReactiveElement.BLOOM, intensity=0.75,
                             origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "skill_create":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=1.0,
+                            origin=(cx, cy), color_key="bright", duration=3.5,
+                            data={"maximal": True})
         if event_kind == "error":
             return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
                             origin=(rng.random(), rng.random()),
                             color_key="warning", duration=2.0)
+        if event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                            origin=(cx, cy), color_key="warning", duration=3.0)
+        if event_kind == "cron_tick":
+            return Reaction(element=ReactiveElement.ORBIT, intensity=0.50,
+                            origin=left_lobe, color_key="soft", duration=2.0)
+        if event_kind == "background_proc":
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.3,
+                            origin=(rng.random(), rng.random()),
+                            color_key="base", duration=0.8)
+        if event_kind == "subagent_started":
+            return Reaction(element=ReactiveElement.ORBIT, intensity=0.65,
+                            origin=right_lobe, color_key="soft", duration=2.5)
+        if event_kind == "context_pressure":
+            return Reaction(element=ReactiveElement.GAUGE,
+                            intensity=data.get("level", 0.5),
+                            origin=(cx, cy), color_key="accent", duration=2.0)
+        if event_kind == "token_usage":
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.25,
+                            origin=(rng.random(), rng.random()),
+                            color_key="base", duration=0.6)
+        if event_kind == "dangerous_cmd":
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.9,
+                            origin=(cx, cy), color_key="warning", duration=1.5)
+        if event_kind == "approval_request":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.7,
+                            origin=(cx, cy), color_key="warning", duration=2.0)
+        if event_kind == "compression_started":
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.8,
+                            origin=(cx, cy), color_key="accent", duration=3.0)
         if event_kind == "reasoning_change":
             return Reaction(element=ReactiveElement.GLYPH, intensity=0.7,
                             origin=(cx, cy), color_key="accent", duration=2.0,
@@ -274,35 +358,90 @@ class LorenzButterflyPlugin(_AttractorBase):
     # ── v0.2: Palette shift ───────────────────────────────────────────────────
 
     def palette_shift(self, trigger_effect, intensity, base_palette):
+        if trigger_effect == "error":
+            # Chaotic divergence — red/yellow alarm colours
+            self._palette_state = "error"
+        elif trigger_effect == "skill_create":
+            # Strange attractor peak — white/cyan clarity
+            self._palette_state = "skill"
+        elif trigger_effect == "agent_start":
+            self._palette_state = "bright"
         return None
 
     # ── v0.2: Special effects ─────────────────────────────────────────────────
 
     def special_effects(self):
-        return [SpecialEffect(name="butterfly-effect", trigger_kinds=["burst"],
-                              min_intensity=0.3, cooldown=5.0, duration=3.0)]
+        return [
+            SpecialEffect(name="butterfly-effect", trigger_kinds=["burst"],
+                          min_intensity=0.3, cooldown=5.0, duration=3.0),
+            SpecialEffect(name="bifurcation",
+                          trigger_kinds=["error", "crash"],
+                          min_intensity=0.5, cooldown=8.0, duration=2.5),
+        ]
 
     def draw_special(self, stdscr, state, color_pairs, special_name, progress, intensity):
-        if special_name != "butterfly-effect":
-            return
         w, h = state.width, state.height
         _ensure_rainbow()
         cx2, cy2 = w // 2, h // 2
-        # Two expanding wings — butterfly shape
-        for wing in (-1, 1):
-            max_r = int(min(w // 2, h // 2) * progress * 1.5)
-            for r in range(1, max(2, max_r), 2):
-                for a_deg in range(-60, 61, 8):
-                    a = math.radians(a_deg)
-                    px = cx2 + wing * int(r * math.cos(a) * 2)
-                    py = cy2 + int(r * math.sin(a))
-                    if 1 <= py < h - 1 and 0 <= px < w - 1:
-                        hue_t = (r / max(max_r, 1) + state.frame * 0.01) % 1.0
-                        pair = _rainbow_pair(hue_t)
-                        try:
-                            stdscr.addstr(py, px, "·", pair | curses.A_BOLD)
-                        except curses.error:
-                            pass
+        if special_name == "butterfly-effect":
+            # Two expanding wings — butterfly shape
+            for wing in (-1, 1):
+                max_r = int(min(w // 2, h // 2) * progress * 1.5)
+                for r in range(1, max(2, max_r), 2):
+                    for a_deg in range(-60, 61, 8):
+                        a = math.radians(a_deg)
+                        px = cx2 + wing * int(r * math.cos(a) * 2)
+                        py = cy2 + int(r * math.sin(a))
+                        if 1 <= py < h - 1 and 0 <= px < w - 1:
+                            hue_t = (r / max(max_r, 1) + state.frame * 0.01) % 1.0
+                            pair = _rainbow_pair(hue_t)
+                            try:
+                                stdscr.addstr(py, px, "·", pair | curses.A_BOLD)
+                            except curses.error:
+                                pass
+        elif special_name == "bifurcation":
+            # Period-doubling cascade — brief double-image of the trajectory
+            boost = math.sin(progress * math.pi)
+            offsets = [(-3, -1), (3, 1)]
+            for ox_off, oy_off in offsets:
+                max_r = int(min(w // 3, h // 3) * max(boost, 0.1))
+                for r in range(1, max(2, max_r), 3):
+                    for a_deg in range(0, 360, 10):
+                        a = math.radians(a_deg)
+                        # Butterfly lobe silhouette — wide horizontally
+                        px = cx2 + ox_off + int(r * math.cos(a) * 2.3)
+                        py = cy2 + oy_off + int(r * math.sin(a) * 0.65)
+                        if 1 <= py < h - 1 and 0 <= px < w - 1:
+                            hue_t = (r / max(max_r, 1) + state.frame * 0.015) % 1.0
+                            pair = _rainbow_pair(hue_t)
+                            try:
+                                stdscr.addstr(py, px, "░", pair | curses.A_DIM)
+                            except curses.error:
+                                pass
+
+    # ── v0.2: Ambient tick ────────────────────────────────────────────────────
+
+    def ambient_tick(self, stdscr, state, color_pairs, idle_seconds):
+        """Tiny random perturbation — faint dim dot at a random lobe position."""
+        if idle_seconds < 1.0:
+            return
+        w, h = state.width, state.height
+        if w < 8 or h < 4:
+            return
+        _ensure_rainbow()
+        if random.random() < 0.30:
+            lobe = random.choice([-1, 1])
+            cx2 = w // 2
+            cy2 = int(h * 0.38)
+            lobe_ox = int(w * 0.22)
+            px = cx2 + lobe * lobe_ox + random.randint(-5, 5)
+            py = cy2 + random.randint(-3, 3)
+            if 1 <= py < h - 1 and 0 <= px < w - 1:
+                pair = _rainbow_pair(random.random())
+                try:
+                    stdscr.addstr(py, px, "·", pair | curses.A_DIM)
+                except curses.error:
+                    pass
 
 
 register(LorenzButterflyPlugin())
@@ -383,31 +522,55 @@ class RosslerRibbonPlugin(_AttractorBase):
         super().draw_extras(stdscr, state, color_pairs)
         self._fast_decay = False
 
-    # ── v0.2: Post-FX ─────────────────────────────────────────────────────────
+    # ── v0.2: Emergent system ─────────────────────────────────────────────────
 
     def emergent_layer(self):
         return "background"
 
+    def wave_config(self):
+        """Ribbon flutter — gentle, damped wave oscillation."""
+        return {"speed": 0.4, "damping": 0.97}
+
+    # ── v0.2: Post-FX ─────────────────────────────────────────────────────────
+
     def echo_decay(self):
-        return 5
+        """Ribbon orbits persist for 6 frames."""
+        return 6
 
     def glow_radius(self):
         return 1
 
+    def symmetry(self):
+        return None
+
+    def depth_layers(self):
+        return 3
+
+    def decay_sequence(self):
+        return "▓▒░·."
+
     def warp_field(self, x, y, w, h, frame, intensity):
-        """Gentle sinusoidal ripple following the ribbon's curvature."""
-        xf = x / max(w, 1)
+        """Ribbon-flutter warp — x oscillates, mimicking the coil ripple."""
         yf = y / max(h, 1)
-        t = frame * 0.018
-        amp = intensity * 1.2
-        wx = int(amp * math.sin(t + yf * 5.0))
-        wy = int(amp * 0.5 * math.sin(t * 0.7 + xf * 4.0))
+        t = frame * 0.05
+        amp = intensity * 1.5
+        wx = int(amp * math.sin(t + yf * 0.15 * math.tau))
+        wy = int(amp * 0.3 * math.cos(t * 0.65 + yf * 3.0))
         nx = max(0, min(w - 1, x + wx))
         ny = max(0, min(h - 1, y + wy))
         return (nx, ny)
 
-    def wave_config(self):
-        return {"speed": 0.3, "damping": 0.98}
+    def force_points(self, w, h, frame, intensity):
+        """1 vortex at coil center, 1 repulsor at spike tip (top of screen)."""
+        cx = w / 2.0
+        cy = h / 2.0
+        strength = 0.35 + intensity * 0.35
+        return [
+            {"x": int(cx), "y": int(cy),
+             "strength": strength, "type": "vortex"},
+            {"x": int(cx), "y": 2,
+             "strength": strength * 0.6, "type": "repulsor"},
+        ]
 
     # ── v0.2: Intensity curve ─────────────────────────────────────────────────
 
@@ -419,9 +582,14 @@ class RosslerRibbonPlugin(_AttractorBase):
     def react(self, event_kind, data):
         cx, cy = 0.5, 0.5
         rng = random
+        coil_center = (0.5, 0.55)   # flat coil centre
+        spike_tip   = (0.5, 0.05)   # top of the spike
         if event_kind == "agent_start":
             return Reaction(element=ReactiveElement.PULSE, intensity=0.9,
                             origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "agent_end":
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.5,
+                            origin=(cx, cy), color_key="soft", duration=2.0)
         if event_kind == "llm_start":
             return Reaction(element=ReactiveElement.STREAM, intensity=0.8,
                             origin=(cx, cy), color_key="accent", duration=3.5)
@@ -429,52 +597,151 @@ class RosslerRibbonPlugin(_AttractorBase):
             return Reaction(element=ReactiveElement.SPARK, intensity=0.4,
                             origin=(rng.random(), rng.random()),
                             color_key="bright", duration=0.5)
+        if event_kind == "llm_end":
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.65,
+                            origin=coil_center, color_key="soft", duration=2.0)
         if event_kind == "tool_call":
             return Reaction(element=ReactiveElement.RIPPLE, intensity=0.65,
                             origin=(rng.random(), rng.random()),
                             color_key="accent", duration=1.5)
+        if event_kind == "tool_complete":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.45,
+                            origin=(rng.random(), rng.random()),
+                            color_key="soft", duration=1.2)
+        if event_kind == "mcp_tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.55,
+                            origin=coil_center, color_key="accent", duration=1.4)
         if event_kind == "memory_save":
             return Reaction(element=ReactiveElement.BLOOM, intensity=0.75,
                             origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "skill_create":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=1.0,
+                            origin=(cx, cy), color_key="bright", duration=3.5,
+                            data={"maximal": True})
         if event_kind == "error":
             return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
                             origin=(rng.random(), rng.random()),
                             color_key="warning", duration=2.0)
+        if event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                            origin=spike_tip, color_key="warning", duration=3.0)
+        if event_kind == "cron_tick":
+            return Reaction(element=ReactiveElement.ORBIT, intensity=0.50,
+                            origin=coil_center, color_key="soft", duration=2.0)
+        if event_kind == "background_proc":
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.3,
+                            origin=(rng.random(), rng.random()),
+                            color_key="base", duration=0.8)
+        if event_kind == "subagent_started":
+            return Reaction(element=ReactiveElement.ORBIT, intensity=0.65,
+                            origin=(rng.random(), 0.3), color_key="soft", duration=2.5)
+        if event_kind == "context_pressure":
+            return Reaction(element=ReactiveElement.GAUGE,
+                            intensity=data.get("level", 0.5),
+                            origin=(cx, cy), color_key="accent", duration=2.0)
+        if event_kind == "token_usage":
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.25,
+                            origin=(rng.random(), rng.random()),
+                            color_key="base", duration=0.6)
+        if event_kind == "dangerous_cmd":
+            # Spike eruption
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.9,
+                            origin=spike_tip, color_key="warning", duration=1.5)
+        if event_kind == "approval_request":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.7,
+                            origin=(cx, cy), color_key="warning", duration=2.0)
+        if event_kind == "compression_started":
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.8,
+                            origin=(cx, cy), color_key="accent", duration=3.0)
+        if event_kind == "reasoning_change":
+            return Reaction(element=ReactiveElement.GLYPH, intensity=0.7,
+                            origin=(cx, cy), color_key="accent", duration=2.0)
         return None
 
     # ── v0.2: Palette shift ───────────────────────────────────────────────────
 
     def palette_shift(self, trigger_effect, intensity, base_palette):
+        if trigger_effect == "error":
+            self._palette_state = "error"   # spike eruption — red
+        elif trigger_effect == "skill_create":
+            self._palette_state = "skill"   # ribbon unfurling — cyan/white
+        elif trigger_effect == "agent_start":
+            self._palette_state = "bright"
         return None
 
     # ── v0.2: Special effects ─────────────────────────────────────────────────
 
     def special_effects(self):
-        return [SpecialEffect(name="ribbon-spiral", trigger_kinds=["burst"],
-                              min_intensity=0.3, cooldown=5.0, duration=3.0)]
+        return [
+            SpecialEffect(name="ribbon-spiral", trigger_kinds=["burst"],
+                          min_intensity=0.3, cooldown=5.0, duration=3.0),
+            SpecialEffect(name="spike-eruption",
+                          trigger_kinds=["error", "dangerous_cmd"],
+                          min_intensity=0.5, cooldown=7.0, duration=2.0),
+        ]
 
     def draw_special(self, stdscr, state, color_pairs, special_name, progress, intensity):
-        if special_name != "ribbon-spiral":
-            return
         w, h = state.width, state.height
         _ensure_rainbow()
         cx2, cy2 = w // 2, h // 2
-        # Expanding spiral
-        t = state.frame * 0.05
-        max_turns = int(progress * 5)
-        for i in range(max_turns * 30):
-            frac = i / max(max_turns * 30, 1)
-            angle = frac * math.tau * max_turns + t
-            r = frac * min(w // 2, h // 2)
-            px = cx2 + int(r * math.cos(angle) * 2)
-            py = cy2 + int(r * math.sin(angle))
-            if 1 <= py < h - 1 and 0 <= px < w - 1:
-                hue_t = (frac + state.frame * 0.005) % 1.0
+        if special_name == "ribbon-spiral":
+            # Expanding coil spiral + spike morph overlay
+            t = state.frame * 0.05
+            max_turns = int(progress * 5)
+            for i in range(max_turns * 30):
+                frac = i / max(max_turns * 30, 1)
+                angle = frac * math.tau * max_turns + t
+                r = frac * min(w // 2, h // 2)
+                px = cx2 + int(r * math.cos(angle) * 2)
+                py = cy2 + int(r * math.sin(angle))
+                if 1 <= py < h - 1 and 0 <= px < w - 1:
+                    hue_t = (frac + state.frame * 0.005) % 1.0
+                    pair = _rainbow_pair(hue_t)
+                    try:
+                        stdscr.addstr(py, px, "·", pair | curses.A_BOLD)
+                    except curses.error:
+                        pass
+            # Spike accent: vertical line at center rising out of coil
+            spike_h = int(cy2 * progress)
+            for sy in range(max(1, cy2 - spike_h), cy2):
+                hue_t = (1.0 - sy / max(cy2, 1) + state.frame * 0.01) % 1.0
                 pair = _rainbow_pair(hue_t)
                 try:
-                    stdscr.addstr(py, px, "·", pair | curses.A_BOLD)
+                    stdscr.addstr(sy, cx2, "│", pair | curses.A_BOLD)
                 except curses.error:
                     pass
+        elif special_name == "spike-eruption":
+            # Bright vertical burst from spike tip (top) downward
+            burst_len = int(h * 0.6 * math.sin(progress * math.pi))
+            for sy in range(1, max(2, burst_len)):
+                hue_t = (sy / max(burst_len, 1) + state.frame * 0.02) % 1.0
+                pair = _rainbow_pair(hue_t)
+                ch = "║" if sy % 3 == 0 else "│"
+                try:
+                    stdscr.addstr(sy, cx2, ch, pair | curses.A_BOLD)
+                except curses.error:
+                    pass
+
+    # ── v0.2: Ambient tick ────────────────────────────────────────────────────
+
+    def ambient_tick(self, stdscr, state, color_pairs, idle_seconds):
+        """Very occasional spike event — single bright char near the spike tip."""
+        if idle_seconds < 1.5:
+            return
+        w, h = state.width, state.height
+        if w < 8 or h < 4:
+            return
+        _ensure_rainbow()
+        if random.random() < 0.12:
+            # Spike is roughly at center-x, upper-quarter of screen
+            cx2 = w // 2
+            sy = random.randint(1, max(2, h // 4))
+            pair = _rainbow_pair(0.5 + random.uniform(-0.15, 0.15))  # cyan/blue
+            try:
+                stdscr.addstr(sy, cx2 + random.randint(-1, 1), "◆",
+                              pair | curses.A_BOLD)
+            except curses.error:
+                pass
 
 
 # Patch _AttractorBase.draw_extras to respect _fast_decay flag on subclasses
@@ -974,20 +1241,27 @@ class AizawaTorusPlugin(_AttractorBase):
         return "background"
 
     def echo_decay(self):
-        return 6
+        """Torus orbit trails linger for 5 frames."""
+        return 5
 
     def glow_radius(self):
         return 2
+
+    def symmetry(self):
+        return None
+
+    def depth_layers(self):
+        return 3
+
+    def decay_sequence(self):
+        return "▓▒░·."
 
     def warp_field(self, x, y, w, h, frame, intensity):
         """Toroidal warp — pixels curve around the torus axis."""
         xf = x / max(w, 1) - 0.5
         yf = y / max(h, 1) - 0.5
-        # Torus: major radius in xy, minor radius in z
-        # Warp in circular fashion around center
         t = frame * 0.01
         dist = math.sqrt(xf * xf + yf * yf) + 0.001
-        # Angular warp — pixels rotate slightly around the center
         angle = math.atan2(yf, xf)
         warp_angle = angle + intensity * 0.15 * math.sin(t + dist * 6.0)
         r_warped = dist * (1.0 + 0.08 * math.sin(t * 2.0 + angle * 4.0) * intensity)
@@ -995,8 +1269,32 @@ class AizawaTorusPlugin(_AttractorBase):
         ny = max(0, min(h - 1, int(h * (0.5 + r_warped * math.sin(warp_angle)))))
         return (nx, ny)
 
+    def force_points(self, w, h, frame, intensity):
+        """2 vortex attractors orbiting the torus at ±60° from vertical."""
+        cx = w / 2.0
+        cy = h / 2.0
+        t = frame * 0.010  # slow orbit
+        r_x = w * 0.28
+        r_y = h * 0.22
+        strength = 0.35 + intensity * 0.35
+        ang1 = t + math.pi / 3.0   # +60°
+        ang2 = t - math.pi / 3.0   # -60°
+        return [
+            {"x": int(cx + math.cos(ang1) * r_x),
+             "y": int(cy + math.sin(ang1) * r_y),
+             "strength": strength, "type": "vortex"},
+            {"x": int(cx + math.cos(ang2) * r_x),
+             "y": int(cy + math.sin(ang2) * r_y),
+             "strength": strength, "type": "vortex"},
+        ]
+
     def wave_config(self):
         return {"speed": 0.2, "damping": 0.99}
+
+    def physarum_config(self):
+        """Slime-mould agents trace the torus surface."""
+        return {"n_agents": 100, "sensor_angle": 0.5, "sensor_dist": 4,
+                "turn_speed": 0.35, "speed": 1.0, "deposit": 1.0, "decay": 0.95}
 
     # ── v0.2: Intensity curve ─────────────────────────────────────────────────
 
@@ -1008,59 +1306,184 @@ class AizawaTorusPlugin(_AttractorBase):
     def react(self, event_kind, data):
         cx, cy = 0.5, 0.5
         rng = random
+        # Torus orbits at ±60° from vertical, roughly quarter-way from edge
+        inner_torus = (0.5, 0.38)   # inner torus centre
+        torus_rim1  = (0.65, 0.45)
+        torus_rim2  = (0.35, 0.45)
         if event_kind == "agent_start":
             return Reaction(element=ReactiveElement.PULSE, intensity=0.9,
                             origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "agent_end":
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.5,
+                            origin=(cx, cy), color_key="soft", duration=2.0)
         if event_kind == "llm_start":
             return Reaction(element=ReactiveElement.STREAM, intensity=0.8,
                             origin=(cx, cy), color_key="accent", duration=3.5)
+        if event_kind == "llm_chunk":
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.4,
+                            origin=(rng.random(), rng.random()),
+                            color_key="bright", duration=0.5)
+        if event_kind == "llm_end":
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.65,
+                            origin=(cx, cy), color_key="soft", duration=2.0)
         if event_kind == "tool_call":
             return Reaction(element=ReactiveElement.ORBIT, intensity=0.65,
                             origin=(cx, cy), color_key="accent", duration=3.0)
+        if event_kind == "tool_complete":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.45,
+                            origin=rng.choice([torus_rim1, torus_rim2]),
+                            color_key="soft", duration=1.2)
+        if event_kind == "mcp_tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.55,
+                            origin=rng.choice([torus_rim1, torus_rim2]),
+                            color_key="accent", duration=1.4)
         if event_kind == "memory_save":
             return Reaction(element=ReactiveElement.BLOOM, intensity=0.75,
                             origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "skill_create":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=1.0,
+                            origin=(cx, cy), color_key="bright", duration=3.5,
+                            data={"maximal": True})
         if event_kind == "error":
             return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
                             origin=(rng.random(), rng.random()),
                             color_key="warning", duration=2.0)
+        if event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                            origin=(cx, cy), color_key="warning", duration=3.0)
         if event_kind == "cron_tick":
+            # Torus revolution — orbit at rim
             return Reaction(element=ReactiveElement.ORBIT, intensity=0.5,
-                            origin=(rng.random(), rng.random()),
+                            origin=rng.choice([torus_rim1, torus_rim2]),
                             color_key="soft", duration=2.0)
+        if event_kind == "background_proc":
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.3,
+                            origin=(rng.random(), rng.random()),
+                            color_key="base", duration=0.8)
+        if event_kind == "subagent_started":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.65,
+                            origin=inner_torus, color_key="soft", duration=2.5)
+        if event_kind == "context_pressure":
+            return Reaction(element=ReactiveElement.GAUGE,
+                            intensity=data.get("level", 0.5),
+                            origin=(cx, cy), color_key="accent", duration=2.0)
+        if event_kind == "token_usage":
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.25,
+                            origin=(rng.random(), rng.random()),
+                            color_key="base", duration=0.6)
+        if event_kind == "dangerous_cmd":
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.9,
+                            origin=(cx, cy), color_key="warning", duration=1.5)
+        if event_kind == "approval_request":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.7,
+                            origin=(cx, cy), color_key="warning", duration=2.0)
+        if event_kind == "compression_started":
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.8,
+                            origin=(cx, cy), color_key="accent", duration=3.0)
+        if event_kind == "reasoning_change":
+            return Reaction(element=ReactiveElement.GLYPH, intensity=0.7,
+                            origin=(cx, cy), color_key="accent", duration=2.0)
         return None
 
     # ── v0.2: Palette shift ───────────────────────────────────────────────────
 
     def palette_shift(self, trigger_effect, intensity, base_palette):
+        if trigger_effect == "error":
+            self._palette_state = "error"       # red disruption
+        elif trigger_effect == "skill_create":
+            self._palette_state = "skill"       # cyan/white revelation
+        elif trigger_effect == "agent_start":
+            self._palette_state = "bright"      # white/magenta ignition
         return None
 
     # ── v0.2: Special effects ─────────────────────────────────────────────────
 
     def special_effects(self):
-        return [SpecialEffect(name="torus-resonance", trigger_kinds=["burst"],
-                              min_intensity=0.3, cooldown=5.0, duration=3.0)]
+        return [
+            SpecialEffect(name="torus-resonance", trigger_kinds=["burst"],
+                          min_intensity=0.3, cooldown=5.0, duration=3.0),
+            SpecialEffect(name="torus-flip",
+                          trigger_kinds=["skill_create", "agent_start"],
+                          min_intensity=0.5, cooldown=8.0, duration=2.5),
+        ]
 
     def draw_special(self, stdscr, state, color_pairs, special_name, progress, intensity):
-        if special_name != "torus-resonance":
-            return
         w, h = state.width, state.height
         _ensure_rainbow()
         cx2, cy2 = w // 2, h // 2
-        # Concentric torus rings radiating outward
-        max_rings = int(progress * 8)
-        for ring in range(1, max_rings + 1):
-            r_x = int(w * 0.35 * ring / max(max_rings, 1))
-            r_y = int(h * 0.35 * ring / max(max_rings, 1))
-            hue_t = (ring / max(max_rings, 1) + state.frame * 0.01) % 1.0
-            pair = _rainbow_pair(hue_t)
-            for a_deg in range(0, 360, 5):
+        if special_name == "torus-resonance":
+            # Concentric torus rings radiating outward
+            max_rings = int(progress * 8)
+            for ring in range(1, max_rings + 1):
+                r_x = int(w * 0.35 * ring / max(max_rings, 1))
+                r_y = int(h * 0.35 * ring / max(max_rings, 1))
+                hue_t = (ring / max(max_rings, 1) + state.frame * 0.01) % 1.0
+                pair = _rainbow_pair(hue_t)
+                for a_deg in range(0, 360, 5):
+                    a = math.radians(a_deg)
+                    px = cx2 + int(r_x * math.cos(a))
+                    py = cy2 + int(r_y * math.sin(a) * 0.6)
+                    if 1 <= py < h - 1 and 0 <= px < w - 1:
+                        try:
+                            stdscr.addstr(py, px, "○", pair | curses.A_BOLD)
+                        except curses.error:
+                            pass
+        elif special_name == "torus-flip":
+            # Brief view from a tilted angle — squished/stretched torus silhouette
+            flip_angle = progress * math.pi   # 0 → π (full flip)
+            squeeze = abs(math.cos(flip_angle))  # 1→0→1 (squish through edge-on)
+            r_x = int(w * 0.38)
+            r_y = max(1, int(h * 0.28 * squeeze + 1))
+            hue_t = (progress + state.frame * 0.01) % 1.0
+            for a_deg in range(0, 360, 4):
                 a = math.radians(a_deg)
                 px = cx2 + int(r_x * math.cos(a))
-                py = cy2 + int(r_y * math.sin(a) * 0.6)
+                py = cy2 + int(r_y * math.sin(a) * 0.5)
                 if 1 <= py < h - 1 and 0 <= px < w - 1:
+                    pair = _rainbow_pair_angle(a + hue_t * math.tau)
                     try:
-                        stdscr.addstr(py, px, "○", pair | curses.A_BOLD)
+                        stdscr.addstr(py, px, "◎", pair | curses.A_BOLD)
+                    except curses.error:
+                        pass
+            # Inner tube trace
+            r_x2 = int(r_x * 0.45)
+            r_y2 = max(1, int(r_y * 0.6 + 1))
+            for a_deg in range(0, 360, 6):
+                a = math.radians(a_deg)
+                px = cx2 + int(r_x2 * math.cos(a))
+                py = cy2 + int(r_y2 * math.sin(a) * 0.5)
+                if 1 <= py < h - 1 and 0 <= px < w - 1:
+                    pair = _rainbow_pair_angle(a + hue_t * math.tau * 0.5)
+                    try:
+                        stdscr.addstr(py, px, "·", pair | curses.A_DIM)
+                    except curses.error:
+                        pass
+
+    # ── v0.2: Ambient tick ────────────────────────────────────────────────────
+
+    def ambient_tick(self, stdscr, state, color_pairs, idle_seconds):
+        """Slow torus rotation indicator — dim arc at the torus rim."""
+        if idle_seconds < 1.0:
+            return
+        w, h = state.width, state.height
+        if w < 8 or h < 4:
+            return
+        _ensure_rainbow()
+        if state.frame % 6 == 0:
+            cx2, cy2 = w // 2, h // 2
+            t = state.frame * 0.015  # slow rotation
+            # Draw a single dim arc segment at the rotating rim point
+            arc_start = t % math.tau
+            r_x = int(w * 0.30)
+            r_y = int(h * 0.20)
+            for d_deg in range(-12, 13, 4):
+                a = arc_start + math.radians(d_deg)
+                px = cx2 + int(r_x * math.cos(a))
+                py = cy2 + int(r_y * math.sin(a) * 0.55)
+                if 1 <= py < h - 1 and 0 <= px < w - 1:
+                    pair = _rainbow_pair_angle(a)
+                    try:
+                        stdscr.addstr(py, px, "·", pair | curses.A_DIM)
                     except curses.error:
                         pass
 
@@ -1085,12 +1508,16 @@ class ThomasLabyrinthPlugin(_AttractorBase):
     name = "thomas-labyrinth"
     _DT  = 0.04
     _B   = 0.208186
+    # 3-fold symmetry points at 120° spacing — used for ORBIT events and force_points
+    _SYM_ANGLES = [0.0, math.tau / 3.0, 2 * math.tau / 3.0]
 
     def __init__(self):
         super().__init__()
         self._az   = 0.0   # azimuth  (rotation around Z axis)
         self._el   = 0.0   # elevation (tilt around X axis)
         self._hue_shift = 0.0
+        self._palette_state = "normal"
+        self._sym_idx = 0   # for cron_tick cycling
 
     def _reset_trajectory(self):
         self._tx, self._ty, self._tz = 0.1, 0.0, -0.1
@@ -1147,23 +1574,63 @@ class ThomasLabyrinthPlugin(_AttractorBase):
         self._fast_decay = False
 
 
-    # ── v0.2: Post-FX ─────────────────────────────────────────────────────────
+    # ── v0.2: Emergent system ─────────────────────────────────────────────────
 
     def emergent_layer(self):
         return "background"
+
+    def neural_field_config(self):
+        """Labyrinth path firing — high threshold, long refractory."""
+        return {"threshold": 3, "fire_duration": 2, "refractory": 7}
+
+    def physarum_config(self):
+        return {"n_agents": 200, "sensor_angle": 0.4, "sensor_dist": 4,
+                "speed": 0.9, "deposit": 1.2, "decay": 0.96}
+
+    # ── v0.2: Post-FX ─────────────────────────────────────────────────────────
 
     def glow_radius(self):
         return 1
 
     def echo_decay(self):
-        return 5
+        """Labyrinth paths echo for 4 frames."""
+        return 4
+
+    def symmetry(self):
+        return None
+
+    def depth_layers(self):
+        return 3
 
     def decay_sequence(self):
         return "▓▒░·."
 
-    def physarum_config(self):
-        return {"n_agents": 200, "sensor_angle": 0.4, "sensor_dist": 4,
-                "speed": 0.9, "deposit": 1.2, "decay": 0.96}
+    def warp_field(self, x, y, w, h, frame, intensity):
+        """Cubic lattice distortion — 3-fold symmetry warps space like a crystal."""
+        xf = x / max(w, 1)
+        yf = y / max(h, 1)
+        t = frame * 0.03
+        amp = intensity * 1.5
+        wx = int(amp * math.sin(xf * 0.3 * math.tau + t) * math.cos(yf * 0.3 * math.tau))
+        wy = int(amp * 0.7 * math.cos(xf * 0.3 * math.tau) * math.sin(yf * 0.3 * math.tau + t))
+        nx = max(0, min(w - 1, x + wx))
+        ny = max(0, min(h - 1, y + wy))
+        return (nx, ny)
+
+    def force_points(self, w, h, frame, intensity):
+        """3 vortex attractors at the 3-fold symmetry points (120° apart)."""
+        cx = w / 2.0
+        cy = h / 2.0
+        r_x = w * 0.28
+        r_y = h * 0.22
+        t = frame * 0.008  # slow rotation
+        strength = 0.30 + intensity * 0.35
+        return [
+            {"x": int(cx + math.cos(ang + t) * r_x),
+             "y": int(cy + math.sin(ang + t) * r_y),
+             "strength": strength, "type": "vortex"}
+            for ang in self._SYM_ANGLES
+        ]
 
     # ── v0.2: Intensity curve ─────────────────────────────────────────────────
 
@@ -1175,9 +1642,17 @@ class ThomasLabyrinthPlugin(_AttractorBase):
     def react(self, event_kind, data):
         cx, cy = 0.5, 0.5
         rng = random
+        # 3-fold symmetry points in screen-space
+        sym_pts = [
+            (0.5 + math.cos(a) * 0.28, 0.5 + math.sin(a) * 0.20)
+            for a in self._SYM_ANGLES
+        ]
         if event_kind == "agent_start":
             return Reaction(element=ReactiveElement.PULSE, intensity=0.9,
                             origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "agent_end":
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.5,
+                            origin=(cx, cy), color_key="soft", duration=2.0)
         if event_kind == "llm_start":
             return Reaction(element=ReactiveElement.STREAM, intensity=0.8,
                             origin=(cx, cy), color_key="accent", duration=3.5)
@@ -1185,17 +1660,68 @@ class ThomasLabyrinthPlugin(_AttractorBase):
             return Reaction(element=ReactiveElement.SPARK, intensity=0.4,
                             origin=(rng.random(), rng.random()),
                             color_key="bright", duration=0.5)
+        if event_kind == "llm_end":
+            # Path resolved
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.65,
+                            origin=(cx, cy), color_key="soft", duration=2.0)
         if event_kind == "tool_call":
             return Reaction(element=ReactiveElement.RIPPLE, intensity=0.65,
                             origin=(rng.random(), rng.random()),
                             color_key="accent", duration=1.5)
+        if event_kind == "tool_complete":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.45,
+                            origin=(rng.random(), rng.random()),
+                            color_key="soft", duration=1.2)
+        if event_kind == "mcp_tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.55,
+                            origin=rng.choice(sym_pts),
+                            color_key="accent", duration=1.4)
         if event_kind == "memory_save":
             return Reaction(element=ReactiveElement.BLOOM, intensity=0.75,
                             origin=(cx, cy), color_key="bright", duration=2.5)
+        if event_kind == "skill_create":
+            # New labyrinth path found
+            return Reaction(element=ReactiveElement.BLOOM, intensity=1.0,
+                            origin=(cx, cy), color_key="bright", duration=3.5,
+                            data={"maximal": True})
         if event_kind == "error":
             return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
                             origin=(rng.random(), rng.random()),
                             color_key="warning", duration=2.0)
+        if event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                            origin=(cx, cy), color_key="warning", duration=3.0)
+        if event_kind == "cron_tick":
+            pt = sym_pts[self._sym_idx % 3]
+            self._sym_idx += 1
+            return Reaction(element=ReactiveElement.ORBIT, intensity=0.50,
+                            origin=pt, color_key="soft", duration=2.0)
+        if event_kind == "background_proc":
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.3,
+                            origin=(rng.random(), rng.random()),
+                            color_key="base", duration=0.8)
+        if event_kind == "subagent_started":
+            return Reaction(element=ReactiveElement.ORBIT, intensity=0.65,
+                            origin=rng.choice(sym_pts),
+                            color_key="soft", duration=2.5)
+        if event_kind == "context_pressure":
+            return Reaction(element=ReactiveElement.GAUGE,
+                            intensity=data.get("level", 0.5),
+                            origin=(cx, cy), color_key="accent", duration=2.0)
+        if event_kind == "token_usage":
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.25,
+                            origin=(rng.random(), rng.random()),
+                            color_key="base", duration=0.6)
+        if event_kind == "dangerous_cmd":
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.9,
+                            origin=(cx, cy), color_key="warning", duration=1.5)
+        if event_kind == "approval_request":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.7,
+                            origin=(cx, cy), color_key="warning", duration=2.0)
+        if event_kind == "compression_started":
+            # Labyrinth compresses
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.8,
+                            origin=(cx, cy), color_key="accent", duration=3.0)
         if event_kind == "browser_navigate":
             return Reaction(element=ReactiveElement.TRAIL, intensity=0.55,
                             origin=(0.0, rng.random()),
@@ -1204,45 +1730,98 @@ class ThomasLabyrinthPlugin(_AttractorBase):
             return Reaction(element=ReactiveElement.TRAIL, intensity=0.5,
                             origin=(0.0, rng.random()),
                             color_key="soft", duration=2.0)
+        if event_kind == "reasoning_change":
+            return Reaction(element=ReactiveElement.GLYPH, intensity=0.7,
+                            origin=(cx, cy), color_key="accent", duration=2.0)
         return None
 
     # ── v0.2: Palette shift ───────────────────────────────────────────────────
 
     def palette_shift(self, trigger_effect, intensity, base_palette):
+        if trigger_effect == "error":
+            self._palette_state = "error"   # lost in labyrinth — red
+        elif trigger_effect == "skill_create":
+            self._palette_state = "skill"   # path found — green/cyan
+        elif trigger_effect == "agent_start":
+            self._palette_state = "bright"  # cyan/white entry
         return None
 
     # ── v0.2: Special effects ─────────────────────────────────────────────────
 
     def special_effects(self):
-        return [SpecialEffect(name="maze-solve", trigger_kinds=["burst"],
-                              min_intensity=0.3, cooldown=5.0, duration=3.0)]
+        return [
+            SpecialEffect(name="maze-solve", trigger_kinds=["burst"],
+                          min_intensity=0.3, cooldown=5.0, duration=3.0),
+            SpecialEffect(name="labyrinth-solve",
+                          trigger_kinds=["skill_create", "llm_end"],
+                          min_intensity=0.4, cooldown=7.0, duration=3.0),
+        ]
 
     def draw_special(self, stdscr, state, color_pairs, special_name, progress, intensity):
-        if special_name != "maze-solve":
-            return
         w, h = state.width, state.height
         _ensure_rainbow()
-        # A bright path traces from edge to center
         cx2, cy2 = w // 2, h // 2
-        steps = int(progress * max(w, h) * 0.7)
         f = state.frame
-        # Wandering path toward center
-        x = int(w * 0.1)
-        y = int(h * 0.5)
-        for i in range(steps):
-            t = i / max(steps, 1)
-            hue_t = (t + f * 0.005) % 1.0
-            pair = _rainbow_pair(hue_t)
-            # Simple path: move toward center with noise
-            dx = cx2 - x + int(math.sin(i * 0.3) * 3)
-            dy = cy2 - y + int(math.cos(i * 0.4) * 2)
-            if abs(dx) > abs(dy):
-                x += 1 if dx > 0 else -1
-            else:
-                y += 1 if dy > 0 else -1
-            if 1 <= y < h - 1 and 0 <= x < w - 1:
+        if special_name == "maze-solve":
+            # A bright path traces from edge to center
+            steps = int(progress * max(w, h) * 0.7)
+            x = int(w * 0.1)
+            y = int(h * 0.5)
+            for i in range(steps):
+                t = i / max(steps, 1)
+                hue_t = (t + f * 0.005) % 1.0
+                pair = _rainbow_pair(hue_t)
+                dx = cx2 - x + int(math.sin(i * 0.3) * 3)
+                dy = cy2 - y + int(math.cos(i * 0.4) * 2)
+                if abs(dx) > abs(dy):
+                    x += 1 if dx > 0 else -1
+                else:
+                    y += 1 if dy > 0 else -1
+                if 1 <= y < h - 1 and 0 <= x < w - 1:
+                    try:
+                        stdscr.addstr(y, x, "·", pair | curses.A_BOLD)
+                    except curses.error:
+                        pass
+        elif special_name == "labyrinth-solve":
+            # 3 paths radiate from center outward toward the 3-fold symmetry points
+            reach = int(progress * min(w * 0.4, h * 0.35))
+            for arm_idx, ang in enumerate(self._SYM_ANGLES):
+                pair = _rainbow_pair_angle(ang + f * 0.02)
+                for step in range(1, max(2, reach)):
+                    t_step = step / max(reach, 1)
+                    # Sinuous labyrinth path
+                    theta = ang + math.sin(step * 0.25) * 0.35
+                    px = cx2 + int(step * math.cos(theta) * 2.0)
+                    py = cy2 + int(step * math.sin(theta) * 0.75)
+                    if 1 <= py < h - 1 and 0 <= px < w - 1:
+                        ch = "─" if abs(math.cos(theta)) > abs(math.sin(theta)) else "│"
+                        try:
+                            stdscr.addstr(py, px, ch, pair | curses.A_BOLD)
+                        except curses.error:
+                            pass
+
+    # ── v0.2: Ambient tick ────────────────────────────────────────────────────
+
+    def ambient_tick(self, stdscr, state, color_pairs, idle_seconds):
+        """Single dim path segment slowly exploring the labyrinth."""
+        if idle_seconds < 1.0:
+            return
+        w, h = state.width, state.height
+        if w < 8 or h < 4:
+            return
+        _ensure_rainbow()
+        if state.frame % 8 == 0:
+            cx2, cy2 = w // 2, h // 2
+            # Slow spiral exploration from center
+            t = state.frame * 0.007
+            r = (state.frame % 80) / 80.0 * min(w * 0.35, h * 0.28)
+            angle = t * 1.3
+            px = cx2 + int(r * math.cos(angle) * 1.8)
+            py = cy2 + int(r * math.sin(angle) * 0.75)
+            if 1 <= py < h - 1 and 0 <= px < w - 1:
+                pair = _rainbow_pair_angle(angle)
                 try:
-                    stdscr.addstr(y, x, "·", pair | curses.A_BOLD)
+                    stdscr.addstr(py, px, "·", pair | curses.A_DIM)
                 except curses.error:
                     pass
 
