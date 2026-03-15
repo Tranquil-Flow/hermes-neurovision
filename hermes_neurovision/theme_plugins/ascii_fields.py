@@ -1037,6 +1037,38 @@ class AuroraBandsPlugin(ThemePlugin):
                     pass
 
 
+    def react(self, event_kind, data):
+        import random
+        from hermes_neurovision.plugin import ReactiveElement, Reaction
+        if event_kind == "llm_start" or event_kind == "llm_end":
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.8,
+                           origin=(0.0, 0.5), color_key="bright", duration=2.5)
+        if event_kind == "memory_save" or event_kind == "skill_create":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="bright", duration=3.0)
+        if event_kind == "error" or event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.0)
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.8,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.0)
+        if event_kind == "tool_call" or event_kind == "mcp_tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.6,
+                           origin=(random.random(), random.random()), color_key="accent", duration=1.5)
+        if event_kind == "llm_chunk":
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.4,
+                           origin=(0.0, random.random()), color_key="soft", duration=0.6)
+        return None
+
+    def wave_config(self):
+        return {'speed': 0.4, 'damping': 0.97}
+
+    def emergent_layer(self):
+        return "background"
+
+    def glow_radius(self):
+        return 2
+
 # ── Screen 8: Waveform Scope ──────────────────────────────────────────────────
 
 class WaveformScopePlugin(ThemePlugin):
@@ -1125,6 +1157,38 @@ class WaveformScopePlugin(ThemePlugin):
                 pass
 
 
+    def react(self, event_kind, data):
+        import random
+        from hermes_neurovision.plugin import ReactiveElement, Reaction
+        if event_kind == "llm_chunk" or event_kind == "llm_start":
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.7,
+                           origin=(0.0, 0.5), color_key="accent", duration=0.8)
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.8,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.0)
+        if event_kind == "memory_save":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.8,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.0)
+        if event_kind == "error" or event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.0)
+        if event_kind == "tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.6,
+                           origin=(random.random(), 0.5), color_key="soft", duration=1.5)
+        if event_kind == "compression_started":
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.8,
+                           origin=(0.5, 0.5), color_key="accent", duration=2.0)
+        return None
+
+    def wave_config(self):
+        return {'speed': 0.6, 'damping': 0.96}
+
+    def emergent_layer(self):
+        return "background"
+
+    def glow_radius(self):
+        return 1
+
 # ── Screen 9: Lissajous Mind ──────────────────────────────────────────────────
 
 class LissajousMindPlugin(ThemePlugin):
@@ -1206,6 +1270,38 @@ class LissajousMindPlugin(ThemePlugin):
             except curses.error:
                 pass
 
+
+    def react(self, event_kind, data):
+        import random
+        from hermes_neurovision.plugin import ReactiveElement, Reaction
+        if event_kind == "cron_tick":
+            return Reaction(element=ReactiveElement.ORBIT, intensity=0.6,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.5)
+        if event_kind == "memory_save":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.9,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.5)
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.8,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.0)
+        if event_kind == "error" or event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.0)
+        if event_kind == "tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.5,
+                           origin=(0.5, 0.5), color_key="soft", duration=1.5)
+        if event_kind == "llm_chunk":
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.4,
+                           origin=(0.5, 0.5), color_key="soft", duration=0.6)
+        return None
+
+    def wave_config(self):
+        return {'speed': 0.3, 'damping': 0.98}
+
+    def emergent_layer(self):
+        return "background"
+
+    def glow_radius(self):
+        return 1
 
 # ── Screen 10: Pulse Matrix ───────────────────────────────────────────────────
 

@@ -141,6 +141,39 @@ class CliffordAttractorPlugin(ThemePlugin):
                     pass
 
 
+    def react(self, event_kind, data):
+        import random
+        from hermes_neurovision.plugin import ReactiveElement, Reaction
+        if event_kind == "agent_start" or event_kind == "session_resume":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.9,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.5)
+        if event_kind == "reasoning_change" or event_kind == "personality_change":
+            return Reaction(element=ReactiveElement.GLYPH, intensity=0.8,
+                           origin=(0.5, 0.5), color_key="bright", duration=3.0)
+        if event_kind == "memory_save" or event_kind == "skill_create":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.9,
+                           origin=(0.5, 0.5), color_key="accent", duration=2.5)
+        if event_kind == "error" or event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.0)
+        if event_kind == "tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.5,
+                           origin=(random.random(), random.random()), color_key="soft", duration=1.5)
+        if event_kind == "cron_tick":
+            return Reaction(element=ReactiveElement.ORBIT, intensity=0.5,
+                           origin=(0.5, 0.5), color_key="soft", duration=2.0)
+        return None
+
+    def wave_config(self):
+        return {'speed': 0.3, 'damping': 0.97}
+
+    def emergent_layer(self):
+        return "background"
+
+    def glow_radius(self):
+        return 1
+
+
 register(CliffordAttractorPlugin())
 
 

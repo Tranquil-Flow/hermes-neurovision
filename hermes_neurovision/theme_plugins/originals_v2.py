@@ -967,6 +967,38 @@ class MoonwireV2Plugin(ThemePlugin):
                     pass
 
 
+    def react(self, event_kind, data):
+        import random
+        from hermes_neurovision.plugin import ReactiveElement, Reaction
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.8,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.0)
+        if event_kind == "llm_chunk":
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.4,
+                           origin=(0.0, random.random()), color_key="soft", duration=0.8)
+        if event_kind == "memory_save":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.9,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.5)
+        if event_kind == "error" or event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.0)
+        if event_kind == "tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.6,
+                           origin=(random.random(), random.random()), color_key="accent", duration=1.5)
+        if event_kind == "git_commit":
+            return Reaction(element=ReactiveElement.TRAIL, intensity=0.6,
+                           origin=(0.0, 0.5), color_key="soft", duration=1.5)
+        return None
+
+    def wave_config(self):
+        return {'speed': 0.2, 'damping': 0.99}
+
+    def emergent_layer(self):
+        return "background"
+
+    def glow_radius(self):
+        return 1
+
 register(MoonwireV2Plugin())
 
 
@@ -1103,6 +1135,38 @@ class RootsongV2Plugin(ThemePlugin):
                     py  += sy
 
 
+    def react(self, event_kind, data):
+        import random
+        from hermes_neurovision.plugin import ReactiveElement, Reaction
+        if event_kind == "skill_create":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=1.0,
+                           origin=(random.random(), random.random()), color_key="bright", duration=3.5)
+        if event_kind == "llm_chunk":
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.4,
+                           origin=(random.random(), random.random()), color_key="soft", duration=0.8)
+        if event_kind == "error" or event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.0)
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.8,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.0)
+        if event_kind == "tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.6,
+                           origin=(random.random(), random.random()), color_key="accent", duration=1.5)
+        if event_kind == "memory_save":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.8,
+                           origin=(0.5, 0.5), color_key="accent", duration=2.0)
+        return None
+
+    def physarum_config(self):
+        return {'n_agents': 130, 'sensor_dist': 4.5, 'sensor_angle': 0.8, 'deposit': 1.0, 'decay': 0.94}
+
+    def emergent_layer(self):
+        return "background"
+
+    def glow_radius(self):
+        return 2
+
 register(RootsongV2Plugin())
 
 
@@ -1204,6 +1268,38 @@ class StormglassV2Plugin(ThemePlugin):
                     pass
 
 
+    def react(self, event_kind, data):
+        import random
+        from hermes_neurovision.plugin import ReactiveElement, Reaction
+        if event_kind == "error" or event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.5)
+        if event_kind == "compression_started":
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.9,
+                           origin=(0.5, 0.5), color_key="accent", duration=2.5)
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.8,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.0)
+        if event_kind == "memory_save":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.9,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.5)
+        if event_kind == "tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.7,
+                           origin=(random.random(), random.random()), color_key="accent", duration=1.5)
+        if event_kind == "llm_chunk":
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.5,
+                           origin=(0.0, random.random()), color_key="soft", duration=0.8)
+        return None
+
+    def wave_config(self):
+        return {'speed': 0.5, 'damping': 0.96}
+
+    def emergent_layer(self):
+        return "background"
+
+    def glow_radius(self):
+        return 2
+
 register(StormglassV2Plugin())
 
 
@@ -1295,5 +1391,37 @@ class SpiralGalaxyV2Plugin(ThemePlugin):
                 except curses.error:
                     pass
 
+
+    def react(self, event_kind, data):
+        import random
+        from hermes_neurovision.plugin import ReactiveElement, Reaction
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.9,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.5)
+        if event_kind == "cron_tick":
+            return Reaction(element=ReactiveElement.ORBIT, intensity=0.6,
+                           origin=(0.5, 0.5), color_key="accent", duration=2.5)
+        if event_kind == "memory_save":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.9,
+                           origin=(0.5, 0.5), color_key="bright", duration=3.0)
+        if event_kind == "error" or event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.0)
+        if event_kind == "tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.6,
+                           origin=(random.random(), random.random()), color_key="soft", duration=1.5)
+        if event_kind == "llm_chunk":
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.3,
+                           origin=(random.random(), random.random()), color_key="soft", duration=0.6)
+        return None
+
+    def physarum_config(self):
+        return {'n_agents': 100, 'sensor_dist': 5.0, 'sensor_angle': 0.9, 'deposit': 0.8, 'decay': 0.94}
+
+    def emergent_layer(self):
+        return "background"
+
+    def glow_radius(self):
+        return 1
 
 register(SpiralGalaxyV2Plugin())
