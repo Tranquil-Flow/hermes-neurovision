@@ -55,13 +55,20 @@ class FrameBuffer:
                 cell.attr = 0
                 cell.age = 0
 
-    def blit_to_screen(self, stdscr) -> None:
+    def blit_to_screen(self, stdscr, black_pair: int = 0) -> None:
+        """Blit buffer to screen. Empty space cells are written with black_pair
+        so the background is always black regardless of terminal default color."""
         for y in range(self.h):
             for x in range(self.w):
                 cell = self.cells[y][x]
                 if cell.char != " " or cell.attr != 0:
                     try:
                         stdscr.addstr(y, x, cell.char, cell.color_pair | cell.attr)
+                    except curses.error:
+                        pass
+                elif black_pair:
+                    try:
+                        stdscr.addstr(y, x, " ", black_pair)
                     except curses.error:
                         pass
 
@@ -103,6 +110,13 @@ class Renderer:
         self._current_palette: Optional[Tuple[int, int, int, int]] = None
         self._buffer: Optional[FrameBuffer] = None
         self._echo_ring: list = []  # ring buffer for echo effect
+        # Pair 9: space-on-black — used to fill empty buffer cells so the
+        # background is always black, not the terminal's default grey.
+        try:
+            curses.init_pair(9, curses.COLOR_WHITE, curses.COLOR_BLACK)
+            self._black_pair = curses.color_pair(9)
+        except curses.error:
+            self._black_pair = 0
 
     def _init_colors(self) -> Dict[str, int]:
         pairs = {
@@ -244,15 +258,8 @@ class Renderer:
             postfx.apply_mask(self._buffer, mask)
 
         # Blit buffer → screen -----------------------------------------
-        # Ensure erase() fills with black, not the terminal's default grey background.
-        # Pair 9 is reserved as our explicit black-on-black pair.
-        try:
-            curses.init_pair(9, curses.COLOR_WHITE, curses.COLOR_BLACK)
-            stdscr.bkgd(' ', curses.color_pair(9))
-        except curses.error:
-            pass
         stdscr.erase()
-        self._buffer.blit_to_screen(stdscr)
+        self._buffer.blit_to_screen(stdscr, black_pair=self._black_pair)
 
         # Save to echo ring buffer
         plugin_echo = state.plugin.echo_decay()

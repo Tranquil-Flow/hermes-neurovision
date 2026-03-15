@@ -118,20 +118,39 @@ class BlackHoleV2Plugin(ThemePlugin):
                 frame_drag   = (rs * rs) / (r * r + 0.01) * 1.2
                 dragged_theta = theta + frame_drag
 
-                # ── Photon sphere — rotating glyph ring ────────────────
+                # ── Photon sphere + Einstein ring ───────────────────────
+                # Primary photon ring (r ≈ 1.5 rs) — bright glowing halo
                 photon_r = rs * 1.5
                 ph_dist  = abs(r - photon_r)
-                if ph_dist < rs * 0.45:
-                    glow      = 1.0 - ph_dist / (rs * 0.45)
+                if ph_dist < rs * 0.60:
+                    glow      = 1.0 - ph_dist / (rs * 0.60)
                     # Characters advance around the ring at frame speed
-                    ring_phase = (dragged_theta + f * 0.10) % math.tau
+                    ring_phase = (dragged_theta + f * 0.12) % math.tau
                     rchars     = "◉●◎○·∘"
                     rci        = int(ring_phase / math.tau * len(rchars)) % len(rchars)
                     ch         = rchars[rci]
+                    if glow > 0.70:
+                        attr = warn_attr
+                    elif glow > 0.40:
+                        attr = accent_attr
+                    else:
+                        attr = soft_attr
                     try:
-                        stdscr.addstr(y, x, ch,
-                                      warn_attr if glow > 0.65
-                                      else (accent_attr if glow > 0.35 else soft_attr))
+                        stdscr.addstr(y, x, ch, attr)
+                    except curses.error: pass
+                    continue
+
+                # Secondary lensing arc (inner Einstein ring, r ≈ 1.15 rs)
+                inner_r  = rs * 1.15
+                in_dist  = abs(r - inner_r)
+                if in_dist < rs * 0.20:
+                    glow2 = 1.0 - in_dist / (rs * 0.20)
+                    ring_phase2 = (dragged_theta - f * 0.18) % math.tau
+                    rchars2 = "·∘○◦"
+                    rci2 = int(ring_phase2 / math.tau * len(rchars2)) % len(rchars2)
+                    try:
+                        stdscr.addstr(y, x, rchars2[rci2],
+                                      warn_attr if glow2 > 0.6 else accent_attr)
                     except curses.error: pass
                     continue
 
@@ -150,22 +169,29 @@ class BlackHoleV2Plugin(ThemePlugin):
                         except curses.error: pass
                         continue
 
-                # ── Accretion disk — Keplerian shear ───────────────────
-                # 15° inclination: disk visible where |sin(θ)| < 0.22
-                in_disk = abs(math.sin(dragged_theta)) < 0.22
-                if rs * 1.8 <= r <= rs * 7.5 and in_disk:
+                        # ── Accretion disk — Keplerian shear ───────────────────
+                # Wider inclination so disk is easily visible (was 0.22, now 0.40)
+                disk_latitude = abs(math.sin(dragged_theta))
+                # Disk thickness itself flares near the inner edge (puffed-up inner rim)
+                disk_thickness = 0.40 + max(0.0, 0.18 * (1.0 - (r - rs * 1.8) / (rs * 2.0)))
+                in_disk = disk_latitude < disk_thickness
+                if rs * 1.7 <= r <= rs * 8.5 and in_disk:
                     local_omega  = K_disk * (rs / r) ** 1.5
                     orbit_phase  = dragged_theta - f * local_omega
                     # Relativistic Doppler: approaching side is blueshift-bright
                     doppler      = math.cos(orbit_phase)
-                    radial_fade  = 1.0 - (r - rs * 1.8) / (rs * 5.7)
-                    density      = radial_fade * (0.4 + 0.6 * (doppler + 1.0) / 2.0) * intensity
-                    temp         = rs * 3.5 / r  # inner disk hotter
+                    radial_fade  = 1.0 - (r - rs * 1.7) / (rs * 6.8)
+                    # Latitude fade — dimmer near disk edges
+                    lat_fade     = 1.0 - disk_latitude / max(disk_thickness, 0.01)
+                    density      = radial_fade * lat_fade * (0.35 + 0.65 * (doppler + 1.0) / 2.0) * intensity
+                    temp         = rs * 4.0 / r  # inner disk hotter
                     dchars       = " ·:+*#@█"
                     idx          = max(1, min(len(dchars) - 1, int(density * (len(dchars) - 1))))
                     ch           = dchars[idx]
-                    if temp > 1.3:
-                        attr = warn_attr if doppler > 0.2 else accent_attr
+                    if temp > 1.5:
+                        attr = warn_attr if doppler > 0.15 else accent_attr
+                    elif temp > 0.9:
+                        attr = accent_attr if density > 0.4 else soft_attr
                     elif density > 0.55:
                         attr = accent_attr
                     else:

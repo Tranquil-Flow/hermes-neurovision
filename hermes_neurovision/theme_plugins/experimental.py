@@ -11,9 +11,14 @@ from __future__ import annotations
 import curses
 import math
 import random
-from typing import List, Optional
+from typing import Dict, List, Optional, Tuple, Any
 
-from hermes_neurovision.plugin import ThemePlugin
+from hermes_neurovision.plugin import (
+    ThemePlugin,
+    ReactiveElement,
+    Reaction,
+    SpecialEffect,
+)
 from hermes_neurovision.theme_plugins import register
 
 
@@ -139,13 +144,13 @@ class CliffordAttractorPlugin(ThemePlugin):
 register(CliffordAttractorPlugin())
 
 
-# ── Barnsley Fern — IFS Random Iteration ──────────────────────────────────────
+# ── Barnsley Fern — IFS Random Iteration (v0.2 Upgrade) ───────────────────────
 
 class BarnsleyFernPlugin(ThemePlugin):
     """Iterated function system fractal rendered via the random chaos game.
 
-    Cycles through several IFS configurations (fern, maple leaf, tree, spiral)
-    by slowly fading the old attractor and growing the new one.
+    v0.2 upgrade: physarum slime mold traces fern veins, reactive events drive
+    growth behaviors, ambient sway, organic char rendering and palette shifts.
     """
     name = "barnsley-fern"
 
@@ -183,9 +188,218 @@ class BarnsleyFernPlugin(ThemePlugin):
         self._sys_idx = 0
         self._w = self._h = 0
         self._accum = 0  # frames accumulating current system
+        # palette shift state
+        self._palette_mode = "normal"  # "normal", "luminous", "wilt", "spring"
+        self._palette_timer = 0.0
+        # sway offset
+        self._sway_offset = 0.0
 
     def build_nodes(self, w, h, cx, cy, count, rng):
         return []
+
+    # ── v0.2: Emergent system — physarum slime mold traces fern veins ──────────
+
+    def physarum_config(self) -> Optional[Dict[str, Any]]:
+        return {
+            "n_agents": 150,
+            "sensor_angle": 0.4,
+            "sensor_dist": 3,
+            "turn_speed": 0.3,
+            "speed": 1.0,
+            "deposit": 1.0,
+            "decay": 0.95,
+        }
+
+    def emergent_layer(self) -> str:
+        return "background"
+
+    # ── v0.2: Post-FX ─────────────────────────────────────────────────────────
+
+    def glow_radius(self) -> int:
+        return 2
+
+    def echo_decay(self) -> int:
+        return 5
+
+    def symmetry(self) -> Optional[str]:
+        return None  # ferns are asymmetric and proud of it
+
+    def decay_sequence(self) -> Optional[str]:
+        return "\u2588\u2593\u2592\u2591\u00b7. "  # █▓▒░·. — cells age like browning leaves
+
+    # ── v0.2: Intensity curve — exponential, sensitive to low activity ─────────
+
+    def intensity_curve(self, raw: float) -> float:
+        return raw ** 0.6
+
+    # ── v0.2: Special effects ─────────────────────────────────────────────────
+
+    def special_effects(self) -> List[SpecialEffect]:
+        return [
+            SpecialEffect(
+                name="fern-unfurl",
+                trigger_kinds=["skill_create", "burst"],
+                min_intensity=0.5,
+                cooldown=6.0,
+                duration=3.0,
+            ),
+        ]
+
+    def draw_special(self, stdscr, state, color_pairs: dict,
+                     special_name: str, progress: float,
+                     intensity: float) -> None:
+        if special_name != "fern-unfurl":
+            return
+        w, h = state.width, state.height
+        cx = w // 3  # fern is offset left-center
+        cy = h // 2
+        bright_attr = curses.color_pair(color_pairs.get("bright", 1)) | curses.A_BOLD
+        accent_attr = curses.color_pair(color_pairs.get("accent", 2))
+        frond_chars = "\u2310\u223f\u224b~"
+        # Expanding arc of frond chars from center-left outward
+        max_radius = int((w // 2) * progress)
+        for r in range(1, max_radius + 1):
+            for angle_deg in range(-60, 61, 15):
+                angle_rad = math.radians(angle_deg)
+                fx = int(cx + r * math.cos(angle_rad))
+                fy = int(cy - int(r * math.sin(angle_rad) * 0.5))
+                if 1 <= fy < h - 1 and 0 <= fx < w - 1:
+                    ch = frond_chars[(r + angle_deg // 15) % len(frond_chars)]
+                    attr = bright_attr if r == max_radius else accent_attr
+                    try:
+                        stdscr.addstr(fy, fx, ch, attr)
+                    except curses.error:
+                        pass
+
+    # ── v0.2: React to events ─────────────────────────────────────────────────
+
+    def react(self, event_kind: str, data: Dict[str, Any]) -> Optional[Reaction]:
+        rng = random.random
+        if event_kind == "agent_start":
+            return Reaction(
+                element=ReactiveElement.PULSE,
+                intensity=0.9,
+                origin=(0.5, 0.95),    # base of fern — bottom center
+                color_key="bright",
+                duration=2.0,
+            )
+        if event_kind == "llm_start":
+            return Reaction(
+                element=ReactiveElement.STREAM,
+                intensity=0.8,
+                origin=(0.4, 0.05),   # top of fern — ideas shoot upward
+                color_key="accent",
+                duration=3.0,
+            )
+        if event_kind == "llm_chunk":
+            return Reaction(
+                element=ReactiveElement.SPARK,
+                intensity=0.5,
+                origin=(rng() * 0.6 + 0.2, rng() * 0.5 + 0.1),  # random frond tip
+                color_key="bright",
+                duration=0.4,
+            )
+        if event_kind == "llm_end":
+            return Reaction(
+                element=ReactiveElement.BLOOM,
+                intensity=0.7,
+                origin=(0.4, 0.5),    # fern center — frond unfurls
+                color_key="accent",
+                duration=2.0,
+            )
+        if event_kind == "tool_call":
+            return Reaction(
+                element=ReactiveElement.RIPPLE,
+                intensity=0.7,
+                origin=(rng() * 0.4 + 0.2, rng() * 0.6 + 0.1),
+                color_key="soft",
+                duration=1.5,
+            )
+        if event_kind == "tool_complete":
+            return Reaction(
+                element=ReactiveElement.RIPPLE,
+                intensity=0.4,
+                origin=(rng() * 0.4 + 0.2, rng() * 0.6 + 0.1),
+                color_key="soft",
+                duration=1.0,
+            )
+        if event_kind == "memory_save":
+            return Reaction(
+                element=ReactiveElement.BLOOM,
+                intensity=0.8,
+                origin=(0.4, 0.9),    # base — new root system
+                color_key="accent",
+                duration=2.5,
+            )
+        if event_kind == "skill_create":
+            return Reaction(
+                element=ReactiveElement.BLOOM,
+                intensity=1.0,
+                origin=(0.4, 0.5),    # entire new branch system
+                color_key="bright",
+                duration=3.0,
+            )
+        if event_kind == "error":
+            return Reaction(
+                element=ReactiveElement.SHATTER,
+                intensity=0.9,
+                origin=(0.4, 0.5),
+                color_key="bright",   # will be shifted to red by palette_shift
+                duration=2.0,
+            )
+        if event_kind == "agent_end":
+            return Reaction(
+                element=ReactiveElement.WAVE,
+                intensity=0.6,
+                origin=(0.4, 0.5),    # fern sways before sleeping
+                color_key="soft",
+                duration=3.0,
+            )
+        if event_kind == "git_commit":
+            return Reaction(
+                element=ReactiveElement.TRAIL,
+                intensity=0.6,
+                origin=(0.4, 0.9),    # along stem — branch recorded
+                color_key="accent",
+                duration=2.0,
+            )
+        if event_kind == "file_edit":
+            return Reaction(
+                element=ReactiveElement.TRAIL,
+                intensity=0.5,
+                origin=(rng() * 0.5 + 0.15, rng() * 0.7 + 0.05),
+                color_key="soft",
+                duration=1.5,
+            )
+        return None
+
+    # ── v0.2: Palette shift ───────────────────────────────────────────────────
+
+    def palette_shift(self, trigger_effect: str, intensity: float,
+                      base_palette: Tuple[int, int, int, int]) -> Optional[Tuple[int, int, int, int]]:
+        # base_palette is (bright, accent, soft, base) as color ints
+        if trigger_effect == "skill_create":
+            # Brighten to white/cyan — the fern becomes luminous
+            return (curses.COLOR_WHITE, curses.COLOR_CYAN,
+                    curses.COLOR_CYAN, curses.COLOR_GREEN)
+        if trigger_effect == "error":
+            # Shift to red/orange — wilting
+            return (curses.COLOR_RED, curses.COLOR_YELLOW,
+                    curses.COLOR_RED, curses.COLOR_RED)
+        if trigger_effect == "agent_start":
+            # Bright green/white — fern springs to life
+            return (curses.COLOR_WHITE, curses.COLOR_GREEN,
+                    curses.COLOR_GREEN, curses.COLOR_GREEN)
+        return None
+
+    # ── v0.2: Ambient tick — idle sway ────────────────────────────────────────
+
+    def ambient_tick(self, stdscr, state, color_pairs: dict,
+                     idle_seconds: float) -> None:
+        # When idle, nudge the sway sinusoidally
+        self._sway_offset = math.sin(idle_seconds * 0.5) * 2.0
+
+    # ── Internal helpers ──────────────────────────────────────────────────────
 
     def _init(self, w, h):
         self._grid  = [[0.0] * w for _ in range(h)]
@@ -218,13 +432,16 @@ class BarnsleyFernPlugin(ThemePlugin):
         sys_name   = self._ORDER[self._sys_idx]
         transforms = self._SYSTEMS[sys_name]
 
+        # Wind sway offset — whole fern sways sinusoidally
+        sway = math.sin(f * 0.01) * 2 * intensity + self._sway_offset
+
         # Run iterations: chaos game
         steps = int(1200 * (0.3 + intensity))
         px, py = self._px, self._py
 
         # Map IFS output (range ≈ [-3,3] × [-3,10]) to screen
         scale   = min(w, h * 2.5) / 12.0
-        ox      = w / 2.0
+        ox      = w / 2.0 + sway
         oy      = h - 2.0
 
         for _ in range(steps):
@@ -249,11 +466,12 @@ class BarnsleyFernPlugin(ThemePlugin):
                 for xi in range(w):
                     row[xi] *= 0.4
 
-        # Decay and render
-        decay  = 0.984
-        chars  = " \u00b7.;+*@\u2593\u2588"
+        # Decay and render with organic chars and phase-shifted colors
+        decay   = 0.984
+        # Organic char set: density-graduated
+        chars   = " \u00b7\u2219\u2022\u25e6\u25cb\u25cf"  # ·∙•◦○●
         n_chars = len(chars)
-        # For fern/IFS: hue flows along y axis (growth direction) + time
+        # Hue flows along y axis (growth direction) + time
         hue_base = (f * 0.0032) % 1.0
 
         for y in range(1, h - 1):
@@ -266,10 +484,9 @@ class BarnsleyFernPlugin(ThemePlugin):
                 if v < 0.04:
                     attr = base_dim
                 else:
-                    # phase climbs from root (bottom) to tip — green→white gradient
-                    # that sweeps upward over time
-                    phase = (hue_base + (h - y) / max(h, 1) * 0.5
-                             + x / max(w, 1) * 0.15) % 1.0
+                    # Phase: frond tips (top, edges) are bright; interior is soft
+                    tip_factor = (h - y) / max(h, 1)   # 1.0 at top tip
+                    phase = (hue_base + tip_factor * 0.5 + x / max(w, 1) * 0.15) % 1.0
                     if (v + phase) % 1.0 > 0.72:
                         attr = bright_attr
                     elif (v + phase) % 1.0 > 0.48:
@@ -283,37 +500,325 @@ class BarnsleyFernPlugin(ThemePlugin):
                 except curses.error:
                     pass
 
+        # Draw stem/trunk at fern base — vertical line of trunk chars
+        stem_x = int(w / 2.0 + sway)
+        stem_chars = "\u2502\u2551\u2502\u2502"  # │║││
+        for i, sy in enumerate(range(h - 4, h - 1)):
+            if 1 <= sy < h - 1 and 0 <= stem_x < w - 1:
+                ch = stem_chars[i % len(stem_chars)]
+                try:
+                    stdscr.addstr(sy, stem_x, ch, bright_attr)
+                except curses.error:
+                    pass
+
 
 register(BarnsleyFernPlugin())
 
 
-# ── Flow Field — Curl Noise Particle Streams ──────────────────────────────────
+# ── Flow Field — Curl Noise Particle Streams (v0.2 Upgrade) ───────────────────
 
 class FlowFieldPlugin(ThemePlugin):
     """Particles ride a smoothly evolving curl-noise vector field.
 
-    Each particle leaves a fading density trail. The field itself is rendered
-    as subtle directional glyphs. Intensity drives particle count and trail life.
+    v0.2 upgrade: wave-field substrate, vortex force attractors, reactive events
+    disturb the field, density map, graduated particle chars, flow tracer.
     """
     name = "flow-field"
 
-    _MAX_PARTICLES = 200
+    _MAX_PARTICLES = 600
 
     def __init__(self):
         self._trail: Optional[List[List[float]]] = None  # density grid
         self._particles: List[dict] = []
         self._rng  = random.Random(55)
         self._w = self._h = 0
+        # Flow tracer — a single long-trail particle
+        self._tracer: Optional[dict] = None
+        self._tracer_trail: List[Tuple[int, int]] = []
+        # Vortex storm state
+        self._storm_vortices: List[dict] = []
+        self._storm_timer = 0.0
+        # Idle attractor
+        self._idle_attractor: Optional[dict] = None
 
     def build_nodes(self, w, h, cx, cy, count, rng):
         return []
 
+    # ── v0.2: Emergent system — wave field as flow substrate ─────────────────
+
+    def wave_config(self) -> Optional[Dict[str, Any]]:
+        return {
+            "speed": 0.5,
+            "damping": 0.97,
+        }
+
+    def emergent_layer(self) -> str:
+        return "background"
+
+    # ── v0.2: Post-FX ─────────────────────────────────────────────────────────
+
+    def warp_field(self, x: int, y: int, w: int, h: int,
+                   frame: int, intensity: float) -> Tuple[int, int]:
+        """Warp coordinates using the curl-noise formula for self-similar distortion."""
+        t = frame * 0.02
+        nx = x / max(w, 1)
+        ny = y / max(h, 1)
+        freq = 3.0
+        eps = 0.01
+        psi_dy = math.sin(nx * freq + t * 0.5) * (-math.sin((ny + eps) * freq * 1.3 - t * 0.3)) * freq * 1.3
+        psi_dx = math.cos(nx * freq + t * 0.5) * freq * math.cos(ny * freq * 1.3 - t * 0.3)
+        warp_strength = 1.5 * intensity
+        wx = int(x + psi_dy * warp_strength)
+        wy = int(y - psi_dx * warp_strength * 0.5)
+        return (max(0, min(w - 1, wx)), max(0, min(h - 1, wy)))
+
+    def glow_radius(self) -> int:
+        return 1
+
+    def echo_decay(self) -> int:
+        return 4
+
+    def symmetry(self) -> Optional[str]:
+        return None  # flows are directional
+
+    def force_points(self, w: int, h: int, frame: int,
+                     intensity: float) -> List[Dict]:
+        """Three vortex attractors orbiting center at different radii/speeds."""
+        cx, cy = w / 2.0, h / 2.0
+        t = frame * 0.025
+        points = []
+
+        # Storm vortices override normal ones temporarily
+        if self._storm_vortices and self._storm_timer > 0:
+            self._storm_timer -= 1.0 / 60.0  # approximate
+            return list(self._storm_vortices)
+
+        # Normal: 3 orbiting vortex attractors
+        configs = [
+            (0.28, 0.021, 0.6 + intensity * 0.4, "vortex"),
+            (0.18, -0.034, 0.45 + intensity * 0.3, "vortex"),
+            (0.38, 0.016, 0.35 + intensity * 0.25, "vortex"),
+        ]
+        for radius_ratio, speed_mul, strength, ftype in configs:
+            r = min(w, h * 2) * radius_ratio
+            angle = t * (speed_mul * 2 * math.pi)
+            points.append({
+                "x": int(cx + r * math.cos(angle)),
+                "y": int(cy + r * math.sin(angle) * 0.5),
+                "strength": strength,
+                "type": ftype,
+            })
+
+        # Add idle attractor if present
+        if self._idle_attractor:
+            points.append(self._idle_attractor)
+
+        return points
+
+    # ── v0.2: Intensity curve ─────────────────────────────────────────────────
+
+    def intensity_curve(self, raw: float) -> float:
+        return raw ** 0.7
+
+    # ── v0.2: Special effects ─────────────────────────────────────────────────
+
+    def special_effects(self) -> List[SpecialEffect]:
+        return [
+            SpecialEffect(
+                name="vortex-storm",
+                trigger_kinds=["burst"],
+                min_intensity=0.4,
+                cooldown=8.0,
+                duration=4.0,
+            ),
+        ]
+
+    def draw_special(self, stdscr, state, color_pairs: dict,
+                     special_name: str, progress: float,
+                     intensity: float) -> None:
+        if special_name != "vortex-storm":
+            return
+        w, h = state.width, state.height
+        bright_attr = curses.color_pair(color_pairs.get("bright", 1)) | curses.A_BOLD
+        accent_attr = curses.color_pair(color_pairs.get("accent", 2))
+        swirl_chars = "\u25cc\u25ce\u25c9"  # ◌◎◉
+        # Draw expanding circular attractors at 3 random-seeded positions
+        rng = random.Random(int(progress * 1000) % 100)
+        for i in range(3):
+            vx = int(w * rng.uniform(0.15, 0.85))
+            vy = int(h * rng.uniform(0.15, 0.85))
+            radius = int(4 + progress * 8)
+            # Draw ring
+            for angle_deg in range(0, 360, 20):
+                rad = math.radians(angle_deg)
+                rx = int(vx + radius * math.cos(rad))
+                ry = int(vy + radius * math.sin(rad) * 0.5)
+                if 1 <= ry < h - 1 and 0 <= rx < w - 1:
+                    try:
+                        stdscr.addstr(ry, rx, ".", accent_attr)
+                    except curses.error:
+                        pass
+            # Center glyph
+            ch = swirl_chars[int(progress * 3 + i) % 3]
+            if 1 <= vy < h - 1 and 0 <= vx < w - 1:
+                try:
+                    stdscr.addstr(vy, vx, ch, bright_attr)
+                except curses.error:
+                    pass
+
+    # ── v0.2: React to events ─────────────────────────────────────────────────
+
+    def react(self, event_kind: str, data: Dict[str, Any]) -> Optional[Reaction]:
+        rng = random.random
+        if event_kind == "agent_start":
+            return Reaction(
+                element=ReactiveElement.PULSE,
+                intensity=1.0,
+                origin=(0.5, 0.5),   # center — massive disturbance
+                color_key="bright",
+                duration=2.5,
+            )
+        if event_kind == "llm_start":
+            return Reaction(
+                element=ReactiveElement.STREAM,
+                intensity=0.85,
+                origin=(0.0, 0.5),   # horizontal stream
+                color_key="bright",
+                duration=4.0,
+            )
+        if event_kind == "llm_chunk":
+            return Reaction(
+                element=ReactiveElement.SPARK,
+                intensity=0.5,
+                origin=(rng(), rng()),
+                color_key="accent",
+                duration=0.3,
+            )
+        if event_kind == "llm_end":
+            return Reaction(
+                element=ReactiveElement.WAVE,
+                intensity=0.6,
+                origin=(0.5, 0.5),   # flow resets to equilibrium
+                color_key="soft",
+                duration=2.0,
+            )
+        if event_kind == "tool_call":
+            return Reaction(
+                element=ReactiveElement.RIPPLE,
+                intensity=0.7,
+                origin=(rng(), rng()),
+                color_key="accent",
+                duration=1.5,
+            )
+        if event_kind == "tool_complete":
+            return Reaction(
+                element=ReactiveElement.RIPPLE,
+                intensity=0.4,
+                origin=(rng(), rng()),
+                color_key="soft",
+                duration=1.0,
+            )
+        if event_kind == "memory_save":
+            return Reaction(
+                element=ReactiveElement.BLOOM,
+                intensity=0.9,
+                origin=(0.5, 0.5),   # particles spiral inward — memory crystallizing
+                color_key="bright",
+                duration=2.5,
+            )
+        if event_kind == "error":
+            return Reaction(
+                element=ReactiveElement.SHATTER,
+                intensity=1.0,
+                origin=(rng(), rng()),
+                color_key="bright",  # shifted to red by palette_shift
+                duration=2.0,
+            )
+        if event_kind == "subagent_started":
+            return Reaction(
+                element=ReactiveElement.ORBIT,
+                intensity=0.7,
+                origin=(0.5, 0.5),   # new sub-flow spawns, circles main flow
+                color_key="accent",
+                duration=5.0,
+            )
+        if event_kind == "context_pressure":
+            return Reaction(
+                element=ReactiveElement.GAUGE,
+                intensity=data.get("pressure", 0.5),
+                origin=(0.5, 0.05),
+                color_key="soft",
+                duration=2.0,
+            )
+        if event_kind == "compression_started":
+            return Reaction(
+                element=ReactiveElement.WAVE,
+                intensity=0.8,
+                origin=(0.5, 0.5),   # entire field compresses
+                color_key="soft",
+                duration=3.0,
+            )
+        if event_kind == "browser_navigate":
+            return Reaction(
+                element=ReactiveElement.TRAIL,
+                intensity=0.6,
+                origin=(rng(), rng()),
+                color_key="accent",
+                duration=2.0,
+            )
+        return None
+
+    # ── v0.2: Palette shift ───────────────────────────────────────────────────
+
+    def palette_shift(self, trigger_effect: str, intensity: float,
+                      base_palette: Tuple[int, int, int, int]) -> Optional[Tuple[int, int, int, int]]:
+        if trigger_effect == "llm_start":
+            # Brighten to cyan/white — high-energy thinking
+            return (curses.COLOR_WHITE, curses.COLOR_CYAN,
+                    curses.COLOR_CYAN, curses.COLOR_BLUE)
+        if trigger_effect == "error":
+            # Red/yellow
+            return (curses.COLOR_RED, curses.COLOR_YELLOW,
+                    curses.COLOR_RED, curses.COLOR_RED)
+        if trigger_effect in ("compression_started", "compression"):
+            # Dim to dark blue
+            return (curses.COLOR_BLUE, curses.COLOR_CYAN,
+                    curses.COLOR_BLUE, curses.COLOR_BLACK)
+        return None
+
+    # ── v0.2: Ambient tick — idle attractor ───────────────────────────────────
+
+    def ambient_tick(self, stdscr, state, color_pairs: dict,
+                     idle_seconds: float) -> None:
+        if idle_seconds > 2.0 and state.frame % 120 == 0:
+            w, h = state.width, state.height
+            # Spawn a gentle random attractor that pulls particles into clusters
+            self._idle_attractor = {
+                "x": random.randint(w // 4, 3 * w // 4),
+                "y": random.randint(h // 4, 3 * h // 4),
+                "strength": 0.3,
+                "type": "vortex",
+            }
+        elif idle_seconds < 0.5:
+            self._idle_attractor = None
+
+    # ── Internal helpers ──────────────────────────────────────────────────────
+
     def _init(self, w, h):
         self._trail = [[0.0] * w for _ in range(h)]
         self._particles = []
-        for _ in range(80):
+        for _ in range(120):
             self._spawn_particle(w, h)
         self._w, self._h = w, h
+        # Initialize tracer
+        self._tracer = {
+            "x": float(w // 2),
+            "y": float(h // 2),
+            "life": 9999,
+            "speed": 1.2,
+            "color": "bright",
+        }
+        self._tracer_trail = []
 
     def _spawn_particle(self, w, h):
         rng = self._rng
@@ -321,19 +826,19 @@ class FlowFieldPlugin(ThemePlugin):
             "x":    rng.uniform(0, w),
             "y":    rng.uniform(1, h - 1),
             "life": rng.randint(40, 120),
-            "speed": rng.uniform(0.3, 0.9),
+            "speed": rng.uniform(0.3, 1.4),
             "color": rng.choice(["bright", "accent", "soft"]),
+            "vx": 0.0,
+            "vy": 0.0,
         })
 
     def _field(self, x, y, t, w, h):
         """Curl-like noise field: vx, vy derived from overlapping sine waves."""
         nx = x / max(w, 1)
         ny = y / max(h, 1)
-        # Potential function ψ(x,y,t) — curl gives (dψ/dy, -dψ/dx)
         freq = 3.0
         psi1  = math.sin(nx * freq + t * 0.5) * math.cos(ny * freq * 1.3 - t * 0.3)
         psi2  = math.sin(nx * freq * 2.1 - t * 0.4 + 1.0) * math.cos(ny * freq * 0.8 + t * 0.6)
-        # Numerical curl approximation
         eps   = 0.01
         psi_dy = math.sin(nx * freq + t * 0.5) * (-math.sin((ny + eps) * freq * 1.3 - t * 0.3)) * freq * 1.3
         psi_dx = math.cos(nx * freq + t * 0.5) * freq * math.cos(ny * freq * 1.3 - t * 0.3)
@@ -357,16 +862,29 @@ class FlowFieldPlugin(ThemePlugin):
         trail = self._trail
         t     = f * 0.02
 
-        # Step particles
-        target_n = int(60 + 140 * intensity)
+        # Target particle count: up to 600
+        target_n = int(120 + 480 * intensity)
         while len(self._particles) < min(target_n, self._MAX_PARTICLES):
             self._spawn_particle(w, h)
+
+        # Particle chars graduated by speed
+        def _speed_char(speed: float) -> str:
+            if speed < 0.5:
+                return "\u00b7"   # ·  slow
+            elif speed < 0.8:
+                return "."         # . medium
+            elif speed < 1.1:
+                return "\u2022"   # • fast
+            else:
+                return "\u25e6"   # ◦ very fast
 
         live = []
         for p in self._particles:
             vx, vy = self._field(p["x"], p["y"], t, w, h)
-            p["x"] += vx * p["speed"]
-            p["y"] += vy * p["speed"] * 0.5  # terminal aspect
+            p["vx"] = vx * p["speed"]
+            p["vy"] = vy * p["speed"]
+            p["x"] += p["vx"]
+            p["y"] += p["vy"] * 0.5  # terminal aspect
             p["life"] -= 1
 
             # Wrap
@@ -387,10 +905,24 @@ class FlowFieldPlugin(ThemePlugin):
 
         self._particles = live
 
-        # Direction glyphs for field arrows (sampled every 5 cols, 3 rows)
-        arrows = "\u2190\u2196\u2191\u2197\u2192\u2198\u2193\u2199"
+        # Step the flow tracer
+        if self._tracer:
+            tr = self._tracer
+            tvx, tvy = self._field(tr["x"], tr["y"], t, w, h)
+            tr["x"] = (tr["x"] + tvx * 1.2) % w
+            tr["y"] = tr["y"] + tvy * 0.6
+            if tr["y"] < 1:
+                tr["y"] = 1.0
+            elif tr["y"] >= h - 1:
+                tr["y"] = float(h - 2)
+            self._tracer_trail.append((int(tr["x"]), int(tr["y"])))
+            if len(self._tracer_trail) > 20:
+                self._tracer_trail.pop(0)
 
-        # Decay trail and render background
+        # Direction arrows for density map
+        arrows = "\u2190\u2196\u2191\u2197\u2192\u2198\u2193\u2199"  # ←↖↑↗→↘↓↙
+
+        # Decay trail and render
         decay  = 0.90 - 0.05 * intensity
         for y in range(1, h - 1):
             row = trail[y]
@@ -402,8 +934,6 @@ class FlowFieldPlugin(ThemePlugin):
                     fchars = "\u00b7.:+*\u2593"
                     idx   = int(v * (len(fchars) - 1))
                     idx   = max(0, min(len(fchars) - 1, idx))
-                    # phase: trail color follows the field angle + time
-                    # so particles leave color-coded streaks by direction
                     fvx, fvy = self._field(x, y, t, w, h)
                     fang  = math.atan2(fvy, fvx)
                     phase = (t * 0.08 + fang / (2 * math.pi) + v * 0.3) % 1.0
@@ -417,8 +947,8 @@ class FlowFieldPlugin(ThemePlugin):
                         stdscr.addstr(y, x, fchars[idx], attr)
                     except curses.error:
                         pass
-                elif (x % 5 == 2) and (y % 3 == 1):
-                    # Field direction glyph
+                elif (x % 6 == 3) and (y % 4 == 2):
+                    # Sparse density map: faint field direction arrow
                     vx, vy = self._field(x, y, t, w, h)
                     ang   = math.atan2(vy, vx)
                     idx   = int((ang + math.pi) / (2 * math.pi) * 8) % 8
@@ -432,14 +962,41 @@ class FlowFieldPlugin(ThemePlugin):
                     except curses.error:
                         pass
 
-        # Bright particle heads
+        # Draw flow tracer trail with '━' chars
+        tracer_attr = bright_attr
+        for i, (tx, ty) in enumerate(self._tracer_trail[:-1]):
+            if 1 <= ty < h - 1 and 0 <= tx < w - 1:
+                try:
+                    stdscr.addstr(ty, tx, "\u2501", accent_attr if i < 10 else soft_attr)
+                except curses.error:
+                    pass
+        # Draw tracer head
+        if self._tracer:
+            tx, ty = int(self._tracer["x"]), int(self._tracer["y"])
+            if 1 <= ty < h - 1 and 0 <= tx < w - 1:
+                try:
+                    stdscr.addstr(ty, tx, "\u2501", bright_attr)
+                except curses.error:
+                    pass
+
+        # Bright particle heads with velocity-angle color and graduated chars
         for p in self._particles:
             if p["life"] > 8:
                 px, py = int(p["x"]), int(p["y"])
                 if 1 <= py < h - 1 and 0 <= px < w - 1:
+                    speed = math.sqrt(p["vx"]**2 + p["vy"]**2)
+                    ch = _speed_char(speed)
+                    # Color by velocity angle
+                    angle = math.atan2(p["vy"], p["vx"])
+                    angle_phase = (angle + math.pi) / (2 * math.pi)
+                    if angle_phase > 0.66:
+                        attr = bright_attr
+                    elif angle_phase > 0.33:
+                        attr = accent_attr
+                    else:
+                        attr = soft_attr
                     try:
-                        stdscr.addstr(py, px, "\u25cf",
-                                      color_map.get(p["color"], bright_attr))
+                        stdscr.addstr(py, px, ch, attr)
                     except curses.error:
                         pass
 
