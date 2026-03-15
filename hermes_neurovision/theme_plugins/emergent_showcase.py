@@ -383,135 +383,383 @@ class SwarmMindTheme(ThemePlugin):
 # ═══════════════════════════════════════════════════════════════════════════
 
 class NeuralCascadeTheme(ThemePlugin):
-    """Brain-like excitable neural field that cascades with activity."""
+    """Full-screen spiking neural cortex — action potentials cascade across layers.
+
+    Simulates N cortical neurons in a 2D sheet.  Each neuron has a membrane
+    potential that charges toward threshold then fires, sending action potentials
+    along axons to neighbours.  The voltage field is rendered per-cell as a
+    gradient of ASCII density chars.  Firing neurons leave bright afterglows.
+    Connected-neuron axons are drawn as dim lines.  The cascade is self-sustaining
+    at low threshold but settles into silence when deprived of input.
+
+    v0.2 upgrade:
+      - Custom full-screen draw_extras: membrane potential field + axon lines +
+        moving action potentials + firing glyphs — replaces the bare node engine
+      - neural_field_config: the emergent field texture crackles underneath
+      - warp_field: membrane oscillation distorts the field (theta/gamma waves)
+      - echo_decay:4 + glow_radius:2 — firing neurons leave 4-frame halos
+      - force_points: 3 cortical column attractors rotate slowly
+      - decay_sequence: neuron afterglow chars
+      - intensity_curve: sigmoid — silent below 0.3, explosive above 0.7
+      - react() x12 events mapped to specific cortical phenomena:
+          agent_start    → PULSE (global depolarisation)
+          llm_start      → STREAM (thalamo-cortical input)
+          llm_chunk      → SPARK (micro-column firing)
+          llm_end        → WAVE (cortical reset)
+          tool_call      → RIPPLE (sensory signal arrival)
+          tool_complete  → RIPPLE (efference copy)
+          memory_save    → BLOOM (long-term potentiation)
+          skill_create   → BLOOM max (synaptic consolidation)
+          error/crash    → SHATTER (spreading depression)
+          cron_tick      → ORBIT (slow cortical oscillation)
+          subagent       → CONSTELLATION (new neural column)
+          context_pres.  → GAUGE (cognitive load)
+      - palette_shift: error → red/white (spreading depression),
+                       memory → cyan/white (LTP), agent_start → magenta flash
+      - special_effects: "cascade-wave" — a spreading activation wave across
+        the full cortical sheet
+      - ambient_tick: spontaneous miniature firings when idle
+    """
 
     def __init__(self) -> None:
         self.name = "neural-cascade"
         super().__init__()
+        self._neurons: Optional[List[dict]] = None
+        self._signals: List[dict] = []
+        self._w = self._h = 0
+        self._rng = random.Random(77)
+        self._N_NEURONS = 22
+        self._THRESH = 1.0
+        self._excite: float = 0.0   # extra excitation from reactive events
+        self._inhibit: float = 0.0  # inhibition (after error)
 
-    def palette(self) -> Dict[str, int]:
-        return {
-            "bright": curses.COLOR_WHITE,
-            "accent": curses.COLOR_CYAN,
-            "soft": curses.COLOR_BLUE,
-            "base": curses.COLOR_MAGENTA,
-            "warning": curses.COLOR_RED,
-        }
+    def build_nodes(self, w: int, h: int, cx: int, cy: int,
+                    count: int, rng: random.Random) -> Optional[List[Tuple]]:
+        # Suppress the graph engine — we manage neurons ourselves
+        return []
 
-    # -- emergent --
+    # ── v0.2: Emergent ────────────────────────────────────────────────────────
     def neural_field_config(self) -> Optional[Dict]:
-        return {
-            "threshold": 2,
-            "fire_duration": 3,
-            "refractory": 4,
-        }
+        return {"threshold": 2, "fire_duration": 3, "refractory": 4}
 
     def emergent_layer(self) -> str:
         return "background"
 
-    # -- postfx --
+    # ── v0.2: Post-FX ─────────────────────────────────────────────────────────
     def warp_field(self, x: int, y: int, w: int, h: int,
                    frame: int, intensity: float) -> Tuple[int, int]:
-        amp = intensity * 1.5
-        t = frame * 0.08
-        dx = int(amp * math.sin(t + y * 0.3))
-        dy = int(amp * 0.5 * math.cos(t + x * 0.2))
-        nx = max(0, min(w - 1, x + dx))
-        ny = max(0, min(h - 1, y + dy))
-        return (nx, ny)
+        # Theta-band oscillation (6 Hz equivalent) distorts membrane field
+        t = frame * 0.06
+        amp = intensity * 1.8
+        dx = int(amp * math.sin(t + y * 0.28))
+        dy = int(amp * 0.45 * math.cos(t * 1.3 + x * 0.19))
+        return (max(0, min(w - 1, x + dx)), max(0, min(h - 1, y + dy)))
 
     def glow_radius(self) -> int:
-        return 1
+        return 2
 
     def echo_decay(self) -> int:
-        return 3
+        return 4
 
-    # -- layout: grid --
-    def build_nodes(self, w: int, h: int, cx: int, cy: int,
-                    count: int, rng: random.Random) -> Optional[List[Tuple]]:
-        cols = max(2, int(math.sqrt(count * 2)))
-        rows = max(2, count // cols)
-        spacing_x = max(4, (w - 8) // max(1, cols - 1))
-        spacing_y = max(3, (h - 4) // max(1, rows - 1))
-        x0 = cx - (cols - 1) * spacing_x // 2
-        y0 = cy - (rows - 1) * spacing_y // 2
-        nodes: List[Tuple[int, int]] = []
-        for r in range(rows):
-            for c in range(cols):
-                nx = x0 + c * spacing_x
-                ny = y0 + r * spacing_y
-                if 1 <= nx < w - 1 and 1 <= ny < h - 1:
-                    nodes.append((nx, ny))
-                if len(nodes) >= count:
-                    break
-            if len(nodes) >= count:
-                break
-        return nodes if nodes else None
+    def decay_sequence(self) -> Optional[str]:
+        return "⬡⬢◉○·. "   # firing → refractory → silence
 
-    # -- glyphs --
-    def node_glyph(self, idx: int, intensity: float, total: int) -> str:
-        if intensity > 0.7:
-            return "⬡"  # firing
-        elif intensity > 0.3:
-            return "⬢"  # refractory
-        return "·"  # resting
+    def force_points(self, w: int, h: int, frame: int,
+                     intensity: float) -> List[Dict]:
+        cx, cy = w / 2.0, h / 2.0
+        t = frame * 0.018
+        r = min(w, h * 2) * 0.28
+        strength = 0.35 + intensity * 0.45 + self._excite * 0.2
+        return [
+            {"x": int(cx + r * math.cos(t + i * math.tau / 3)),
+             "y": int(cy + r * math.sin(t + i * math.tau / 3) * 0.45),
+             "strength": strength, "type": "vortex"}
+            for i in range(3)
+        ]
 
-    def node_color_key(self, idx: int, intensity: float, total: int) -> str:
-        if intensity > 0.7:
-            return "bright"
-        elif intensity > 0.3:
-            return "accent"
-        return "soft"
+    # ── v0.2: Intensity curve ─────────────────────────────────────────────────
+    def intensity_curve(self, raw: float) -> float:
+        x = (raw - 0.42) * 9.0
+        return 1.0 / (1.0 + math.exp(-x))
 
-    def pulse_style(self) -> str:
-        return "ripple"
-
-    # -- reactive --
+    # ── v0.2: Reactive ────────────────────────────────────────────────────────
     def react(self, event_kind: str, data: dict) -> Optional[Reaction]:
-        if event_kind == "llm_token":
-            return Reaction(
-                element=ReactiveElement.SPARK,
-                intensity=0.5,
-                origin=(random.random(), random.random()),
-                color_key="accent",
-                duration=0.8,
-                data={"fire": True},
-            )
-        if event_kind == "tool_result":
-            return Reaction(
-                element=ReactiveElement.RIPPLE,
-                intensity=0.8,
-                origin=(random.random(), random.random()),
-                color_key="bright",
-                duration=2.0,
-            )
-        if event_kind == "error":
-            return Reaction(
-                element=ReactiveElement.SHATTER,
-                intensity=1.0,
-                origin=(0.5, 0.5),
-                color_key="warning",
-                duration=2.5,
-                sound="bell",
-            )
+        r = random.random
+        if event_kind == "agent_start":
+            self._excite = 0.8
+            return Reaction(element=ReactiveElement.PULSE, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.5)
+        if event_kind == "llm_start":
+            self._excite = 0.5
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.85,
+                           origin=(0.1, 0.5), color_key="accent", duration=3.5)
+        if event_kind == "llm_chunk":
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.5,
+                           origin=(r(), r()), color_key="bright", duration=0.5)
+        if event_kind == "llm_end":
+            self._excite = max(0.0, self._excite - 0.4)
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.6,
+                           origin=(0.5, 0.5), color_key="soft", duration=2.5)
+        if event_kind in ("tool_call", "mcp_tool_call"):
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.75,
+                           origin=(r(), r()), color_key="accent", duration=1.8)
+        if event_kind == "tool_complete":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.4,
+                           origin=(r(), r()), color_key="soft", duration=1.0)
+        if event_kind == "memory_save":
+            self._excite = 0.3
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.85,
+                           origin=(0.5, 0.5), color_key="bright", duration=3.0)
+        if event_kind == "skill_create":
+            self._excite = 0.6
+            return Reaction(element=ReactiveElement.BLOOM, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="bright", duration=3.5)
+        if event_kind in ("error", "crash"):
+            self._inhibit = 0.8
+            self._excite  = 0.0
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(r(), r()), color_key="warning", duration=2.5)
+        if event_kind in ("cron_tick", "background_proc"):
+            return Reaction(element=ReactiveElement.ORBIT, intensity=0.4,
+                           origin=(0.5, 0.5), color_key="soft", duration=4.0)
+        if event_kind == "subagent_started":
+            return Reaction(element=ReactiveElement.CONSTELLATION, intensity=0.7,
+                           origin=(r(), r()), color_key="accent", duration=4.0)
+        if event_kind in ("context_pressure", "token_usage"):
+            return Reaction(element=ReactiveElement.GAUGE,
+                           intensity=data.get("ratio", 0.6),
+                           origin=(0.05, 0.9), color_key="warning", duration=3.5)
+        if event_kind in ("dangerous_cmd", "approval_request"):
+            self._inhibit = 0.5
+            return Reaction(element=ReactiveElement.SPARK, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.0)
         return None
 
+    # ── v0.2: Palette shift ───────────────────────────────────────────────────
     def palette_shift(self, trigger_effect, intensity: float,
                       base_palette) -> Optional[Tuple]:
-        if trigger_effect == "error" or trigger_effect == ReactiveElement.SHATTER:
-            # shift toward red/warning tones
-            return (
-                curses.COLOR_RED,
-                curses.COLOR_YELLOW,
-                curses.COLOR_WHITE,
-                curses.COLOR_RED,
-            )
+        if trigger_effect in ("error", "crash") or trigger_effect == ReactiveElement.SHATTER:
+            return (curses.COLOR_RED, curses.COLOR_YELLOW, curses.COLOR_WHITE, curses.COLOR_RED)
+        if trigger_effect in ("memory_save", "skill_create") or trigger_effect == ReactiveElement.BLOOM:
+            return (curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_BLUE, curses.COLOR_CYAN)
+        if trigger_effect == "agent_start" or trigger_effect == ReactiveElement.PULSE:
+            return (curses.COLOR_WHITE, curses.COLOR_MAGENTA, curses.COLOR_CYAN, curses.COLOR_WHITE)
         return None
 
-    # -- intensity curve: sigmoid --
+    # ── v0.2: Special effects ─────────────────────────────────────────────────
+    def special_effects(self) -> List[SpecialEffect]:
+        return [
+            SpecialEffect(name="cascade-wave",
+                         trigger_kinds=["burst", "llm_start"],
+                         min_intensity=0.4, cooldown=6.0, duration=3.5),
+        ]
+
+    def draw_special(self, stdscr, state, color_pairs,
+                     special_name: str, progress: float, intensity: float) -> None:
+        if special_name != "cascade-wave":
+            return
+        w, h = state.width, state.height
+        # A spreading activation wavefront sweeps across the cortex from left to right.
+        # As it passes, brief bright firing chars appear along the front.
+        front_x = int(w * progress)
+        spread  = max(3, int(w * 0.08))
+        attr_b = curses.color_pair(color_pairs.get("bright", 0)) | curses.A_BOLD
+        attr_a = curses.color_pair(color_pairs.get("accent", 0))
+        fire_chars = "⬡⬢◉◎●"
+        for y in range(1, h - 1):
+            for dx in range(-spread, spread + 1):
+                px = front_x + dx
+                if 0 <= px < w:
+                    dist_frac = abs(dx) / spread
+                    fade = 1.0 - dist_frac ** 2
+                    if fade > 0.15:
+                        ci = int((1.0 - fade) * (len(fire_chars) - 1)) % len(fire_chars)
+                        attr = attr_b if fade > 0.6 else attr_a
+                        _safe_addstr(stdscr, y, px, fire_chars[ci], attr)
+
+    # ── v0.2: Ambient tick ────────────────────────────────────────────────────
+    def ambient_tick(self, stdscr, state, color_pairs, idle_seconds: float) -> None:
+        # Spontaneous miniature firings — like resting-state brain activity
+        if state.frame % 10 == 0:
+            self._excite  = max(0.0, self._excite  - 0.015)
+            self._inhibit = max(0.0, self._inhibit - 0.010)
+        if idle_seconds > 1.0 and state.frame % 20 == 0:
+            if self._neurons:
+                n = self._rng.choice(self._neurons)
+                if n["refractory"] == 0 and self._inhibit < 0.5:
+                    n["v"] = min(self._THRESH * 0.85, n["v"] + 0.25)
+
+    # ── Neuron lifecycle helpers ──────────────────────────────────────────────
+    def _init_neurons(self, w, h) -> None:
+        rng = self._rng
+        self._neurons = []
+        for _ in range(self._N_NEURONS):
+            nx = rng.uniform(0.08, 0.92) * w
+            ny = rng.uniform(0.10, 0.90) * h
+            self._neurons.append({
+                "x": nx, "y": ny,
+                "v": rng.random() * 0.4,
+                "refractory": 0,
+                "charge_rate": rng.uniform(0.003, 0.011),
+                "connections": [],
+            })
+        # Wire nearest 3 neighbours
+        for i, n in enumerate(self._neurons):
+            dists = sorted(range(self._N_NEURONS),
+                           key=lambda j, ni=n: (ni["x"] - self._neurons[j]["x"]) ** 2
+                                              + (ni["y"] - self._neurons[j]["y"]) ** 2)
+            n["connections"] = [j for j in dists[1:4]]
+        self._w, self._h = w, h
+
+    # ── Main draw ─────────────────────────────────────────────────────────────
+    def draw_extras(self, stdscr, state, color_pairs) -> None:
+        w, h, f = state.width, state.height, state.frame
+
+        if self._neurons is None or (w, h) != (self._w, self._h):
+            self._init_neurons(w, h)
+
+        intensity = state.intensity_multiplier
+        neurons   = self._neurons
+
+        bright_attr = curses.color_pair(color_pairs["bright"]) | curses.A_BOLD
+        accent_attr = curses.color_pair(color_pairs["accent"])
+        soft_attr   = curses.color_pair(color_pairs["soft"])
+        base_dim    = curses.color_pair(color_pairs["base"]) | curses.A_DIM
+
+        # ── Step neuron dynamics ──────────────────────────────────────────────
+        charge_scale = 1.0 + intensity * 2.2 + self._excite * 1.5
+        newly_fired: List[int] = []
+        for i, n in enumerate(neurons):
+            if n["refractory"] > 0:
+                n["refractory"] -= 1
+                continue
+            if self._inhibit > 0.3:
+                n["v"] = max(0.0, n["v"] - 0.01)
+                continue
+            n["v"] += n["charge_rate"] * charge_scale
+            if n["v"] >= self._THRESH:
+                n["v"] = 0.0
+                n["refractory"] = 16
+                newly_fired.append(i)
+                # Send action potentials along axons
+                for j in n["connections"]:
+                    tgt = neurons[j]
+                    ddx = tgt["x"] - n["x"]
+                    ddy = tgt["y"] - n["y"]
+                    dist = math.sqrt(ddx * ddx + ddy * ddy)
+                    speed = max(0.4, dist / 15.0)
+                    self._signals.append({
+                        "x0": n["x"], "y0": n["y"],
+                        "x1": tgt["x"], "y1": tgt["y"],
+                        "t": 0.0,
+                        "speed": speed / max(dist, 1.0),
+                        "target": j,
+                    })
+
+        # Advance signals
+        live_sigs: List[dict] = []
+        for sig in self._signals:
+            sig["t"] += sig["speed"]
+            if sig["t"] < 1.0:
+                live_sigs.append(sig)
+            else:
+                # Post-synaptic excitation
+                neurons[sig["target"]]["v"] = min(
+                    0.85,
+                    neurons[sig["target"]]["v"] + 0.28 * (1.0 + self._excite)
+                )
+        self._signals = live_sigs[-60:]
+
+        # ── Membrane potential field per cell ────────────────────────────────
+        # Compute per-pixel weighted sum of neuron voltages
+        field_chars = " \u00b7.:;+*\u25cc\u25cb\u25cf"
+        n_fc = len(field_chars)
+
+        for y in range(1, h - 1):
+            for x in range(0, w - 1):
+                field = 0.0
+                for n in neurons:
+                    d2 = (x - n["x"]) ** 2 + ((y - n["y"]) * 1.8) ** 2
+                    field += n["v"] / (1.0 + d2 * 0.012)
+                field = min(1.0, field * 0.10)
+
+                # Phase-walk hue along y (dendritic direction)
+                hue_base = (f * 0.0035) % 1.0
+                phase = (hue_base + y / max(h, 1) * 0.4) % 1.0
+                fp = (field + phase) % 1.0
+
+                idx = max(0, min(n_fc - 1, int(field * (n_fc - 1))))
+                ch  = field_chars[idx]
+
+                if field < 0.10:
+                    attr = base_dim
+                elif fp < 0.30:
+                    attr = soft_attr
+                elif fp < 0.62:
+                    attr = accent_attr
+                else:
+                    attr = bright_attr
+
+                try:
+                    stdscr.addstr(y, x, ch, attr)
+                except curses.error:
+                    pass
+
+        # ── Axon connection lines (dim) ───────────────────────────────────────
+        for i, n in enumerate(neurons):
+            for j in n["connections"]:
+                if j <= i:
+                    continue
+                n2 = neurons[j]
+                x0, y0 = int(n["x"]),  int(n["y"])
+                x1, y1 = int(n2["x"]), int(n2["y"])
+                steps = max(abs(x1 - x0), abs(y1 - y0), 1)
+                for k in range(0, steps, 2):
+                    t = k / steps
+                    ax = int(x0 + (x1 - x0) * t)
+                    ay = int(y0 + (y1 - y0) * t)
+                    if 1 <= ay < h - 1 and 0 <= ax < w - 1:
+                        _safe_addstr(stdscr, ay, ax, "\u00b7", base_dim)
+
+        # ── Moving action potentials ──────────────────────────────────────────
+        for sig in self._signals:
+            sx = int(sig["x0"] + (sig["x1"] - sig["x0"]) * sig["t"])
+            sy = int(sig["y0"] + (sig["y1"] - sig["y0"]) * sig["t"])
+            if 1 <= sy < h - 1 and 0 <= sx < w - 1:
+                _safe_addstr(stdscr, sy, sx, "\u25cf", bright_attr)
+
+        # ── Neuron body glyphs ────────────────────────────────────────────────
+        for i, n in enumerate(neurons):
+            nx, ny = int(n["x"]), int(n["y"])
+            if 1 <= ny < h - 1 and 0 <= nx < w - 1:
+                if i in newly_fired:
+                    ch   = "\u2605"   # ★ — action potential
+                    attr = bright_attr
+                elif n["refractory"] > 8:
+                    ch   = "\u25c9"   # ◉ — refractory (early)
+                    attr = accent_attr
+                elif n["refractory"] > 0:
+                    ch   = "\u25cb"   # ○ — refractory (late)
+                    attr = soft_attr
+                else:
+                    v = n["v"] / self._THRESH
+                    if v > 0.75:
+                        ch   = "\u25cf"   # ● — near threshold
+                        attr = accent_attr
+                    elif v > 0.4:
+                        ch   = "\u25cc"   # ◌ — charging
+                        attr = soft_attr
+                    else:
+                        ch   = "\u00b7"
+                        attr = base_dim
+                try:
+                    stdscr.addstr(ny, nx, ch, attr)
+                except curses.error:
+                    pass
+
+    # ── intensity curve: sigmoid ──────────────────────────────────────────────
     def intensity_curve(self, raw: float) -> float:
-        # sigmoid: low activity barely visible, high activity explodes
-        x = (raw - 0.5) * 10.0
+        x = (raw - 0.42) * 9.0
         return 1.0 / (1.0 + math.exp(-x))
 
     # -- sound --
@@ -527,17 +775,17 @@ class NeuralCascadeTheme(ThemePlugin):
         }
 
     def particle_base_chance(self) -> float:
-        return 0.08
+        return 0.05
 
     def spawn_particle(self, w: int, h: int, nodes, rng) -> Optional[Particle]:
         x = rng.randint(2, max(3, w - 3))
         y = rng.randint(2, max(3, h - 3))
         return Particle(
             x=float(x), y=float(y),
-            vx=rng.uniform(-0.3, 0.3),
-            vy=rng.uniform(-0.2, 0.2),
-            life=rng.randint(5, 15),
-            max_life=15,
+            vx=rng.uniform(-0.2, 0.2),
+            vy=rng.uniform(-0.15, 0.15),
+            life=rng.randint(5, 12),
+            max_life=12,
             char=rng.choice("·∙⁘"),
         )
 
