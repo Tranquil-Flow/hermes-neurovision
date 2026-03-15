@@ -456,17 +456,109 @@ def test_apply_auto_opacity_disabled(tmp_config):
     assert result is False
 
 
-def test_apply_auto_opacity_terminal_app(tmp_config, capsys):
-    """Terminal.app should print instructions, not attempt API calls."""
+def test_apply_auto_opacity_terminal_app(tmp_config):
+    """Terminal.app is now fully supported via AppleScript backgroundAlpha."""
     from hermes_neurovision.bg_mode import apply_auto_opacity
     cfg = {"auto_opacity": True, "opacity": 0.4}
 
     with patch("hermes_neurovision.bg_mode._detect_terminal_app", return_value="terminal"):
-        result = apply_auto_opacity(cfg, verbose=True)
+        with patch("hermes_neurovision.bg_mode._terminal_get_opacity", return_value=1.0):
+            with patch("hermes_neurovision.bg_mode._terminal_set_opacity", return_value=True) as mock_set:
+                result = apply_auto_opacity(cfg, verbose=False)
 
-    assert result is False
-    out = capsys.readouterr().out
-    assert "Terminal.app" in out or "manual" in out.lower() or "not support" in out.lower()
+    assert result is True
+    mock_set.assert_called_once_with(0.4)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Terminal.app opacity helpers
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_terminal_get_opacity_success():
+    from hermes_neurovision.bg_mode import _terminal_get_opacity
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "0.9\n"
+    with patch("subprocess.run", return_value=mock_result):
+        val = _terminal_get_opacity()
+    assert val == pytest.approx(0.9)
+
+
+def test_terminal_get_opacity_failure():
+    from hermes_neurovision.bg_mode import _terminal_get_opacity
+    mock_result = MagicMock()
+    mock_result.returncode = 1
+    mock_result.stdout = ""
+    with patch("subprocess.run", return_value=mock_result):
+        assert _terminal_get_opacity() is None
+
+
+def test_terminal_get_opacity_timeout():
+    from hermes_neurovision.bg_mode import _terminal_get_opacity
+    import subprocess as sp
+    with patch("subprocess.run", side_effect=sp.TimeoutExpired("osascript", 3)):
+        assert _terminal_get_opacity() is None
+
+
+def test_terminal_set_opacity_success():
+    from hermes_neurovision.bg_mode import _terminal_set_opacity
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    with patch("subprocess.run", return_value=mock_result) as mock_run:
+        result = _terminal_set_opacity(0.5)
+    assert result is True
+    cmd = mock_run.call_args[0][0]
+    # Should call osascript
+    assert "osascript" in cmd
+    # The script arg should contain the opacity value
+    script = mock_run.call_args[0][0][-1]
+    assert "0.5" in script
+    assert "backgroundAlpha" in script
+
+
+def test_terminal_set_opacity_clamps():
+    from hermes_neurovision.bg_mode import _terminal_set_opacity
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    with patch("subprocess.run", return_value=mock_result) as mock_run:
+        _terminal_set_opacity(1.5)   # over max
+    script = mock_run.call_args[0][0][-1]
+    # Should clamp to 1.0
+    assert "1.0" in script or "1" in script
+
+
+def test_terminal_set_opacity_all_windows():
+    """Script should iterate all windows, not just front window."""
+    from hermes_neurovision.bg_mode import _terminal_set_opacity
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    with patch("subprocess.run", return_value=mock_result) as mock_run:
+        _terminal_set_opacity(0.4)
+    script = mock_run.call_args[0][0][-1]
+    assert "repeat" in script or "windows" in script
+
+
+def test_terminal_roundtrip(tmp_config):
+    """Full apply/restore roundtrip for Terminal.app."""
+    from hermes_neurovision.bg_mode import apply_auto_opacity, restore_opacity
+    cfg = {"auto_opacity": True, "opacity": 0.45}
+
+    set_calls = []
+    def fake_set(val):
+        set_calls.append(val)
+        return True
+
+    with patch("hermes_neurovision.bg_mode._detect_terminal_app", return_value="terminal"):
+        with patch("hermes_neurovision.bg_mode._terminal_get_opacity", return_value=1.0):
+            with patch("hermes_neurovision.bg_mode._terminal_set_opacity", side_effect=fake_set):
+                apply_auto_opacity(cfg, verbose=False)
+
+    assert set_calls[0] == pytest.approx(0.45)
+
+    with patch("hermes_neurovision.bg_mode._terminal_set_opacity", side_effect=fake_set):
+        restore_opacity(verbose=False)
+
+    assert set_calls[1] == pytest.approx(1.0)
 
 
 def test_apply_auto_opacity_unknown_terminal(tmp_config):
