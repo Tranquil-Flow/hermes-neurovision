@@ -74,37 +74,42 @@ FONT = {
     '·': ["  ", "  ", " █", "  ", "  "],
 }
 
-def big_text_width(text):
+def big_text_width(text, scale_x=1, gap=1):
     """Return pixel width of text rendered in FONT."""
-    GAP = 1
     total = 0
-    for ch in text.upper():
-        letter = FONT.get(ch, FONT[' '])
-        total += len(letter[0]) + GAP
-    return max(0, total - GAP)
+    letters = [FONT.get(ch.upper(), FONT[' ']) for ch in text.upper()]
+    for l in letters:
+        total += len(l[0]) * scale_x + gap * scale_x
+    return max(0, total - gap * scale_x)
 
-def draw_big_text(stdscr, row, text, attr, center=True, gap=1):
-    """Draw text using 5-row-tall block font. Skips space chars so theme shows through."""
+def draw_big_text(stdscr, row, text, attr, center=True, gap=1, scale_x=1, scale_y=1):
+    """Draw text using 5-row-tall block font.
+    scale_x: horizontal pixel multiplier (2 = double width)
+    scale_y: vertical pixel multiplier   (2 = double height)
+    Skips space chars so theme background shows through.
+    Returns the row after the last drawn row."""
     h, w = stdscr.getmaxyx()
     text = text.upper()
     letters = [FONT.get(ch, FONT[' ']) for ch in text]
-    total_w = sum(len(l[0]) for l in letters) + gap * max(0, len(letters) - 1)
+    total_w = sum(len(l[0]) * scale_x for l in letters) + gap * scale_x * max(0, len(letters) - 1)
     start_x = max(0, (w - total_w) // 2) if center else 0
     x = start_x
     for li, letter in enumerate(letters):
         for r in range(5):
-            if row + r >= h - 1:
-                continue
-            line = letter[r]
-            # Draw char by char, skipping spaces so theme background shows through
-            for ci, ch in enumerate(line):
-                if ch != ' ':
-                    try:
-                        stdscr.addstr(row + r, x + ci, ch, attr)
-                    except curses.error:
-                        pass
-        x += len(letter[0]) + gap
-    return row + 5
+            for sy in range(scale_y):
+                actual_row = row + r * scale_y + sy
+                if actual_row >= h - 1:
+                    continue
+                line = letter[r]
+                for ci, ch in enumerate(line):
+                    if ch != ' ':
+                        for sx in range(scale_x):
+                            try:
+                                stdscr.addstr(actual_row, x + ci * scale_x + sx, ch, attr)
+                            except curses.error:
+                                pass
+        x += len(letter[0]) * scale_x + gap * scale_x
+    return row + 5 * scale_y
 
 
 # ---------------------------------------------------------------------------
@@ -378,17 +383,18 @@ def make_state(theme_name, w, h, seed=42, speed=1.0):
 
 
 def draw_version_label(stdscr, version, is_v020=False):
-    """Draw big version label near top, floating over the theme."""
+    """Draw big version label near top at 1.5x scale (scale_x=2, scale_y=2)."""
     row = 1
     attr = curses.color_pair(CP_MAGENTA) | curses.A_BOLD if is_v020 else curses.color_pair(CP_WHITE) | curses.A_BOLD
-    draw_big_text(stdscr, row, version, attr)
+    draw_big_text(stdscr, row, version, attr, scale_x=2, scale_y=2)
 
 
 def draw_body_big(stdscr, text, is_v020=False):
     """Draw big body text centered vertically, floating over theme."""
     h, w = stdscr.getmaxyx()
-    row = max(8, h // 2 - 3)
-    attr = curses.color_pair(CP_CYAN) | curses.A_BOLD if not is_v020 else curses.color_pair(CP_MAGENTA) | curses.A_BOLD
+    # version label is 5*2=10 rows tall + 1 row padding = starts at row 12
+    row = max(12, h // 2 - 3)
+    attr = curses.color_pair(CP_WHITE) | curses.A_BOLD if not is_v020 else curses.color_pair(CP_MAGENTA) | curses.A_BOLD
     draw_big_text(stdscr, row, text, attr)
 
 
@@ -685,8 +691,16 @@ def section_terminal_boot(stdscr, renderer):
             dt = now - last_frame
             last_frame = now
 
-            # Black background
-            stdscr.clear()
+            # Force black background
+            stdscr.erase()
+            h2, w2 = stdscr.getmaxyx()
+            black_attr = curses.color_pair(CP_BLACK)
+            blank = " " * (w2 - 1)
+            for _r in range(h2 - 1):
+                try:
+                    stdscr.addstr(_r, 0, blank, black_attr)
+                except curses.error:
+                    pass
 
             # Step and draw particles
             alive = []
@@ -717,7 +731,15 @@ def section_terminal_boot(stdscr, renderer):
         now = time.time()
         dt = now - last_frame
         last_frame = now
-        stdscr.clear()
+        stdscr.erase()
+        h2, w2 = stdscr.getmaxyx()
+        black_attr = curses.color_pair(CP_BLACK)
+        blank = " " * (w2 - 1)
+        for _r in range(h2 - 1):
+            try:
+                stdscr.addstr(_r, 0, blank, black_attr)
+            except curses.error:
+                pass
         for p in particles:
             p.step(dt)
             if p.dead:
@@ -748,7 +770,15 @@ def section_terminal_boot(stdscr, renderer):
         now = time.time()
         dt = now - last_frame
         last_frame = now
-        stdscr.clear()
+        stdscr.erase()
+        h2, w2 = stdscr.getmaxyx()
+        black_attr = curses.color_pair(CP_BLACK)
+        blank = " " * (w2 - 1)
+        for _r in range(h2 - 1):
+            try:
+                stdscr.addstr(_r, 0, blank, black_attr)
+            except curses.error:
+                pass
         for p in particles:
             p.step(dt)
             p.draw(stdscr)
@@ -780,7 +810,15 @@ def section_terminal_boot(stdscr, renderer):
         now = time.time()
         dt = now - last_frame
         last_frame = now
-        stdscr.clear()
+        stdscr.erase()
+        h2, w2 = stdscr.getmaxyx()
+        black_attr = curses.color_pair(CP_BLACK)
+        blank = " " * (w2 - 1)
+        for _r in range(h2 - 1):
+            try:
+                stdscr.addstr(_r, 0, blank, black_attr)
+            except curses.error:
+                pass
         for p in particles:
             p.step(dt)
             p.draw(stdscr)
@@ -802,27 +840,29 @@ def section_terminal_boot(stdscr, renderer):
 # SECTION 3: v0.2.0 Showcase — accelerating
 # ---------------------------------------------------------------------------
 def section_v020_showcase(stdscr, renderer):
+    # Each entry: (theme, duration, card_title, card_subtitle)
     screens = [
-        "plasma-rainbow",
-        "electric-storm",
-        "synaptic-plasma",
-        "dna-strand",
-        "storm-core",
-        "swarm-mind",
-        "quasar",
-        "fractal-engine",
-        "barnsley-fern",
+        ("plasma-rainbow",  4.0,  "100+ SCREENS",        "83 active  ·  18 legacy\n14 categories  ·  and growing"),
+        ("electric-storm",  3.5,  "RAW STATS",            "12 reactive  ·  9 post-FX\n6 emergent systems  ·  54 events"),
+        ("synaptic-plasma", 3.0,  "AUDIO ENGINE",         "Sound reacts to your agent"),
+        ("dna-strand",      2.5,  "GALLERY MODE",         "Auto-opens from cron jobs"),
+        ("storm-core",      2.0,  "AGENT TOOLING",        "AI builds screens for you"),
+        ("swarm-mind",      1.5,  "LIVE AGENT LOGS",      "See what your agent sees"),
+        ("quasar",          1.0,  "IMPORT EXPORT SHARE",  ""),
+        ("fractal-engine",  0.75, "FULL CUSTOMIZATION",   ""),
+        ("barnsley-fern",   0.5,  "PURE PYTHON",          ""),
     ]
-    durations = [4.0, 3.5, 3.0, 2.5, 2.0, 1.5, 1.0, 0.75, 0.5]
 
-    for i, theme_name in enumerate(screens):
+    label_attr = curses.color_pair(CP_MAGENTA) | curses.A_BOLD
+    title_attr = curses.color_pair(CP_MAGENTA) | curses.A_BOLD
+    sub_attr   = curses.color_pair(CP_CYAN)    | curses.A_BOLD
+
+    for i, (theme_name, duration, card_title, card_sub) in enumerate(screens):
         h, w = stdscr.getmaxyx()
         state = make_state(theme_name, w, h, seed=200 + i)
-        duration = durations[i]
         deadline = time.time() + duration
         is_last = (i == len(screens) - 1)
         screen_start = time.time()
-        label_attr = curses.color_pair(CP_MAGENTA) | curses.A_BOLD
 
         while time.time() < deadline:
             h, w = stdscr.getmaxyx()
@@ -833,13 +873,26 @@ def section_v020_showcase(stdscr, renderer):
                 pass
             reinit_overlay_colors()
 
-            show_label = True
-            if is_last:
-                elapsed = time.time() - screen_start
-                show_label = elapsed < (duration * 0.7)
+            elapsed = time.time() - screen_start
+            show_label = not is_last or elapsed < (duration * 0.7)
 
             if show_label:
-                draw_big_text(stdscr, 1, "V0.2.0", label_attr)
+                # Version label top at 2x scale
+                draw_big_text(stdscr, 1, "V0.2.0", label_attr, scale_x=2, scale_y=2)
+
+                # Card title + subtitle centered in the lower portion of the screen
+                sub_lines = card_sub.split("\n") if card_sub else []
+                # total height: title=5 rows + 2 gap + sub lines * 6 (5+1) each
+                total_text_h = 5 + (2 + len(sub_lines) * 6 if sub_lines else 0)
+                title_row = max(13, (h - total_text_h) // 2 + 3)
+
+                next_row = draw_big_text(stdscr, title_row, card_title, title_attr)
+
+                if sub_lines:
+                    sub_row = next_row + 2
+                    for line in sub_lines:
+                        draw_big_text(stdscr, sub_row, line, sub_attr)
+                        sub_row += 6  # 5 + 1 gap
 
             stdscr.refresh()
             time.sleep(FRAME_DELAY)
@@ -995,7 +1048,6 @@ def run_demo(stdscr):
         section_early_builds(stdscr, renderer)
         section_terminal_boot(stdscr, renderer)
         section_v020_showcase(stdscr, renderer)
-        section_feature_highlights(stdscr)
         section_finale(stdscr, renderer)
     except KeyboardInterrupt:
         pass

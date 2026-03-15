@@ -244,6 +244,13 @@ class Renderer:
             postfx.apply_mask(self._buffer, mask)
 
         # Blit buffer → screen -----------------------------------------
+        # Ensure erase() fills with black, not the terminal's default grey background.
+        # Pair 9 is reserved as our explicit black-on-black pair.
+        try:
+            curses.init_pair(9, curses.COLOR_WHITE, curses.COLOR_BLACK)
+            stdscr.bkgd(' ', curses.color_pair(9))
+        except curses.error:
+            pass
         stdscr.erase()
         self._buffer.blit_to_screen(stdscr)
 

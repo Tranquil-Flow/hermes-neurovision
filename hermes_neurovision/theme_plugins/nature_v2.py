@@ -526,64 +526,108 @@ class BeachLighthouseV2Plugin(ThemePlugin):
         soft_attr   = curses.color_pair(color_pairs["soft"])
         base_dim    = curses.color_pair(color_pairs["base"]) | curses.A_DIM
 
-        # Lighthouse position: bottom-centre
+        # Zones — sky takes top 45%, ocean next 30%, sand bottom 25%
+        horizon = int(h * 0.45)
+        sand    = int(h * 0.75)
+
+        # Lighthouse: centred horizontally, cap sits at the ocean/sand boundary
         lhx = w // 2
-        lhy = h - 3
+        # Lantern room (rotating light source) — sits 2 rows above sand line
+        lantern_y = sand - 2
+        # Tower body: from lantern down to the bottom row
+        tower_top = lantern_y + 1   # first tower body row
 
-        # Horizon and sand strip
-        horizon = int(h * 0.42)
-        sand    = int(h * 0.80)
+        # Rotating beam — full sweep every ~10s
+        beam_angle = f * 0.020  # radians per frame
 
-        # Rotating beam angle: sweeps 360° every ~8 seconds
-        beam_angle = f * 0.025  # radians per frame
+        # Lantern flicker: bright every other 3-frame window
+        lantern_on = (f // 3) % 2 == 0
 
         for y in range(1, h - 1):
             for x in range(0, w - 1):
-                # --- Lighthouse tower ---
-                if x == lhx and y > lhy:
-                    try:
-                        stdscr.addstr(y, x, "\u2503", accent_attr)
-                    except curses.error:
-                        pass
+
+                # ── Lighthouse structure ──────────────────────────────────────
+                # Lantern room: row = lantern_y, 3 chars wide
+                if y == lantern_y and abs(x - lhx) <= 1:
+                    if x == lhx:
+                        # Core of the lantern — bright when on, dim when off
+                        ch = "◉" if lantern_on else "○"
+                        try:
+                            stdscr.addstr(y, x, ch, bright_attr if lantern_on else soft_attr)
+                        except curses.error:
+                            pass
+                    else:
+                        try:
+                            stdscr.addstr(y, x, "▐" if x < lhx else "▌", accent_attr)
+                        except curses.error:
+                            pass
                     continue
-                if y == lhy and abs(x - lhx) <= 1:
+
+                # Lantern room platform (1 row below lantern)
+                if y == lantern_y + 1 and abs(x - lhx) <= 2:
                     try:
-                        stdscr.addstr(y, x, "\u25cf" if x == lhx else "-", bright_attr)
+                        stdscr.addstr(y, x, "─" if x != lhx else "┼", soft_attr)
                     except curses.error:
                         pass
                     continue
 
-                # --- Sky (above horizon) ---
+                # Tower body: single column from tower_top+1 to bottom
+                if x == lhx and y > lantern_y + 1:
+                    try:
+                        stdscr.addstr(y, x, "┃", accent_attr)
+                    except curses.error:
+                        pass
+                    continue
+
+                # ── Sky ───────────────────────────────────────────────────────
                 if y < horizon:
-                    # Stars
+                    # Deterministic stars
                     star = math.sin(x * 31.1 + y * 19.3) * math.cos(x * 7.9 + y * 13.7)
                     star_bright = star > 0.88
 
-                    # Beam: check if cell is on the beam line
-                    dx    = x - lhx
-                    dy    = y - lhy  # dy is negative (beam goes up)
-                    dist  = math.sqrt(dx*dx + dy*dy)
-                    if dist > 0.5:
-                        cell_angle  = math.atan2(-dy, dx)  # upward = negative dy
-                        angle_diff  = (cell_angle - beam_angle) % (2 * math.pi)
-                        if angle_diff > math.pi:
-                            angle_diff = 2 * math.pi - angle_diff
-                        beam_width  = max(0.04, 0.10 - dist * 0.0005)
-                        on_beam     = angle_diff < beam_width
-                        beam_fade   = max(0.0, 1.0 - dist / (max(w, h) * 0.7))
-                        if on_beam and beam_fade > 0.05:
-                            chars = "\u00b7.:\u2591\u2592"
-                            idx   = int(beam_fade * (len(chars) - 1))
-                            try:
-                                stdscr.addstr(y, x, chars[idx],
-                                              bright_attr if beam_fade > 0.5 else soft_attr)
-                            except curses.error:
-                                pass
-                            continue
+                    # Beam: only when lantern is on
+                    if lantern_on:
+                        dx_b  = x - lhx
+                        dy_b  = y - lantern_y  # negative (sky is above lantern)
+                        dist  = math.sqrt(dx_b * dx_b + dy_b * dy_b)
+                        if dist > 0.5:
+                            # cell_angle: 0=right, pi/2=up, pi=left
+                            cell_angle = math.atan2(-dy_b, dx_b)
+                            angle_diff = abs((cell_angle - beam_angle + math.pi) % (2 * math.pi) - math.pi)
+                            # Beam width narrows with distance (cone effect)
+                            beam_width = max(0.03, 0.14 - dist * 0.0008)
+                            beam_fade  = max(0.0, 1.0 - dist / (max(w, h) * 0.75)) * intensity
+                            if angle_diff < beam_width and beam_fade > 0.04:
+                                chars = "·.:\u2591\u2592\u2593"
+                                idx   = int(beam_fade * (len(chars) - 1))
+                                idx   = max(0, min(len(chars) - 1, idx))
+                                try:
+                                    stdscr.addstr(y, x, chars[idx],
+                                                  bright_attr if beam_fade > 0.55 else soft_attr)
+                                except curses.error:
+                                    pass
+                                continue
 
-                    if star_bright:
+                    # Moon glow: upper-right corner, soft halo
+                    moon_x = int(w * 0.78)
+                    moon_y = int(h * 0.10)
+                    mdx = x - moon_x
+                    mdy = y - moon_y
+                    moon_dist = math.sqrt(mdx * mdx + mdy * mdy * 2.0)
+                    if moon_dist < 1.5:
                         try:
-                            stdscr.addstr(y, x, "*" if star > 0.94 else "\u00b7", soft_attr)
+                            stdscr.addstr(y, x, "○" if moon_dist < 0.7 else "·", bright_attr)
+                        except curses.error:
+                            pass
+                    elif moon_dist < 4.5:
+                        glow_v = 1.0 - moon_dist / 4.5
+                        try:
+                            stdscr.addstr(y, x, "·" if glow_v > 0.4 else " ", soft_attr)
+                        except curses.error:
+                            pass
+                    elif star_bright:
+                        try:
+                            stdscr.addstr(y, x, "*" if star > 0.94 else "·", soft_attr)
                         except curses.error:
                             pass
                     else:
@@ -592,38 +636,59 @@ class BeachLighthouseV2Plugin(ThemePlugin):
                         except curses.error:
                             pass
 
-                # --- Ocean (horizon to sand) ---
+                # ── Ocean ─────────────────────────────────────────────────────
                 elif y < sand:
                     t = f * 0.05
-                    # Two crossing wave trains
-                    w1 = math.sin(x * 0.22 - t * 0.9 + y * 0.1)
-                    w2 = math.sin(x * 0.35 + t * 0.6 - y * 0.07)
-                    wave = (w1 + w2) * 0.5 * (0.4 + 0.6 * intensity)
+                    w1 = math.sin(x * 0.22 - t * 0.9 + y * 0.10)
+                    w2 = math.sin(x * 0.35 + t * 0.60 - y * 0.07)
+                    w3 = math.sin(x * 0.15 - t * 0.40 + 1.2)
+                    wave = (w1 * 0.45 + w2 * 0.35 + w3 * 0.20) * (0.5 + 0.5 * intensity)
 
                     depth = (y - horizon) / max(1, sand - horizon)
-                    if wave > 0.45 and depth < 0.25:
-                        ch = "~" if wave < 0.7 else "^"
+
+                    # Moon reflection on water: column near moon_x
+                    moon_refl = max(0.0, 1.0 - abs(x - int(w * 0.78)) / (w * 0.12))
+                    moon_refl *= max(0.0, 1.0 - depth * 1.5)
+
+                    # Beam reflection on ocean: column near current beam direction
+                    beam_col = lhx + int(math.cos(beam_angle) * (h - y) * 0.5)
+                    beam_refl = max(0.0, 1.0 - abs(x - beam_col) / max(3, w * 0.04)) if lantern_on else 0.0
+                    beam_refl *= max(0.0, 1.0 - depth) * 0.6
+
+                    effective = wave + moon_refl * 0.4 + beam_refl
+
+                    if effective > 0.55 and depth < 0.35:
+                        ch = "~" if effective < 0.8 else "^"
                         try:
-                            stdscr.addstr(y, x, ch, bright_attr if wave > 0.7 else accent_attr)
+                            stdscr.addstr(y, x, ch,
+                                          bright_attr if effective > 0.8 else accent_attr)
+                        except curses.error:
+                            pass
+                    elif effective > 0.2:
+                        wv    = (effective + 1.0) * 0.5
+                        chars = " ·.~≈"
+                        idx   = int(wv * (1.0 - depth * 0.5) * (len(chars) - 1))
+                        try:
+                            stdscr.addstr(y, x, chars[max(0, min(len(chars) - 1, idx))],
+                                          soft_attr if wv > 0.55 else base_dim)
                         except curses.error:
                             pass
                     else:
-                        wv   = (wave + 1.0) * 0.5
-                        chars = " \u00b7.~\u2248"
-                        idx  = int(wv * (1.0 - depth * 0.5) * (len(chars) - 1))
                         try:
-                            stdscr.addstr(y, x, chars[max(0, min(len(chars)-1, idx))],
-                                          soft_attr if wv > 0.5 else base_dim)
+                            stdscr.addstr(y, x, " ", base_dim)
                         except curses.error:
                             pass
 
-                # --- Sand ---
+                # ── Sand ──────────────────────────────────────────────────────
                 else:
                     noise = math.sin(x * 11.7 + y * 8.3) * 0.5 + 0.5
-                    chars = ".:\u00b7,`"
+                    # Wet sand near ocean edge
+                    wet = max(0.0, 1.0 - (y - sand) / max(1, h - sand - 1))
+                    chars = ".,·:`"
                     idx   = int(noise * (len(chars) - 1))
                     try:
-                        stdscr.addstr(y, x, chars[idx], soft_attr if noise > 0.55 else base_dim)
+                        stdscr.addstr(y, x, chars[idx],
+                                      soft_attr if (noise > 0.55 or wet > 0.5) else base_dim)
                     except curses.error:
                         pass
 
