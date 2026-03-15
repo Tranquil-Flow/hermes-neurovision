@@ -220,10 +220,9 @@ def diagnose_terminal_opacity() -> None:
 
 
 def _terminal_set_opacity(opacity: float) -> bool:
-    """Set backgroundAlpha of all Terminal.app windows via AppleScript.
+    """Set backgroundAlpha of Terminal.app windows via AppleScript.
 
-    Uses 'set backgroundAlpha of every window' — the confirmed-working form.
-    Window-by-index access fails with -1700 on some Terminal.app versions.
+    Uses 'front window' — confirmed working on macOS Terminal.app.
     backgroundAlpha: 1.0 = opaque, 0.0 = transparent.
     """
     opacity = max(0.0, min(1.0, opacity))
@@ -231,10 +230,15 @@ def _terminal_set_opacity(opacity: float) -> bool:
     try:
         result = subprocess.run(
             ["osascript", "-e",
-             f'tell application "Terminal" to set backgroundAlpha of every window to {val}'],
+             f'tell application "Terminal" to set backgroundAlpha of front window to {val}'],
             capture_output=True, text=True, timeout=3
         )
-        return result.returncode == 0
+        if result.returncode != 0:
+            # Log stderr for debugging
+            if result.stderr.strip():
+                sys.stderr.write(f"[neurovision-bg] osascript error: {result.stderr.strip()}\n")
+            return False
+        return True
     except (subprocess.TimeoutExpired, FileNotFoundError):
         return False
 

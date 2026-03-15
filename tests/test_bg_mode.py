@@ -512,7 +512,7 @@ def test_terminal_set_opacity_success():
     script = argv[-1]
     assert "0.5" in script
     assert "backgroundAlpha" in script
-    assert "every window" in script
+    assert "front window" in script
 
 
 def test_terminal_set_opacity_clamps():
@@ -525,16 +525,17 @@ def test_terminal_set_opacity_clamps():
     assert "1.0" in script
 
 
-def test_terminal_set_opacity_every_window():
-    """Must use 'every window' not indexed access (indexed fails with -1700)."""
+def test_terminal_set_opacity_front_window():
+    """Must use 'front window' — the confirmed-working form on Terminal.app."""
     from hermes_neurovision.bg_mode import _terminal_set_opacity
     mock_result = MagicMock()
     mock_result.returncode = 0
     with patch("subprocess.run", return_value=mock_result) as mock_run:
         _terminal_set_opacity(0.4)
     script = mock_run.call_args[0][0][-1]
-    assert "every window" in script
+    assert "front window" in script
     assert "window 1" not in script  # must NOT use indexed form
+    assert "every window" not in script  # also broken on some Terminal.app versions
 
 
 def test_terminal_set_opacity_single_call():
