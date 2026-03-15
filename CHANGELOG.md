@@ -9,6 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Major Release — v0.2.0 Engine Overhaul** 🚀
 
+### Added (post-tag additions — included in final v0.2.0 release)
+
+- **Background Mode (`--bg`)** — run neurovision silently behind a transparent terminal.
+  Fully isolated from live/gallery/daemon. Supports iTerm2, Kitty, Alacritty, WezTerm.
+  Auto-sets and restores terminal opacity on start/stop. PID-tracked, config persisted.
+  Commands: `--bg start|stop|status|config` with `--bg-theme`, `--bg-opacity`,
+  `--bg-gallery`, `--bg-theme-seconds`, `--bg-window-mode`, `--bg-no-auto-opacity`.
+- **Boot sequence** — animated startup screen with blinking label before first frame.
+- **Transparent background renderer** — forced black fill removed; bg-mode themes
+  layer correctly over the terminal glass when opacity < 1.0.
+- **Soundtrack assets** — lyrics, tags, and generation scripts for 3 companion tracks.
+- **Demo video** — rapid-flash montage section, fractal-zoom warmup, updated stats.
+- Full v0.2 engine upgrades across 20+ existing themes (reactive, emergent, postfx).
+
+### Fixed (post-tag)
+
+- Attractors NaN crash — guard divergence, conservative dt, `_reset_trajectory()`.
+- Rossler/Thomas tumbling 3D camera and fractal-zoom continuous zoom.
+- Beach-lighthouse broken layout; quasar stellar rework.
+- `--bg` dispatch: `handle_bg_command` read `args.bg_action` (nonexistent) instead of
+  `args.bg`, causing status/stop/config to all fall through to start. Fixed.
+- `--bg-theme` now sets `gallery=False` so the specific theme actually runs.
+- Gallery simulated activity pump restored after accidental removal.
+
+### Known Issues / Post-v0.2.0
+
+- **bg mode on Terminal.app**: requires macOS Automation permission for osascript.
+  Stashed for v0.2.1 polish.
+- **bg mode text fade**: per-line ANSI fade-up effect not yet implemented.
+  Planned as a TUI wrapper mode for v0.3.
+
+
+
 ### Added
 
 #### New Visual Engine
