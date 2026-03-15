@@ -19,7 +19,6 @@ def register(plugin: ThemePlugin) -> ThemePlugin:
 
 def get_plugin(name: str) -> ThemePlugin:
     """Get plugin for a theme name, falling back to base plugin."""
-    # Check runtime plugins first (for imported themes)
     if name in _runtime_plugins:
         return _runtime_plugins[name]
     return _PLUGINS.get(name, ThemePlugin())
@@ -30,86 +29,39 @@ def registered_names() -> list[str]:
     return list(_PLUGINS.keys())
 
 
-# Import plugin modules to trigger registration
-# Each module registers its plugins at import time
+# Import plugin modules to trigger registration.
+# Each module registers its plugins at import time.
+# Add new plugin files here — order doesn't matter (last write wins on name collision).
 def _load_all() -> None:
-    from hermes_neurovision.theme_plugins import originals  # noqa: F401
-    try:
-        from hermes_neurovision.theme_plugins import nature  # noqa: F401
-    except ImportError:
-        pass
-    try:
-        from hermes_neurovision.theme_plugins import cosmic  # noqa: F401
-    except ImportError:
-        pass
-    try:
-        from hermes_neurovision.theme_plugins import industrial  # noqa: F401
-    except ImportError:
-        pass
-    try:
-        from hermes_neurovision.theme_plugins import whimsical  # noqa: F401
-    except ImportError:
-        pass
-    try:
-        from hermes_neurovision.theme_plugins import hostile  # noqa: F401
-    except ImportError:
-        pass
-    try:
-        from hermes_neurovision.theme_plugins import exotic  # noqa: F401
-    except ImportError:
-        pass
-    try:
-        from hermes_neurovision.theme_plugins import mechanical  # noqa: F401
-    except ImportError:
-        pass
-    try:
-        from hermes_neurovision.theme_plugins import cosmic_new  # noqa: F401
-    except ImportError:
-        pass
-    try:
-        from hermes_neurovision.theme_plugins import originals_v2  # noqa: F401
-    except ImportError:
-        pass
-    try:
-        from hermes_neurovision.theme_plugins import nature_v2  # noqa: F401
-    except ImportError:
-        pass
-    try:
-        from hermes_neurovision.theme_plugins import ascii_fields  # noqa: F401
-    except ImportError:
-        pass
-    try:
-        from hermes_neurovision.theme_plugins import redesigned  # noqa: F401
-    except ImportError:
-        pass
-    try:
-        from hermes_neurovision.theme_plugins import experimental  # noqa: F401
-    except ImportError:
-        pass
-    try:
-        from hermes_neurovision.theme_plugins import hybrid  # noqa: F401
-    except ImportError:
-        pass
-    try:
-        from hermes_neurovision.theme_plugins import emergent_showcase  # noqa: F401
-    except ImportError:
-        pass
-    try:
-        from hermes_neurovision.theme_plugins import advanced_screens  # noqa: F401
-    except ImportError:
-        pass
-    try:
-        from hermes_neurovision.theme_plugins import emergent_v2  # noqa: F401
-    except ImportError:
-        pass
-    try:
-        from hermes_neurovision.theme_plugins import attractors  # noqa: F401
-    except ImportError:
-        pass
-    try:
-        from hermes_neurovision.theme_plugins import spectacular  # noqa: F401
-    except ImportError:
-        pass
+    _mods = [
+        "originals",
+        "nature",
+        "cosmic",
+        "industrial",
+        "whimsical",
+        "hostile",
+        "exotic",
+        "mechanical",
+        "cosmic_new",
+        "originals_v2",
+        "nature_v2",
+        "ascii_fields",
+        "redesigned",
+        "experimental",
+        "hybrid",
+        "emergent_showcase",
+        "emergent_v2",
+        "advanced_screens",
+        "generators",
+        "attractors",
+        "spectacular",
+        "new_screens",
+    ]
+    for mod in _mods:
+        try:
+            __import__(f"hermes_neurovision.theme_plugins.{mod}")
+        except ImportError:
+            pass
 
 
 _load_all()
