@@ -120,6 +120,20 @@ class ThemePlugin:
 
     # ── Drawing extras ───────────────────────────────────────────
 
+    def draw_background(self, stdscr, state, color_pairs: dict) -> None:
+        """ASCII field or texture drawn BEFORE nodes/edges — use for hybrid themes.
+
+        Called after stars, before edges/nodes/packets. This lets a theme render
+        a full-screen ASCII field as a backdrop while still having nodes and
+        event-driven packets/pulses rendered on top.
+        """
+        pass
+
     def draw_extras(self, stdscr, state, color_pairs: dict) -> None:
-        """ASCII art and special FX drawn after everything else."""
+        """ASCII art and special FX drawn AFTER everything else — foreground layer.
+
+        For pure ASCII field themes (no nodes), put all rendering here.
+        For hybrid themes, use draw_background() for the field and draw_extras()
+        for any foreground overlay effects.
+        """
         pass

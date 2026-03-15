@@ -1,193 +1,137 @@
-# 🌌 Hermes Neurovision
+# Hermes Neurovision
 
 **Terminal neurovisualizer for Hermes Agent**
 
-A beautiful living neural network that reacts to your AI agent's activity in real-time. Watch as tool calls become traveling packets, memory updates spawn new nodes, and token usage creates pulsating waves across cosmic visualizations.
+A full-screen ASCII art visualizer that reacts to your AI agent's activity in real-time. Every event your agent fires — tool calls, memory writes, session lifecycle — drives the visuals: field brightness, density, traveling packets, expanding pulses, particle bursts.
 
-![Version](https://img.shields.io/badge/version-0.1.1-blue)
-![First Public Release](https://img.shields.io/badge/release-first%20public-green)
+![Version](https://img.shields.io/badge/version-0.2.0-blue)
 ![Python](https://img.shields.io/badge/python-3.10+-green)
-![Tests](https://img.shields.io/badge/tests-63%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-174%20passing-brightgreen)
 ![Dependencies](https://img.shields.io/badge/dependencies-stdlib%20only-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 ---
 
-## ✨ Features
+## Features
 
-🎨 **42 Animated Themes** - From cosmic phenomena to industrial machinery  
-🔴 **Live Event Visualization** - See your agent's activity in real-time  
-📊 **7 Data Sources** - Monitors sessions, tools, memory, cron, security  
-📝 **Log Overlay** - Color-coded event stream with fading text  
-🌓 **Daemon Mode** - Gallery when idle, live when active  
-🚀 **Auto-Launch** - Opens automatically with cron jobs  
-💾 **Theme Export/Import** - Share custom themes as .hvtheme files  
-⚡ **Pure Stdlib** - Zero external dependencies  
-🧪 **63 Tests** - 100% passing, production-ready  
-🎭 **Plugin System** - Extensible theme architecture  
+- **58 Animated Themes** — Full-screen generative fields, hybrid node/field screens, and classic node graphs
+- **Live Event Visualization** — Agent activity directly drives visual intensity, packets, pulses, and bursts
+- **7 Data Sources** — Sessions, tool calls, memory writes, cron jobs, trajectories, security events
+- **Log Overlay** — Color-coded live event stream with fading text
+- **Tuner Overlay** — Real-time per-element controls: sliders for speed/density/sensitivity, on/off toggles for every visual layer
+- **Debug Panel** — Live diagnostic overlay showing recent events and triggers with timing
+- **Daemon Mode** — Gallery screensaver when idle, live mode when agent is active
+- **Legacy Mode** — Access original node-based versions of redesigned themes
+- **Pure Stdlib** — Zero external dependencies
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ```bash
-# Clone and install
 git clone https://github.com/Tranquil-Flow/hermes-neurovision.git
 cd hermes-neurovision
 pip install -e .
-
-# Run setup script (installs gateway hook + auto-launch config)
-python3 install_helper.py
-
-# Start visualizing
+python3 install_helper.py   # installs gateway hook + auto-launch config
 hermes-neurovision
 ```
 
-That's it! 🎉
-
 ---
 
-## 📦 Manual Installation
-
-If you prefer to set up manually:
-
-```bash
-# 1. Clone and install
-git clone https://github.com/Tranquil-Flow/hermes-neurovision.git
-cd hermes-neurovision
-pip install -e .
-
-# 2. Install gateway hook
-mkdir -p ~/.hermes/hooks/hermes-neurovision
-cp hermes_neurovision/sources/hook_handler.py ~/.hermes/hooks/hermes-neurovision/handler.py
-cp hermes_neurovision/sources/HOOK.yaml ~/.hermes/hooks/hermes-neurovision/HOOK.yaml
-
-# 3. (Optional) Enable auto-launch for cron jobs
-echo '{"auto_launch": true}' > ~/.hermes/neurovision/config.json
-
-# 4. Test it
-hermes-neurovision --gallery
-```
-
----
-
-## 🎮 Usage
+## Usage
 
 ### Modes
 
 ```bash
-# Live mode (default) - reacts to agent events
+# Live mode (default) — reacts to agent events, animated background
 hermes-neurovision
+
+# Quiet mode — only real agent events drive the visuals, no ambient animation
+hermes-neurovision --quiet
 
 # With log overlay to see event details
 hermes-neurovision --logs
 
-# Gallery mode - browse all 42 themes
+# Gallery mode — browse all themes
 hermes-neurovision --gallery
 
-# Daemon mode - best of both worlds
+# Gallery including legacy (original node-based) themes
+hermes-neurovision --gallery --include-legacy
+
+# Daemon mode — gallery when idle, live when active
 hermes-neurovision --daemon
 
 # Specific theme
 hermes-neurovision --theme storm-core
 
-# Test run (auto-exit after 10 seconds)
+# Test run (auto-exit)
 hermes-neurovision --seconds 10
+
+# List legacy themes
+hermes-neurovision --list-legacy
 ```
 
 ### Keyboard Controls
 
 **Gallery Mode:**
-- `n` / `→` - Next theme
-- `p` / `←` - Previous theme
-- `Enter` - Lock current theme (stays animated)
-- `s` - Select theme for live mode
-- `Space` - Pause/Resume
-- `q` - Quit
+- `n` / `→` — Next theme
+- `p` / `←` — Previous theme
+- `Shift+→` / `Shift+←` — Jump forward/back in theme list
+- `Enter` — Lock current theme
+- `s` — Select theme for live mode
+- `Space` — Pause/Resume
+- `t` — Open tuner overlay
+- `d` — Toggle debug panel
+- `q` — Quit
 
 **Live Mode:**
-- `l` - Toggle log overlay
-- `q` - Quit
+- `l` — Toggle log overlay
+- `t` — Open tuner overlay
+- `d` — Toggle debug panel
+- `q` — Quit
 
-**Daemon Mode:**
-- `l` - Toggle log overlay
-- `q` - Quit
-
----
-
-## 🎨 Themes
-
-42 animated themes across 8 categories. Browse with `hermes-neurovision --gallery`:
-
-### Originals (7)
-1. **black-hole** ⭐ - Rotating singularity with event horizon
-2. **neural-sky** - Classic cyan/blue network (default live theme)
-3. **storm-core** - Chaotic energy storms
-4. **moonwire** - Minimal silver elegance
-5. **rootsong** - Earth-tone organic growth
-6. **stormglass** - Aqua crystalline structures
-7. **spiral-galaxy** - 3-arm cosmic spiral
-
-### Nature (5)
-- **deep-abyss** - Ocean depths with bioluminescence
-- **storm-sea** - Turbulent waters
-- **dark-forest** - Mysterious woodland
-- **mountain-stars** - Alpine night sky
-- **beach-lighthouse** ⭐ - Coastal waves with sweeping beam
-
-### Cosmic (4)
-- **aurora-borealis** ⭐ - Constellation patterns in northern lights
-- **nebula-nursery** - Stellar birth clouds
-- **binary-rain** ⭐ - Matrix-style code with cloud layer
-- **wormhole** - Tunnel through spacetime
-
-### Industrial (4)
-- **liquid-metal** - Molten flow patterns
-- **factory-floor** ⭐ - Assembly line with sparks
-- **pipe-hell** ⭐ - Plumbing nightmare
-- **oil-slick** - Rainbow surface tension
-
-### Whimsical (5)
-- **campfire** ⭐ - Large bonfire with embers
-- **aquarium** - Tropical fish tank
-- **circuit-board** ⭐ - PCB close-up
-- **lava-lamp** - Hypnotic blobs
-- **firefly-field** - Bioluminescent meadow
-
-### Hostile (2)
-- **noxious-fumes** - Toxic gas clouds
-- **maze-runner** ⭐ - Shifting dimensional portals
-
-### Exotic (5)
-- **neon-rain** - Cyberpunk downpour
-- **volcanic** - Lava flows
-- **crystal-cave** - Geode interior
-- **spider-web** - Silk patterns
-- **snow-globe** - Winter scene
-
-### Mechanical/Retro (5)
-- **clockwork** ⭐ - Giant swinging pendulum
-- **coral-reef** - Underwater ecosystem
-- **ant-colony** - Foraging patterns
-- **satellite-orbit** - Space station paths
-- **starfall** - Meteor shower
-
-### Cosmic Advanced (5)
-- **quasar** - Supermassive black hole jets
-- **supernova** - Star explosion
-- **sol** - Solar surface
-- **terra** - Earth from space
-- **binary-star** - Twin suns orbit
-
-⭐ = Enhanced in v0.1.0
+**Tuner Overlay (press `t`):**
+- `↑` / `↓` — Navigate rows
+- `←` / `→` — Adjust slider / toggle on/off
+- `r` — Reset all to defaults
+- `t` — Close
 
 ---
 
-## 📊 How It Works
+## Visual Engine
 
-The neural network is not decorative — every visual change is triggered by a real event from your running Hermes Agent. The network is always animated as a baseline, but specific agent actions cause specific visual responses.
+Hermes Neurovision has two rendering engines. Every theme uses one or both.
 
-### Data Sources (polled every second)
+### ASCII Field Engine
+
+The primary engine for v0.2.0. Every character cell on screen is computed each frame from a mathematical function — fluid simulation, particle fields, strange attractors, wave equations. The entire terminal is a live canvas.
+
+Agent events drive `intensity_multiplier`: as your agent works, the field brightens, speeds up, and densifies. When the agent is idle, the field settles to a calm ambient state.
+
+Themes using the ASCII field engine return no nodes — the field is the entire visual.
+
+### Node-Based Engine (Legacy / Hybrid)
+
+The original engine. A graph of nodes is positioned on screen, connected by edges. Agent events cause packets to travel along edges, pulses to radiate from nodes, and particle bursts on task completion.
+
+This engine is more *legible* — you can literally watch a packet travel from one node to another when a tool call fires. The tradeoff is that screens are sparser.
+
+Node-based themes are being progressively redesigned to the ASCII field engine. The originals are preserved as `legacy-NAME` variants (see [Legacy Mode](#legacy-mode) below).
+
+### Hybrid Engine
+
+Themes can use both engines simultaneously:
+
+- `draw_background()` — renders an ASCII field as a backdrop, called **before** nodes/edges
+- `draw_extras()` — renders foreground effects, called **after** packets/particles
+
+This allows a theme to have a rich generative field texture *and* retain the legible event storytelling of traveling packets and expanding pulses on top.
+
+---
+
+## Data Sources
+
+Polled every second while running:
 
 | Source | File/DB | What it watches |
 |--------|---------|-----------------|
@@ -198,62 +142,180 @@ The neural network is not decorative — every visual change is triggered by a r
 | **Trajectories** | `~/.hermes/logs/` | Success/failure logs |
 | **Aegis** (optional) | `~/.hermes-aegis/audit.jsonl` | Security events |
 
-### Agent Actions → Visual Effects
+---
+
+## Agent Activity → Visuals
+
+Every visual change is caused by a real event. The baseline animation is always running, but agent actions trigger specific responses on top of it.
 
 | What Hermes Does | What You See |
 |-----------------|--------------|
-| Session starts | **Wake** — entire network surges in brightness |
-| Tool call executes | **Packet** — glyph travels along an edge |
+| Session starts | **Wake** — network surges in brightness; field density spikes |
+| Tool call executes | **Packet** — glyph travels along an edge (node themes); field brightens |
 | Message added to context | **Pulse** — expanding ring from a node |
-| Memory is created | **Spawn node** — new node appears in the network |
-| Task or session ends | **Burst** — particle explosion, then **Cool down** |
-| Token usage increases | Network **intensity scales** proportionally |
-| Error or security threat | **Flash** — all edges change color |
+| Memory is created | **Spawn node** — new node appears |
+| Task or session ends | **Burst** — particle explosion, then cool down |
+| Token usage increases | **Intensity scales** — field density/speed proportional to load |
+| Error or security threat | **Flash** — all edges change color; field flares |
 | Thinking/processing state | **Dim** — temporary brightness reduction |
 | 5+ tool calls in 10s | **Tool burst** — cascade of rapid packets |
 | Same tool used 3× in a row | **Tool chain** — sustained packet stream |
-| Session running 5+ minutes | **Duration pulse** — periodic intensity wave |
 
-### Log Overlay
-
-Run with `--logs` (or press `l`) to see a live text stream of every event as it arrives — timestamps, event types, and source. This makes it easy to verify the visuals are responding to your actual agent activity.
+Use `--logs` (or press `l`) to see a live text stream of every event as it arrives.
 
 ---
 
-## 🤖 Auto-Launch
+## Legacy Mode
 
-Have hermes-neurovision automatically open when cron jobs start:
+Legacy themes are the **original node-based implementations** of screens that have been redesigned as full-screen ASCII field renderers. They are preserved for comparison and are not shown in the default gallery.
 
-```bash
-# Enable auto-launch
-echo '{"auto_launch": true}' > ~/.hermes/neurovision/config.json
+Available legacy themes:
 
-# Test it
-python3 hermes_neurovision/launcher.py --test-launch
+```
+legacy-starfall       legacy-quasar        legacy-supernova
+legacy-sol            legacy-terra         legacy-binary-star
+legacy-black-hole     legacy-neural-sky    legacy-storm-core
+legacy-moonwire       legacy-rootsong      legacy-stormglass
+legacy-spiral-galaxy  legacy-deep-abyss    legacy-storm-sea
+legacy-dark-forest    legacy-mountain-stars legacy-beach-lighthouse
 ```
 
-**Supported platforms:**
-- macOS (iTerm2, Terminal.app)
-- Linux (gnome-terminal, konsole, xterm)
-- tmux (any platform)
+Access them:
 
-See [AUTOLAUNCH.md](AUTOLAUNCH.md) for detailed testing guide.
+```bash
+# Use a specific legacy theme
+hermes-neurovision --theme legacy-quasar
+
+# See all legacy theme names and titles
+hermes-neurovision --list-legacy
+
+# Include legacy themes in gallery rotation
+hermes-neurovision --gallery --include-legacy
+```
+
+Legacy themes use the node-based engine exclusively. If you prefer the more legible packet/pulse style where you can watch your agent's tool calls literally travel the network, legacy mode is for you.
 
 ---
 
-## 🛠️ Advanced Usage
+## Themes (58 total)
 
-### Daemon Mode (Recommended for Always-On Monitoring)
+Browse with `hermes-neurovision --gallery`. All themes respond to agent activity via `intensity_multiplier`.
+
+### ASCII Field Themes (33)
+
+Full-screen generative renderers. Agent events drive field brightness, density, and speed.
+
+**Redesigned Originals** — classic themes rebuilt on the ASCII field engine:
+`black-hole` `neural-sky` `storm-core` `moonwire` `rootsong` `stormglass`
+`spiral-galaxy` `deep-abyss` `storm-sea` `dark-forest` `mountain-stars` `beach-lighthouse`
+`starfall` `quasar` `supernova` `sol` `terra` `binary-star`
+
+**New Screens** — original designs built for the ASCII engine:
+`synaptic-plasma` `oracle` `cellular-cortex` `reaction-field` `life-colony` `aurora-bands`
+`waveform-scope` `lissajous-mind` `pulse-matrix` `fractal-engine` `n-body` `standing-waves`
+`clifford-attractor` `barnsley-fern` `flow-field`
+
+### Node-Based Themes (25) — Being Redesigned
+
+These use the original graph engine. Packets travel edges, pulses radiate from nodes. Each is scheduled for ASCII field redesign in v0.2.0.
+
+`aurora-borealis` `nebula-nursery` `binary-rain` `wormhole` `liquid-metal`
+`factory-floor` `pipe-hell` `oil-slick` `campfire` `aquarium`
+`circuit-board` `lava-lamp` `firefly-field` `noxious-fumes` `maze-runner`
+`neon-rain` `volcanic` `crystal-cave` `spider-web` `snow-globe`
+`clockwork` `coral-reef` `ant-colony` `satellite-orbit` `stellar-weave`
+
+---
+
+## Tuner
+
+Press `t` to open the tuner overlay. Controls all visual parameters in real-time without restarting.
+
+**Sliders:**
+- `Burst Scale` — size of particle bursts on task completion
+- `Packet Rate` — ambient packet frequency
+- `Pulse Rate` — ambient pulse frequency
+- `Particle Density` — ambient particle density
+- `Event Sensitivity` — how strongly agent events affect intensity
+- `Animation Speed` — global animation speed multiplier
+
+**Toggles (on/off per element):**
+- Packets, Particles, Pulses, Stars, Background field, Nodes/Edges, Flash, Spawn Node
+
+The HUD footer shows `[TUNED]` when any setting is non-default. Press `r` inside the tuner to reset all.
+
+---
+
+## Debug Panel
+
+Press `d` to toggle the debug panel — a 34-column right-side overlay showing:
+
+- Current theme name, frame number, intensity multiplier
+- Intensity bar (visual gauge of current agent load)
+- Quiet/Tuned state flags
+- Last 6 events with source, kind, and age
+- Last 4 triggers with effect type, intensity, and age
+
+Useful for verifying that events are being received and mapped to the correct visual effects.
+
+---
+
+## Architecture
+
+```
+hermes_neurovision/
+  plugin.py           # ThemePlugin base class — draw_background(), draw_extras(), node hooks
+  themes.py           # ThemeConfig definitions + THEMES/LEGACY_THEMES tuples
+  scene.py            # Particle, Packet, ThemeState simulation
+  renderer.py         # Curses drawing — draw_background before nodes, draw_extras after
+  events.py           # VisionEvent + EventPoller
+  bridge.py           # Event → VisualTrigger mapping
+  tune.py             # TuneSettings dataclass + TuneOverlay UI
+  debug_panel.py      # Diagnostic overlay
+  log_overlay.py      # Fading text event stream
+  app.py              # GalleryApp + LiveApp + DaemonApp
+  cli.py              # Entry point
+  sources/            # Event sources (state_db, memories, cron, aegis, hook)
+  theme_plugins/
+    ascii_fields.py       # 10 pure ASCII field themes
+    redesigned.py         # 15 redesigned themes (v2)
+    originals_v2.py       # 7 original themes redesigned
+    nature_v2.py          # Nature themes redesigned
+    originals.py          # Original node-based implementations
+    nature.py / cosmic.py / industrial.py / whimsical.py
+    hostile.py / exotic.py / mechanical.py
+    cosmic_new.py         # Legacy cosmic implementations
+```
+
+### Render Order
+
+Each frame renders in this order, enabling hybrid themes:
+
+```
+1. Stars               (background scatter)
+2. draw_background()   (ASCII field backdrop — hybrid themes)
+3. Edges               (node graph connections)
+4. Pulses              (expanding rings from nodes)
+5. Nodes               (node glyphs)
+6. Packets             (traveling event markers)
+7. Particles           (burst/spawn particles)
+8. draw_extras()       (foreground FX / pure ASCII field themes)
+9. HUD overlay         (title bar, footer, tuner, debug panel)
+```
+
+---
+
+## Advanced Usage
+
+### Daemon Mode
 
 ```bash
 hermes-neurovision --daemon --logs
 ```
 
-Starts in gallery (beautiful screensaver), automatically switches to live mode when you start working with Hermes, returns to gallery after 30 seconds idle.
+Starts in gallery (screensaver), automatically switches to live mode when Hermes Agent starts a session, returns to gallery after 30 seconds idle.
 
 ### Custom Configuration
-
-Create `~/.hermes/neurovision/config.json`:
 
 ```json
 {
@@ -263,179 +325,80 @@ Create `~/.hermes/neurovision/config.json`:
 }
 ```
 
-### Theme Export/Import (NEW in v0.1.1)
+Save to `~/.hermes/neurovision/config.json`.
 
-Share custom themes as portable `.hvtheme` files:
+### Theme Export/Import
 
 ```bash
-# Export a theme
 hermes-neurovision --export neural-sky --author "YourName"
-
-# Preview a theme before importing
 hermes-neurovision --import mytheme.hvtheme --preview
-
-# Import a theme
 hermes-neurovision --import mytheme.hvtheme
-
-# List all imported themes
 hermes-neurovision --list-themes
-
-# Use an imported theme
-hermes-neurovision --theme mytheme
 ```
 
-**Theme Types:**
-- **Config-only**: Just parameter tweaks (safe, no code)
-- **Custom plugin**: Includes Python code (requires confirmation)
+---
 
-**Use Cases:**
-- Share themes with the community
-- Backup your custom themes
-- Have AI agents design themes for you
-- Download themes from others
+## Writing Hybrid Themes
 
-See [RELEASE_NOTES_v0.1.1.md](RELEASE_NOTES_v0.1.1.md) for full details.
+To create a theme that combines an ASCII field backdrop with node-based event storytelling:
 
-### Integration with Hermes Agent
+```python
+from hermes_neurovision.plugin import ThemePlugin
 
-Hermes Neurovision automatically monitors your agent activity through:
-- SQLite database (`~/.hermes/state.db`)
-- Gateway hooks (event stream)
-- Filesystem watching (memories, cron)
+class MyHybridPlugin(ThemePlugin):
+    def build_nodes(self, w, h, cx, cy, count, rng):
+        # Return node positions — these get packets/pulses on agent events
+        return [(cx + rng.uniform(-20, 20), cy + rng.uniform(-10, 10))
+                for _ in range(count)]
 
-No additional configuration needed - just install and run!
+    def draw_background(self, stdscr, state, color_pairs):
+        # Render ASCII field BEFORE nodes — this is the backdrop
+        h, w = stdscr.getmaxyx()
+        intensity = state.intensity_multiplier
+        for y in range(1, h - 1):
+            for x in range(0, w - 1):
+                v = some_field_function(x, y, state.frame) * intensity
+                char = " ·:+*#"[min(5, int(v * 6))]
+                try:
+                    stdscr.addstr(y, x, char)
+                except curses.error:
+                    pass
+
+    def draw_extras(self, stdscr, state, color_pairs):
+        # Optional: foreground effects drawn AFTER packets/particles
+        pass
+```
+
+Available in `color_pairs`: `"bright"`, `"accent"`, `"soft"`, `"base"`, `"warning"`.
+Use `state.frame` (int, 20fps), `state.intensity_multiplier` (0.2–1.0), `state.rng` (seeded `random.Random`).
 
 ---
 
-## 📚 Documentation
-
-- **[INSTALL.md](INSTALL.md)** - Detailed installation guide
-- **[QUICKSTART.md](QUICKSTART.md)** - 60-second setup guide
-- **[AUTOLAUNCH.md](AUTOLAUNCH.md)** - Auto-launch setup & testing
-- **[CHANGELOG.md](CHANGELOG.md)** - Version history
-- **[PLAN_v0.1.3.md](PLAN_v0.1.2.md)** - Upcoming features (interactive theme editor)
-
----
-
-## 🧪 Testing
+## Testing
 
 ```bash
-# Run all tests
 python -m pytest tests/ -v
-
-# Quick smoke test
-echo "" | hermes-neurovision --gallery --seconds 1
-
-# Check if events are being captured
-tail -f ~/.hermes/neurovision/events.jsonl
 ```
 
-**Test Coverage:** 63 tests, 100% passing ✅
+174 tests, 100% passing.
 
 ---
 
-## 🔧 Requirements
+## Requirements
 
 - Python 3.10+
-- No external dependencies (pure stdlib!)
+- No external dependencies (pure stdlib)
 - Terminal with 256 color support (recommended)
-- Minimum terminal size: 80x24 (for log overlay)
+- Minimum 80×24 terminal size
 
 ---
 
-## 🐛 Troubleshooting
+## License
 
-**Q: No events showing in live mode?**
-- Press `l` to toggle log overlay
-- Check: `ls ~/.hermes/state.db` (should exist)
-- Verify Hermes Agent is running and creating sessions
-
-**Q: Keyboard controls not working?**
-- Make sure you're using the right mode:
-  - Gallery: `n`/`p` work
-  - Live: Only `l` and `q` work
-- Try pressing keys twice
-- Check your terminal supports key events
-
-**Q: Auto-launch not working?**
-- Check config: `cat ~/.hermes/neurovision/config.json`
-- Test launcher: `python3 hermes_neurovision/launcher.py --test-launch`
-- Verify hook installed: `ls ~/.hermes/hooks/hermes-neurovision/`
-
-**Q: "LOCKED" text flashing?**
-- Update to latest version (fixed in commit 2f103b2)
-
----
-
-## 💡 Tips
-
-- **Best experience:** Run `hermes-neurovision --daemon --logs` in a dedicated terminal
-- **Theme browsing:** Use `--gallery`, press `Enter` to lock your favorite
-- **Theme selection:** In gallery, press `s` to select for live mode
-- **Performance:** Daemon mode is efficient - safe to leave running 24/7
-
----
-
-## 🏗️ Architecture
-
-Pure Python stdlib implementation:
-- **curses** - Terminal UI rendering
-- **sqlite3** - Database polling (state.db)
-- **json** - Event parsing
-- **subprocess** - Platform launching
-
-No external dependencies means:
-- ✅ Fast installation
-- ✅ No version conflicts
-- ✅ Works everywhere Python 3.10+ does
-- ✅ Minimal maintenance
-
----
-
-## 🌙 Credits
-
-Built with Test-Driven Development by Hermes Agent  
-Inspired by the Moonsong vision of beautiful, useful tools  
-
-**Technology:** Python · curses · TDD  
-**Philosophy:** Liberation through beauty and privacy  
-
----
-
-## 📜 License
-
-MIT License - See [LICENSE](LICENSE) for details.
+MIT — see [LICENSE](LICENSE).
 
 Copyright (c) 2026 Tranquil-Flow
 
 ---
 
-## 🚀 Quick Reference Card
-
-```
-MODES:
-  hermes-neurovision              → Live (default)
-  hermes-neurovision --gallery    → Gallery (browse themes)
-  hermes-neurovision --daemon     → Daemon (auto-switch)
-
-KEYS (Gallery):
-  n/p     → Next/Previous theme
-  Enter   → Lock current theme
-  s       → Select for live mode
-  Space   → Pause/Resume
-  q       → Quit
-
-KEYS (Live):
-  l       → Toggle log overlay
-  q       → Quit
-
-SETUP AUTO-LAUNCH:
-  echo '{"auto_launch": true}' > ~/.hermes/neurovision/config.json
-  
-TEST AUTO-LAUNCH:
-  python3 hermes_neurovision/launcher.py --test-launch
-```
-
----
-
-**Enjoy watching your AI think! 🧠✨**
+**Enjoy watching your AI think.**

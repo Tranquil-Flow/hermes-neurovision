@@ -70,6 +70,8 @@ class Renderer:
         tune = getattr(state, "tune", None)
         if not tune or tune.show_stars:
             self._draw_stars(state)
+        if not tune or tune.show_background:
+            state.plugin.draw_background(stdscr, state, self.color_pairs)
         if not tune or tune.show_nodes:
             self._draw_edges(state)
         self._draw_pulses(state)
