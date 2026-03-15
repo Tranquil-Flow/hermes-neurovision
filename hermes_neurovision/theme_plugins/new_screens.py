@@ -182,6 +182,38 @@ class AsciiRainPlugin(ThemePlugin):
 # ═══════════════════════════════════════════════════════════════════════════
 # ASCII ENGINE 2: sand-automaton — Falling sand cellular automaton
 # ═══════════════════════════════════════════════════════════════════════════
+    def react(self, event_kind, data):
+        import random
+        from hermes_neurovision.plugin import ReactiveElement, Reaction
+        if event_kind == "llm_chunk" or event_kind == "llm_start":
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.7,
+                           origin=(random.random(), 0.0), color_key="accent", duration=1.0)
+        if event_kind == "memory_save" or event_kind == "checkpoint_created":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.8,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.0)
+        if event_kind == "error" or event_kind == "crash" or event_kind == "threat_blocked":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(0.5, 0.0), color_key="warning", duration=2.5)
+        if event_kind == "tool_call" or event_kind == "mcp_tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.6,
+                           origin=(random.random(), 0.0), color_key="bright", duration=1.5)
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.8,
+                           origin=(0.5, 0.0), color_key="bright", duration=2.0)
+        if event_kind == "compression_started":
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.8,
+                           origin=(0.5, 0.5), color_key="soft", duration=2.0)
+        return None
+
+    def wave_config(self):
+        return {'speed': 0.35, 'damping': 0.97}
+
+    def emergent_layer(self):
+        return "background"
+
+    def glow_radius(self):
+        return 1
+
 
 class SandAutomatonPlugin(ThemePlugin):
     """Falling-sand simulation: gravity, stacking, erosion, and rain seeding.
@@ -316,6 +348,38 @@ class SandAutomatonPlugin(ThemePlugin):
 # ═══════════════════════════════════════════════════════════════════════════
 # ASCII ENGINE 3: ascii-rorschach — Bilateral ink-blot growth field
 # ═══════════════════════════════════════════════════════════════════════════
+    def react(self, event_kind, data):
+        import random
+        from hermes_neurovision.plugin import ReactiveElement, Reaction
+        if event_kind == "tool_call" or event_kind == "mcp_tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.7,
+                           origin=(random.random(), 0.0), color_key="bright", duration=1.5)
+        if event_kind == "memory_save" or event_kind == "skill_create":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.9,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.5)
+        if event_kind == "error" or event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.5)
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.7,
+                           origin=(0.5, 0.0), color_key="bright", duration=2.0)
+        if event_kind == "compression_started":
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.7,
+                           origin=(0.5, 0.5), color_key="accent", duration=2.0)
+        if event_kind == "llm_chunk":
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.3,
+                           origin=(random.random(), 0.0), color_key="soft", duration=0.6)
+        return None
+
+    def automaton_config(self):
+        return {'rule': 'brians_brain', 'density': 0.3, 'update_interval': 1}
+
+    def emergent_layer(self):
+        return "background"
+
+    def glow_radius(self):
+        return 1
+
 
 class AsciiRorschachPlugin(ThemePlugin):
     """Procedural ink-blot: a density grid grows outward from random seeds,
@@ -428,6 +492,38 @@ class AsciiRorschachPlugin(ThemePlugin):
 # ═══════════════════════════════════════════════════════════════════════════
 # GEOMETRIC 1: wireframe-cube — Spinning 3D wireframe cube + inner octahedron
 # ═══════════════════════════════════════════════════════════════════════════
+    def react(self, event_kind, data):
+        import random
+        from hermes_neurovision.plugin import ReactiveElement, Reaction
+        if event_kind == "reasoning_change" or event_kind == "personality_change":
+            return Reaction(element=ReactiveElement.GLYPH, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="bright", duration=3.0)
+        if event_kind == "compression_started" or event_kind == "compression_ended":
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.9,
+                           origin=(0.5, 0.5), color_key="accent", duration=2.5)
+        if event_kind == "memory_save" or event_kind == "skill_create":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.9,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.5)
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.8,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.0)
+        if event_kind == "error" or event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.0)
+        if event_kind == "tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.5,
+                           origin=(0.5, 0.5), color_key="soft", duration=1.5)
+        return None
+
+    def physarum_config(self):
+        return {'n_agents': 80, 'sensor_dist': 4.0, 'sensor_angle': 0.785, 'deposit': 0.8, 'decay': 0.94}
+
+    def emergent_layer(self):
+        return "background"
+
+    def glow_radius(self):
+        return 1
+
 
 class WireframeCubePlugin(ThemePlugin):
     """3D wireframe cube rotating on all three axes simultaneously.
@@ -583,6 +679,38 @@ class WireframeCubePlugin(ThemePlugin):
 # ═══════════════════════════════════════════════════════════════════════════
 # GEOMETRIC 2: hypercube-fold — Rotating 4D tesseract projection
 # ═══════════════════════════════════════════════════════════════════════════
+    def react(self, event_kind, data):
+        import random
+        from hermes_neurovision.plugin import ReactiveElement, Reaction
+        if event_kind == "cron_tick" or event_kind == "background_proc":
+            return Reaction(element=ReactiveElement.ORBIT, intensity=0.6,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.0)
+        if event_kind == "compression_started" or event_kind == "compression_ended":
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.9,
+                           origin=(0.5, 0.5), color_key="accent", duration=2.5)
+        if event_kind == "memory_save" or event_kind == "checkpoint_created":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.8,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.0)
+        if event_kind == "error" or event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.5)
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.8,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.0)
+        if event_kind == "tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.5,
+                           origin=(0.5, 0.5), color_key="soft", duration=1.5)
+        return None
+
+    def wave_config(self):
+        return {'speed': 0.2, 'damping': 0.98}
+
+    def emergent_layer(self):
+        return "background"
+
+    def glow_radius(self):
+        return 1
+
 
 class HypercubePlugin(ThemePlugin):
     """4D hypercube (tesseract) projected to 2D through sequential 4D→3D→2D.
@@ -723,6 +851,38 @@ class HypercubePlugin(ThemePlugin):
                 attr  = _hue(depth, phase, cp)
                 vch   = vchars[vi % len(vchars)]
                 _safe(stdscr, py, px, vch, attr)
+
+    def react(self, event_kind, data):
+        import random
+        from hermes_neurovision.plugin import ReactiveElement, Reaction
+        if event_kind == "compression_started" or event_kind == "compression_ended":
+            return Reaction(element=ReactiveElement.WAVE, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="bright", duration=3.0)
+        if event_kind == "cron_tick" or event_kind == "background_proc":
+            return Reaction(element=ReactiveElement.ORBIT, intensity=0.6,
+                           origin=(0.5, 0.5), color_key="accent", duration=2.5)
+        if event_kind == "error" or event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=3.0)
+        if event_kind == "memory_save" or event_kind == "skill_create":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.9,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.5)
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.9,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.5)
+        if event_kind == "tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.5,
+                           origin=(0.5, 0.5), color_key="soft", duration=1.5)
+        return None
+
+    def wave_config(self):
+        return {'speed': 0.25, 'damping': 0.97}
+
+    def emergent_layer(self):
+        return "background"
+
+    def glow_radius(self):
+        return 1
 
 
 # ── Registration ──────────────────────────────────────────────────────────

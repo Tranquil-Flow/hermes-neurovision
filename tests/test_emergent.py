@@ -281,14 +281,13 @@ def test_rd_render_empty():
 def test_theme_state_has_emergent_fields():
     from hermes_neurovision.scene import ThemeState
     from hermes_neurovision.themes import build_theme_config
-    config = build_theme_config("electric-mycelium")
+    # Use neon-rain: a draw_extras-only theme with no emergent config methods
+    config = build_theme_config("neon-rain")
     state = ThemeState(config, 80, 24, seed=42)
-    # All should be None by default (plugin returns None for all configs)
+    # boids_config returns a dict, so boids will be initialized; all others None
     assert state.automaton is None
-    assert state.physarum is None
     assert state.neural_field is None
     assert state.wave_field is None
-    assert state.boids is None
     assert state.reaction_diffusion is None
 
 

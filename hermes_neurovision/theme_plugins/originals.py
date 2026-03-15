@@ -18,6 +18,38 @@ class ElectricMyceliumPlugin(ThemePlugin):
     """Mycelium network — mostly default with slight tweaks."""
     name = "electric-mycelium"
 
+    def react(self, event_kind, data):
+        import random
+        from hermes_neurovision.plugin import ReactiveElement, Reaction
+        if event_kind == "git_commit" or event_kind == "file_edit" or event_kind == "browser_navigate":
+            return Reaction(element=ReactiveElement.TRAIL, intensity=0.8,
+                           origin=(random.random(), random.random()), color_key="bright", duration=2.0)
+        if event_kind == "memory_save" or event_kind == "skill_create":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=1.0,
+                           origin=(random.random(), random.random()), color_key="bright", duration=3.0)
+        if event_kind == "llm_chunk":
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.4,
+                           origin=(random.random(), random.random()), color_key="soft", duration=0.8)
+        if event_kind == "error" or event_kind == "crash" or event_kind == "threat_blocked":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.5)
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.8,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.0)
+        if event_kind == "tool_call" or event_kind == "mcp_tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.6,
+                           origin=(random.random(), random.random()), color_key="accent", duration=1.5)
+        return None
+
+    def physarum_config(self):
+        return {'n_agents': 140, 'sensor_dist': 4.5, 'sensor_angle': 0.8, 'deposit': 1.1, 'decay': 0.94}
+
+    def emergent_layer(self):
+        return "background"
+
+    def glow_radius(self):
+        return 2
+
 
 class MoonwirePlugin(ThemePlugin):
     """Ring layout with moon."""
@@ -165,6 +197,38 @@ class CathedralCircuitPlugin(ThemePlugin):
     def node_glyph(self, idx, intensity, total):
         return "\u2726" if idx % 5 == 0 else "\u25c6"
 
+    def react(self, event_kind, data):
+        import random
+        from hermes_neurovision.plugin import ReactiveElement, Reaction
+        if event_kind == "skill_create" or event_kind == "checkpoint_created":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="bright", duration=3.0)
+        if event_kind == "mcp_connected" or event_kind == "mcp_disconnected" or event_kind == "provider_health":
+            return Reaction(element=ReactiveElement.CONSTELLATION, intensity=0.8,
+                           origin=(0.5, 0.5), color_key="accent", duration=3.0)
+        if event_kind == "dangerous_cmd" or event_kind == "approval_request":
+            return Reaction(element=ReactiveElement.SPARK, intensity=1.0,
+                           origin=(random.random(), random.random()), color_key="warning", duration=2.0)
+        if event_kind == "git_commit" or event_kind == "file_edit":
+            return Reaction(element=ReactiveElement.TRAIL, intensity=0.7,
+                           origin=(0.0, random.random()), color_key="bright", duration=1.5)
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.8,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.0)
+        if event_kind == "error" or event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.0)
+        return None
+
+    def automaton_config(self):
+        return {'rule': 'brians_brain', 'density': 0.05, 'update_interval': 3}
+
+    def emergent_layer(self):
+        return "background"
+
+    def glow_radius(self):
+        return 1
+
 
 class StormCorePlugin(ThemePlugin):
     """Storm bands with lightning."""
@@ -252,6 +316,38 @@ class HybridPlugin(ThemePlugin):
         if idx % 4 == 0:
             return "accent"
         return "bright" if intensity > 0.65 else "soft"
+
+    def react(self, event_kind, data):
+        import random
+        from hermes_neurovision.plugin import ReactiveElement, Reaction
+        if event_kind == "agent_start" or event_kind == "session_resume":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.9,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.5)
+        if event_kind == "tool_call" or event_kind == "mcp_tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.7,
+                           origin=(random.random(), random.random()), color_key="accent", duration=1.8)
+        if event_kind == "memory_save" or event_kind == "skill_create":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.9,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.5)
+        if event_kind == "error" or event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.0)
+        if event_kind == "llm_chunk":
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.4,
+                           origin=(0.0, random.random()), color_key="soft", duration=0.8)
+        if event_kind == "git_commit":
+            return Reaction(element=ReactiveElement.TRAIL, intensity=0.6,
+                           origin=(0.0, 0.5), color_key="accent", duration=1.5)
+        return None
+
+    def boids_config(self):
+        return {'n_boids': 40, 'sep_dist': 3.0, 'align_dist': 8.0, 'cohesion_dist': 12.0, 'max_speed': 1.5}
+
+    def emergent_layer(self):
+        return "background"
+
+    def glow_radius(self):
+        return 1
 
 
 class SpiralGalaxyPlugin(ThemePlugin):

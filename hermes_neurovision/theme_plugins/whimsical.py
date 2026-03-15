@@ -87,6 +87,38 @@ class CampfirePlugin(ThemePlugin):
         bottom = max(10, state.height - 2)
         BONFIRE.draw(stdscr, cx, bottom, color_pairs["warning"], anchor="bottomleft")
 
+    def react(self, event_kind, data):
+        import random
+        from hermes_neurovision.plugin import ReactiveElement, Reaction
+        if event_kind == "memory_save" or event_kind == "skill_create":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=1.0,
+                           origin=(0.5, 0.7), color_key="bright", duration=2.5)
+        if event_kind == "dangerous_cmd" or event_kind == "approval_request":
+            return Reaction(element=ReactiveElement.SPARK, intensity=1.0,
+                           origin=(random.random(), random.random()), color_key="warning", duration=2.0)
+        if event_kind == "llm_chunk":
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.4,
+                           origin=(0.5, 0.8), color_key="soft", duration=0.8)
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.8,
+                           origin=(0.5, 0.7), color_key="bright", duration=2.0)
+        if event_kind == "error" or event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.0)
+        if event_kind == "tool_call" or event_kind == "mcp_tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.6,
+                           origin=(random.random(), random.random()), color_key="accent", duration=1.5)
+        return None
+
+    def wave_config(self):
+        return {'speed': 0.15, 'damping': 0.98}
+
+    def emergent_layer(self):
+        return "background"
+
+    def glow_radius(self):
+        return 2
+
 
 class AquariumPlugin(ThemePlugin):
     """Tropical fish tank — fish, bubbles, seaweed."""
@@ -180,6 +212,38 @@ class AquariumPlugin(ThemePlugin):
                                       curses.color_pair(color_pairs["base"]))
                     except curses.error:
                         pass
+
+    def react(self, event_kind, data):
+        import random
+        from hermes_neurovision.plugin import ReactiveElement, Reaction
+        if event_kind == "skill_create" or event_kind == "checkpoint_created":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.9,
+                           origin=(random.random(), random.random()), color_key="bright", duration=2.5)
+        if event_kind == "tool_call" or event_kind == "mcp_tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.6,
+                           origin=(random.random(), random.random()), color_key="soft", duration=1.5)
+        if event_kind == "llm_chunk":
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.4,
+                           origin=(0.0, random.random()), color_key="accent", duration=1.0)
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.7,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.0)
+        if event_kind == "error" or event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.0)
+        if event_kind == "memory_save":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.8,
+                           origin=(0.5, 0.5), color_key="accent", duration=2.0)
+        return None
+
+    def boids_config(self):
+        return {'n_boids': 45, 'sep_dist': 2.5, 'align_dist': 7.0, 'cohesion_dist': 12.0, 'max_speed': 1.2}
+
+    def emergent_layer(self):
+        return "background"
+
+    def glow_radius(self):
+        return 1
 
 
 class CircuitBoardPlugin(ThemePlugin):
@@ -291,6 +355,38 @@ class CircuitBoardPlugin(ThemePlugin):
     def pulse_color_key(self):
         return "bright"
 
+    def react(self, event_kind, data):
+        import random
+        from hermes_neurovision.plugin import ReactiveElement, Reaction
+        if event_kind == "llm_chunk" or event_kind == "llm_start":
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.6,
+                           origin=(random.random(), random.random()), color_key="accent", duration=0.8)
+        if event_kind == "dangerous_cmd" or event_kind == "approval_request":
+            return Reaction(element=ReactiveElement.SPARK, intensity=1.0,
+                           origin=(random.random(), random.random()), color_key="warning", duration=2.0)
+        if event_kind == "git_commit" or event_kind == "file_edit":
+            return Reaction(element=ReactiveElement.TRAIL, intensity=0.7,
+                           origin=(0.0, random.random()), color_key="bright", duration=1.5)
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.8,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.0)
+        if event_kind == "memory_save":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.8,
+                           origin=(0.5, 0.5), color_key="accent", duration=2.0)
+        if event_kind == "error" or event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.0)
+        return None
+
+    def automaton_config(self):
+        return {'rule': 'brians_brain', 'density': 0.05, 'update_interval': 2}
+
+    def emergent_layer(self):
+        return "background"
+
+    def glow_radius(self):
+        return 1
+
 
 class LavaLampPlugin(ThemePlugin):
     """Hypnotic blobs rising and sinking."""
@@ -377,6 +473,38 @@ class LavaLampPlugin(ThemePlugin):
 
     def packet_color_key(self):
         return "accent"
+
+    def react(self, event_kind, data):
+        import random
+        from hermes_neurovision.plugin import ReactiveElement, Reaction
+        if event_kind == "memory_save" or event_kind == "checkpoint_created":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.9,
+                           origin=(random.random(), random.random()), color_key="bright", duration=3.0)
+        if event_kind == "compression_started" or event_kind == "compression_ended":
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.8,
+                           origin=(0.5, 0.5), color_key="accent", duration=2.5)
+        if event_kind == "agent_start" or event_kind == "session_resume":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.7,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.0)
+        if event_kind == "tool_call" or event_kind == "mcp_tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.5,
+                           origin=(random.random(), random.random()), color_key="soft", duration=1.5)
+        if event_kind == "error" or event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.0)
+        if event_kind == "llm_chunk":
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.3,
+                           origin=(random.random(), 0.0), color_key="soft", duration=0.8)
+        return None
+
+    def wave_config(self):
+        return {'speed': 0.1, 'damping': 0.995}
+
+    def emergent_layer(self):
+        return "background"
+
+    def glow_radius(self):
+        return 2
 
 
 class FireflyFieldPlugin(ThemePlugin):
@@ -468,10 +596,48 @@ class FireflyFieldPlugin(ThemePlugin):
             pass
 
 
-# ── Register all whimsical plugins ───────────────────────────────
+
+    def react(self, event_kind, data):
+        import random
+        from hermes_neurovision.plugin import ReactiveElement, Reaction
+        if event_kind == "approval_request" or event_kind == "dangerous_cmd":
+            return Reaction(element=ReactiveElement.SPARK, intensity=1.0,
+                           origin=(random.random(), random.random()), color_key="warning", duration=2.0)
+        if event_kind == "mcp_connected" or event_kind == "mcp_disconnected" or event_kind == "provider_health":
+            return Reaction(element=ReactiveElement.CONSTELLATION, intensity=0.8,
+                           origin=(0.5, 0.5), color_key="bright", duration=3.0)
+        if event_kind == "cron_tick" or event_kind == "background_proc":
+            return Reaction(element=ReactiveElement.ORBIT, intensity=0.5,
+                           origin=(0.5, 0.5), color_key="soft", duration=2.0)
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.8,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.0)
+        if event_kind == "memory_save":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.8,
+                           origin=(random.random(), random.random()), color_key="accent", duration=2.0)
+        if event_kind == "error" or event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.0)
+        return None
+
+    def boids_config(self):
+        return {'n_boids': 60, 'sep_dist': 4.0, 'align_dist': 10.0, 'cohesion_dist': 15.0, 'max_speed': 0.8}
+
+    def emergent_layer(self):
+        return "background"
+
+    def glow_radius(self):
+        return 2
+
+
+
+# ── Register ─────────────────────────────────────────────────────
 
 for _cls in [
-    CampfirePlugin, AquariumPlugin, CircuitBoardPlugin,
-    LavaLampPlugin, FireflyFieldPlugin,
+    CampfirePlugin,
+    AquariumPlugin,
+    CircuitBoardPlugin,
+    LavaLampPlugin,
+    FireflyFieldPlugin,
 ]:
     register(_cls())

@@ -75,6 +75,38 @@ class NoxiousFumesPlugin(ThemePlugin):
     def packet_color_key(self):
         return "soft"
 
+    def react(self, event_kind, data):
+        import random
+        from hermes_neurovision.plugin import ReactiveElement, Reaction
+        if event_kind == "error" or event_kind == "crash" or event_kind == "threat_blocked":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.5)
+        if event_kind == "llm_chunk" or event_kind == "llm_start":
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.5,
+                           origin=(random.random(), random.random()), color_key="soft", duration=0.8)
+        if event_kind == "memory_save" or event_kind == "skill_create":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.8,
+                           origin=(random.random(), random.random()), color_key="accent", duration=2.0)
+        if event_kind == "tool_call" or event_kind == "mcp_tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.7,
+                           origin=(random.random(), random.random()), color_key="soft", duration=1.5)
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.8,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.0)
+        if event_kind == "dangerous_cmd":
+            return Reaction(element=ReactiveElement.SPARK, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.0)
+        return None
+
+    def physarum_config(self):
+        return {'n_agents': 90, 'sensor_dist': 4.0, 'sensor_angle': 0.6, 'deposit': 1.0, 'decay': 0.90}
+
+    def emergent_layer(self):
+        return "background"
+
+    def glow_radius(self):
+        return 1
+
 
 class MazeRunnerPlugin(ThemePlugin):
     """Shifting dimensional maze — walls phase in/out, reality tears, recursive portals."""
@@ -265,9 +297,45 @@ class MazeRunnerPlugin(ThemePlugin):
             pass
 
 
-# ── Register all hostile plugins ─────────────────────────────────
+
+    def react(self, event_kind, data):
+        import random
+        from hermes_neurovision.plugin import ReactiveElement, Reaction
+        if event_kind == "git_commit" or event_kind == "file_edit" or event_kind == "browser_navigate":
+            return Reaction(element=ReactiveElement.TRAIL, intensity=0.8,
+                           origin=(random.random(), random.random()), color_key="bright", duration=2.0)
+        if event_kind == "cron_tick" or event_kind == "background_proc":
+            return Reaction(element=ReactiveElement.ORBIT, intensity=0.5,
+                           origin=(0.5, 0.5), color_key="soft", duration=2.0)
+        if event_kind == "approval_request" or event_kind == "dangerous_cmd":
+            return Reaction(element=ReactiveElement.SPARK, intensity=1.0,
+                           origin=(random.random(), random.random()), color_key="warning", duration=2.0)
+        if event_kind == "compression_started" or event_kind == "compression_ended":
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.8,
+                           origin=(0.5, 0.5), color_key="accent", duration=2.5)
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.7,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.0)
+        if event_kind == "error" or event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.0)
+        return None
+
+    def automaton_config(self):
+        return {'rule': 'brians_brain', 'density': 0.08, 'update_interval': 2}
+
+    def emergent_layer(self):
+        return "background"
+
+    def glow_radius(self):
+        return 1
+
+
+
+# ── Register ─────────────────────────────────────────────────────
 
 for _cls in [
-    NoxiousFumesPlugin, MazeRunnerPlugin,
+    NoxiousFumesPlugin,
+    MazeRunnerPlugin,
 ]:
     register(_cls())

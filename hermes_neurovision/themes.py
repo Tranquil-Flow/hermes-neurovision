@@ -119,6 +119,8 @@ THEMES: Tuple[str, ...] = (
     "fractal-zoom",
     "particle-vortex",
     "chladni-sand",
+    # ── Quantum Physics (1) ───────────────────────────────────────────
+    "quantum-foam",
 )
 
 FRAME_DELAY = 0.05
@@ -268,6 +270,8 @@ def build_theme_config(name: str) -> ThemeConfig:
         "fractal-zoom":     ThemeConfig(name, "Fractal Zoom",      "\u2588", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_CYAN,    curses.COLOR_MAGENTA, curses.COLOR_YELLOW, curses.COLOR_WHITE)),
         "particle-vortex":  ThemeConfig(name, "Particle Vortex",   "\u25cf", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_CYAN,    curses.COLOR_MAGENTA, curses.COLOR_YELLOW, curses.COLOR_GREEN)),
         "chladni-sand":     ThemeConfig(name, "Chladni Sand",      "\u00b7", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_YELLOW,  curses.COLOR_CYAN,    curses.COLOR_WHITE,  curses.COLOR_MAGENTA)),
+        # ── Quantum Physics ───────────────────────────────────────────────────
+        "quantum-foam":     ThemeConfig(name, "Quantum Foam",      "\u2297", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.5, 2, palette=(curses.COLOR_CYAN,    curses.COLOR_MAGENTA, curses.COLOR_WHITE,  curses.COLOR_YELLOW)),
         # ── Legacy: Originals (original node-based implementations) ──
         "legacy-neural-sky":    ThemeConfig(name, "Neural Sky (Legacy)",    "*",      0.030, 0.10, 0.40, 0.32, (0.04, 0.08), 0.10, 0.4, 3, palette=(curses.COLOR_CYAN, curses.COLOR_BLUE, curses.COLOR_WHITE, curses.COLOR_MAGENTA)),
         "legacy-storm-core":    ThemeConfig(name, "Storm Core (Legacy)",    "x",      0.024, 0.18, 0.52, 0.42, (0.06, 0.10), 0.12, 0.35, 3, palette=(curses.COLOR_BLUE, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_YELLOW)),

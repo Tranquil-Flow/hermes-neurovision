@@ -151,6 +151,38 @@ class ClockworkPlugin(ThemePlugin):
                     except curses.error:
                         pass
 
+    def react(self, event_kind, data):
+        import random
+        from hermes_neurovision.plugin import ReactiveElement, Reaction
+        if event_kind == "cron_tick" or event_kind == "background_proc":
+            return Reaction(element=ReactiveElement.ORBIT, intensity=0.7,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.5)
+        if event_kind == "approval_request" or event_kind == "dangerous_cmd":
+            return Reaction(element=ReactiveElement.SPARK, intensity=1.0,
+                           origin=(random.random(), random.random()), color_key="warning", duration=2.0)
+        if event_kind == "git_commit" or event_kind == "file_edit":
+            return Reaction(element=ReactiveElement.TRAIL, intensity=0.6,
+                           origin=(random.random(), random.random()), color_key="accent", duration=1.5)
+        if event_kind == "agent_start" or event_kind == "session_resume":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.8,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.0)
+        if event_kind == "memory_save":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.7,
+                           origin=(0.5, 0.5), color_key="accent", duration=2.0)
+        if event_kind == "error" or event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.0)
+        return None
+
+    def automaton_config(self):
+        return {'rule': 'brians_brain', 'density': 0.04, 'update_interval': 4}
+
+    def emergent_layer(self):
+        return "background"
+
+    def glow_radius(self):
+        return 1
+
 
 class CoralReefPlugin(ThemePlugin):
     """Vibrant underwater reef."""
@@ -214,6 +246,38 @@ class CoralReefPlugin(ThemePlugin):
 
     def edge_color_key(self, step, idx_a, frame):
         return "accent" if (step + frame) % 2 == 0 else "bright"
+
+    def react(self, event_kind, data):
+        import random
+        from hermes_neurovision.plugin import ReactiveElement, Reaction
+        if event_kind == "skill_create" or event_kind == "checkpoint_created":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=1.0,
+                           origin=(random.random(), random.random()), color_key="bright", duration=3.0)
+        if event_kind == "llm_chunk":
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.4,
+                           origin=(0.0, random.random()), color_key="soft", duration=0.8)
+        if event_kind == "tool_call" or event_kind == "mcp_tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.6,
+                           origin=(random.random(), random.random()), color_key="accent", duration=1.5)
+        if event_kind == "mcp_connected" or event_kind == "provider_health":
+            return Reaction(element=ReactiveElement.CONSTELLATION, intensity=0.8,
+                           origin=(0.5, 0.5), color_key="bright", duration=3.0)
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.7,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.0)
+        if event_kind == "error" or event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.0)
+        return None
+
+    def boids_config(self):
+        return {'n_boids': 40, 'sep_dist': 2.0, 'align_dist': 6.0, 'cohesion_dist': 10.0, 'max_speed': 1.0}
+
+    def emergent_layer(self):
+        return "background"
+
+    def glow_radius(self):
+        return 1
 
 
 class AntColonyPlugin(ThemePlugin):
@@ -296,6 +360,38 @@ class AntColonyPlugin(ThemePlugin):
                 stdscr.addch(ground_y - 1, x, "∿", accent_pair)
             except curses.error:
                 pass
+
+    def react(self, event_kind, data):
+        import random
+        from hermes_neurovision.plugin import ReactiveElement, Reaction
+        if event_kind == "git_commit" or event_kind == "file_edit" or event_kind == "browser_navigate":
+            return Reaction(element=ReactiveElement.TRAIL, intensity=0.8,
+                           origin=(random.random(), random.random()), color_key="bright", duration=2.0)
+        if event_kind == "memory_save" or event_kind == "checkpoint_created":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.9,
+                           origin=(0.5, 0.5), color_key="accent", duration=2.5)
+        if event_kind == "llm_chunk":
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.5,
+                           origin=(random.random(), random.random()), color_key="soft", duration=0.6)
+        if event_kind == "error" or event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.0)
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.7,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.0)
+        if event_kind == "tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.5,
+                           origin=(random.random(), random.random()), color_key="soft", duration=1.5)
+        return None
+
+    def physarum_config(self):
+        return {'n_agents': 120, 'sensor_dist': 4.0, 'sensor_angle': 0.6, 'deposit': 1.0, 'decay': 0.93}
+
+    def emergent_layer(self):
+        return "background"
+
+    def glow_radius(self):
+        return 1
 
 
 class SatelliteOrbitPlugin(ThemePlugin):
@@ -408,6 +504,38 @@ class SatelliteOrbitPlugin(ThemePlugin):
         if idx >= ground_start:
             return "╋"
         return "◇" if intensity > 0.6 else "▫"
+
+    def react(self, event_kind, data):
+        import random
+        from hermes_neurovision.plugin import ReactiveElement, Reaction
+        if event_kind == "cron_tick" or event_kind == "background_proc":
+            return Reaction(element=ReactiveElement.ORBIT, intensity=0.6,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.5)
+        if event_kind == "agent_start" or event_kind == "session_resume":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.9,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.5)
+        if event_kind == "git_commit" or event_kind == "file_edit":
+            return Reaction(element=ReactiveElement.TRAIL, intensity=0.6,
+                           origin=(0.5, 0.5), color_key="accent", duration=1.5)
+        if event_kind == "compression_started" or event_kind == "compression_ended":
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.8,
+                           origin=(0.5, 0.5), color_key="accent", duration=2.0)
+        if event_kind == "error" or event_kind == "crash":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.0)
+        if event_kind == "tool_call" or event_kind == "mcp_tool_call":
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.5,
+                           origin=(random.random(), random.random()), color_key="soft", duration=1.5)
+        return None
+
+    def wave_config(self):
+        return {'speed': 0.2, 'damping': 0.98}
+
+    def emergent_layer(self):
+        return "background"
+
+    def glow_radius(self):
+        return 1
 
 
 class StarfallPlugin(ThemePlugin):
