@@ -295,14 +295,14 @@ class PendulumWavesPlugin(ThemePlugin):
         points = []
         n = self._N_PENDULUMS
         spacing = max(3, (w - 8) // max(1, n - 1))
-        pivot_y = 2
-        length_max = h * 0.7
+        pivot_y = max(2, int(h * 0.15))  # centred upper area
+        length_max = h * 0.78
         for idx in [0, n // 2, n - 1]:
             period = self._BASE_PERIOD + idx * 2
             omega = math.tau / period
             theta = 0.6 * math.sin(omega * frame)
             bob_x = 4 + idx * spacing + int(math.sin(theta) * length_max * 0.3)
-            bob_y = pivot_y + int(math.cos(theta) * length_max * 0.8)
+            bob_y = pivot_y + int(math.cos(theta) * length_max * 0.78)
             bob_x = max(0, min(w - 1, bob_x))
             bob_y = max(0, min(h - 1, bob_y))
             points.append((bob_x, bob_y, 0.3 + intensity * 0.5, 0.0))  # type: vortex as float
@@ -357,8 +357,9 @@ class PendulumWavesPlugin(ThemePlugin):
 
         n = self._N_PENDULUMS
         spacing = max(3, (w - 8) // max(1, n - 1))
-        pivot_y = 2
-        length_max = h * 0.7
+        # Pivot 15% down — arms fill the remaining 83% of the screen
+        pivot_y = max(2, int(h * 0.15))
+        length_max = h * 0.78
 
         bright_attr = curses.color_pair(color_pairs.get("bright", 0)) | curses.A_BOLD
         accent_attr = curses.color_pair(color_pairs.get("accent", 0))
@@ -386,9 +387,9 @@ class PendulumWavesPlugin(ThemePlugin):
             amp = 0.5 + 0.3 * intensity
             theta = amp * math.sin(omega * f)
 
-            # Bob position
-            arm_len = length_max * (0.6 + 0.3 * (idx / max(1, n - 1)))
-            bob_x = pivot_x + int(math.sin(theta) * arm_len * 0.4)
+            # Bob position — arm length scales across full available height
+            arm_len = length_max * (0.55 + 0.35 * (idx / max(1, n - 1)))
+            bob_x = pivot_x + int(math.sin(theta) * arm_len * 0.42)
             bob_y = pivot_y + int(math.cos(theta) * arm_len * 0.85)
             bob_x = max(1, min(w - 2, bob_x))
             bob_y = max(pivot_y + 1, min(h - 2, bob_y))

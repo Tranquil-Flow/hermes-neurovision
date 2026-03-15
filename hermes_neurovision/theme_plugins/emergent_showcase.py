@@ -345,23 +345,34 @@ class SwarmMindTheme(ThemePlugin):
                 ch = random.choice("◆◇·")
                 _safe_addstr(stdscr, py, px, ch, attr)
 
-    # -- draw_extras: pulsing circle border --
+    # -- draw_extras: pulsing multi-ring border with sweeping colors --
     def draw_extras(self, stdscr, state, color_pairs) -> None:
         w, h = state.width, state.height
         cx, cy = w // 2, h // 2
         intensity = getattr(state, "intensity_multiplier", 0.5)
-        pulse = 0.8 + 0.2 * math.sin(state.frame * 0.1)
-        r = int((min(w // 2 - 2, h // 2 - 1)) * pulse)
-        attr = color_pairs.get("base", 0)
-        steps = max(60, int(r * 4))
-        for i in range(steps):
-            theta = (i / steps) * math.tau
-            px = int(cx + r * math.cos(theta) * 2)
-            py = int(cy + r * math.sin(theta))
-            if 0 <= px < w and 0 <= py < h:
-                bright = (i + state.frame) % 12 < 6
-                ch = "·" if bright else " "
-                _safe_addstr(stdscr, py, px, ch, attr)
+        f = state.frame
+
+        # Draw 3 concentric rings at slightly different radii and speeds
+        max_r = min(w // 2 - 2, h // 2 - 1)
+        color_keys = ["accent", "soft", "bright"]
+        for ring in range(3):
+            phase_off = ring * 0.4
+            pulse = 0.55 + 0.25 * math.sin(f * 0.07 + phase_off)
+            r = int(max_r * (0.5 + ring * 0.18) * pulse + ring * 2)
+            r = max(3, min(max_r, r))
+            # Color index rotates per ring per frame — colors sweep around
+            steps = max(60, int(r * 4))
+            for i in range(steps):
+                theta = (i / steps) * math.tau
+                px = int(cx + r * math.cos(theta) * 2)
+                py = int(cy + r * math.sin(theta))
+                if 0 <= px < w and 0 <= py < h:
+                    # Sector-based color: divides ring into arcs that rotate
+                    sector = int((theta + f * 0.04 + ring * 1.1) / (math.tau / 4)) % 4
+                    ck = color_keys[sector % len(color_keys)]
+                    bright = (i + f + ring * 5) % 10 < 5
+                    ch = "·" if bright else "○" if ring == 1 else "·"
+                    _safe_addstr(stdscr, py, px, ch, color_pairs.get(ck, 0))
 
     def particle_base_chance(self) -> float:
         return 0.1
@@ -628,37 +639,52 @@ class TidePoolTheme(ThemePlugin):
             duration=dur,
         )
 
-    # -- draw_extras: wave field char gradient --
+    # -- draw_extras: wave field char gradient — full-screen, dynamic color --
     def draw_extras(self, stdscr, state, color_pairs) -> None:
         w, h = state.width, state.height
         frame = state.frame
-        cx, cy = w / 2, h / 2
-        gradient = " .·░▒▓"
+        cx, cy = w / 2.0, h / 2.0
+        gradient = " .·░▒▓~≈"
         levels = len(gradient) - 1
         intensity = getattr(state, "intensity_multiplier", 0.3)
-        max_r = min(w // 2, h // 2)
 
-        for row in range(1, h - 1, 2):
-            for col in range(2, w - 2, 3):
-                dx = (col - cx) / 2.0
-                dy = row - cy
-                dist = math.sqrt(dx * dx + dy * dy)
-                if dist > max_r:
-                    continue
-                # interference of multiple waves
-                v = 0.0
-                v += math.sin(dist * 0.5 - frame * 0.15) * 0.4
-                v += math.sin(dist * 0.3 + frame * 0.08 + col * 0.1) * 0.3
-                v += math.sin(row * 0.2 + frame * 0.06) * 0.2 * intensity
-                v = (v + 1.0) / 2.0  # normalize 0-1
+        bright_attr = color_pairs.get("bright", 0)
+        accent_attr = color_pairs.get("accent", 0)
+        soft_attr   = color_pairs.get("soft", 0)
+        base_attr   = color_pairs.get("base", 0)
+
+        for row in range(1, h - 1):
+            dy = (row - cy) / max(cy, 1.0)
+            for col in range(0, w - 1):
+                dx = (col - cx) / max(cx, 1.0)
+                # Use normalised coordinates so waves are screen-relative
+                dist = math.sqrt(dx * dx * 0.45 + dy * dy)
+                angle = math.atan2(dy, dx)
+
+                # 3 interfering wave sources — positions drift over time
+                t = frame * 0.015
+                src1 = math.sin(dist * 5.0 - frame * 0.15)
+                src2 = math.sin(dist * 3.2 + frame * 0.09 + col * 0.08)
+                src3 = math.sin(dy * 4.0 + dx * 2.5 - frame * 0.07 + 1.5)
+                v = (src1 * 0.45 + src2 * 0.35 + src3 * 0.20) * intensity
+                v = (v + 1.0) / 2.0
+                v = max(0.0, min(1.0, v))
+
+                # Hue shifts with angle + time so colors orbit the pool
+                hue_t = (angle / math.tau + frame * 0.004 + dist * 0.15) % 1.0
+                if hue_t > 0.65:
+                    col_attr = bright_attr if v > 0.7 else accent_attr
+                elif hue_t > 0.35:
+                    col_attr = accent_attr if v > 0.5 else soft_attr
+                else:
+                    col_attr = soft_attr if v > 0.35 else base_attr
+
                 idx = int(v * levels)
                 idx = max(0, min(levels, idx))
                 ch = gradient[idx]
                 if ch == " ":
                     continue
-                color_key = "accent" if v > 0.6 else ("soft" if v > 0.3 else "base")
-                attr = color_pairs.get(color_key, 0)
-                _safe_addstr(stdscr, row, col, ch, attr)
+                _safe_addstr(stdscr, row, col, ch, col_attr)
 
     # -- ambient --
     def ambient_tick(self, stdscr, state, color_pairs, idle_seconds: float) -> None:

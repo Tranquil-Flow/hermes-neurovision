@@ -242,18 +242,19 @@ class PendulumWavesPlugin(ThemePlugin):
     def glow_radius(self) -> int:
         return 1
 
-    # -- layout: pendulum pivot row at top --
+    # -- layout: pivots centred horizontally, placed at h*0.15 (upper area) --
     def build_nodes(self, w: int, h: int, cx: float, cy: float,
                     count: int, rng) -> List[Tuple[float, float]]:
         nodes = []
         n = self._N_PENDULUMS
-        spacing = max(3, (w - 6) // (n + 1))
-        x_start = (w - spacing * (n - 1)) // 2
+        spacing = max(3, (w - 8) // max(1, n - 1))
+        x_start = max(4, (w - spacing * (n - 1)) // 2)
+        # Pivot row: 15% down — arms can swing to 85% of screen height
+        pivot_y = max(2.0, h * 0.15)
         for i in range(n):
             x = x_start + i * spacing
-            # Pivot at top, bob will be animated by step_nodes
-            nodes.append((float(x), 3.0))   # pivot
-            nodes.append((float(x), float(h // 2)))  # bob (initial)
+            nodes.append((float(x), pivot_y))   # pivot
+            nodes.append((float(x), pivot_y + h * 0.35))  # bob (initial)
         return nodes
 
     def build_edges_extra(self, nodes, edges_set):
@@ -264,21 +265,25 @@ class PendulumWavesPlugin(ThemePlugin):
 
     def step_nodes(self, nodes, frame, w, h):
         n = self._N_PENDULUMS
-        max_arm = h * 0.65
+        pivot_y = max(2.0, h * 0.15)
+        # Arms can sweep from pivot down to near the bottom
+        max_arm = h * 0.78
         for i in range(n):
             pivot_idx = i * 2
             bob_idx = i * 2 + 1
             if bob_idx >= len(nodes):
                 break
-            px, py = nodes[pivot_idx]
+            px, _ = nodes[pivot_idx]
+            # Update pivot y in case of resize
+            nodes[pivot_idx] = (px, pivot_y)
             # Each pendulum: frequency = base + i*delta (creates wave patterns)
             base_freq = 0.04
             freq = base_freq + i * 0.003
             angle = math.sin(frame * freq) * 1.2  # swing amplitude ~70 degrees
-            arm = max_arm * (0.5 + 0.3 * (i / n))
-            bx = px + math.sin(angle) * arm * 0.6  # aspect correction
-            by = py + math.cos(angle) * arm * 0.5
-            by = max(py + 2, min(h - 2, by))
+            arm = max_arm * (0.45 + 0.35 * (i / max(n - 1, 1)))
+            bx = px + math.sin(angle) * arm * 0.55  # aspect correction
+            by = pivot_y + math.cos(angle) * arm * 0.50
+            by = max(pivot_y + 2, min(h - 2, by))
             bx = max(2, min(w - 3, bx))
             nodes[bob_idx] = (bx, by)
 
