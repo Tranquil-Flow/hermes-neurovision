@@ -1,9 +1,11 @@
-# This is a symlink placeholder
+# Hermes Neurovision — GitHub README
 
-The main README.md should be at the repository root and will be displayed on GitHub automatically.
+The main README.md is at the repository root and is displayed on GitHub automatically.
 
-All documentation is in the root directory:
-- README.md - Main documentation
-- INSTALL.md - Installation guide
-- AUTOLAUNCH.md - Auto-launch setup
-- COMPLETE.md - Full feature reference
+All documentation:
+- README.md       — Main documentation, full theme list, usage, architecture
+- INSTALL.md      — Installation guide
+- QUICKSTART.md   — 60-second setup guide
+- AUTOLAUNCH.md   — Auto-launch with Hermes Agent
+- PLUGIN_API.md   — Full plugin authoring reference (write your own themes)
+- CHANGELOG.md    — Version history

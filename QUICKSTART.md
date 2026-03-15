@@ -14,7 +14,7 @@ python3 install_helper.py
 # 3. Run it!
 hermes-neurovision --gallery
 
-# 4. Browse 42 themes with 'n' key
+# 4. Browse 85 themes with 'n' key
 # 5. Lock your favorite with 'Enter'
 # 6. Press 's' to select for live mode
 ```
@@ -133,7 +133,7 @@ Daemon Mode:
 ## What You'll See
 
 **Gallery Mode:**
-- Beautiful generative animation (42 themes across 8 categories)
+- Beautiful generative animation (85 themes across 8 categories)
 - Each theme has unique visual style
 - Can lock to stay on one theme
 - Smooth transitions between themes
