@@ -281,10 +281,10 @@ class Renderer:
 
     def _draw_hide_hint(self, h: int, w: int) -> None:
         """Draw minimal unhide reminder in bottom-right corner."""
-        hint = " [h] show HUD "
+        hint = " h show HUD · M mute · F fullscreen · Q quit "
         try:
             self.stdscr.addstr(
-                h - 1, max(0, w - len(hint) - 1), hint,
+                h - 1, max(0, w - len(hint) - 1), hint[:max(0, w - 2)],
                 curses.color_pair(self.color_pairs["soft"]) | curses.A_DIM
             )
         except curses.error:
@@ -294,7 +294,7 @@ class Renderer:
         title = f" Hermes Neurovisualizer // {state.config.name} "
         from hermes_neurovision import __version__
         version = f"v{__version__}"
-        footer = " q quit  n next  p prev  space pause "
+        footer = " q quit  n next  p prev  M mute  F full  space pause "
         if gallery_total > 1:
             footer = f" theme {gallery_index + 1}/{gallery_total} |" + footer
         if end_time is not None:
