@@ -486,11 +486,31 @@ class SandCascadePlugin(ThemePlugin):
         if event_kind == "tool_call" or event_kind == "mcp_tool_call":
             return Reaction(element=ReactiveElement.RIPPLE, intensity=0.7,
                            origin=(random.random(), 0.0), color_key="bright", duration=1.5)
-        if event_kind == "error" or event_kind == "crash" or event_kind == "threa
+        if event_kind == "error" or event_kind == "crash" or event_kind == "threat_blocked":
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.5)
+        if event_kind == "llm_chunk":
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.4,
+                           origin=(random.random(), 0.0), color_key="soft", duration=0.6)
+        if event_kind == "agent_start":
+            return Reaction(element=ReactiveElement.PULSE, intensity=0.8,
+                           origin=(0.5, 0.0), color_key="bright", duration=2.0)
+        if event_kind == "memory_save":
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.8,
+                           origin=(0.5, 0.5), color_key="accent", duration=2.0)
+        if event_kind == "compression_started":
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.7,
+                           origin=(0.5, 0.5), color_key="accent", duration=2.0)
+        return None
 
-... [OUTPUT TRUNCATED - 1651 chars omitted out of 51651 total] ...
+    def automaton_config(self):
+        return {'rule': 'brians_brain', 'density': 0.4, 'update_interval': 1}
 
- 1
+    def emergent_layer(self):
+        return "background"
+
+    def glow_radius(self):
+        return 1
 
 
 class RorschachPlugin(ThemePlugin):

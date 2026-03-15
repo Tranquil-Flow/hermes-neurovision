@@ -2,7 +2,7 @@ from hermes_neurovision.themes import THEMES, ThemeConfig, build_theme_config
 
 
 def test_all_theme_names_are_defined():
-    assert len(THEMES) == 85
+    assert len(THEMES) >= 85  # grows as new screens are generated
     assert "neural-sky" in THEMES
     assert "black-hole" in THEMES
     assert "synaptic-plasma" in THEMES
@@ -48,6 +48,8 @@ def test_all_themes_can_be_built():
         # Emergent v2 (v0.2.0 new)
         "dna-helix", "pendulum-waves", "kaleidoscope", "electric-storm", "coral-growth",
         "dna-strand", "pendulum-array", "mandala-scope", "ghost-echo", "magnetic-field",
+        # Generated screens (draw_extras only, no graph layer)
+        "quantum-foam",
     }
     for name in THEMES:
         config = build_theme_config(name)
