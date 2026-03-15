@@ -16,7 +16,7 @@ import math
 import random
 from typing import List, Optional
 
-from hermes_neurovision.plugin import ThemePlugin
+from hermes_neurovision.plugin import ThemePlugin, Reaction, ReactiveElement, SpecialEffect
 from hermes_neurovision.theme_plugins import register
 
 
@@ -218,17 +218,24 @@ register(LorenzButterflyPlugin())
 # ── Rössler Ribbon ────────────────────────────────────────────────────────────
 
 class RosslerRibbonPlugin(_AttractorBase):
-    """Rössler attractor — a flat coil that occasionally fires a vertical spike.
+    """Rössler attractor — tumbling 3D camera reveals the coil + spike from all angles.
 
-    Parameters: a=0.2, b=0.2, c=5.7.  X-Y projection shows the characteristic
-    spiral; hue mapped to angle-from-centre for a full-spectrum colour wheel.
+    Parameters: a=0.2, b=0.2, c=5.7.
+    Camera slowly rotates around the attractor's Y axis, so the view alternates
+    between the flat X-Y spiral, the X-Z spike cross-section, and every angle
+    between. A secondary hue shift makes the colour wheel orbit continuously.
     """
     name = "rossler-ribbon"
-    _DT = 0.015  # reduced from 0.02 — spike region can be stiff
+    _DT = 0.012   # slightly shorter step — smoother ribbon at higher density
     _A  = 0.2
     _B  = 0.2
     _C  = 5.7
-    # X,Y range ~[-12, 12]
+
+    def __init__(self):
+        super().__init__()
+        self._roll   = 0.0   # camera rotation angle (around attractor Y axis)
+        self._hue_s  = 0.0   # colour wheel phase shift
+        self._tilt   = 0.0   # secondary tilt (nods up/down slowly)
 
     def _reset_trajectory(self):
         self._tx, self._ty, self._tz = 0.1, 0.0, 0.0
@@ -236,7 +243,8 @@ class RosslerRibbonPlugin(_AttractorBase):
     def _setup_projection(self, w, h):
         self._ox = w / 2.0
         self._oy = h / 2.0
-        self._sx = (w - 6) / 24.0
+        # X,Y range ≈ ±12;  Z range ≈ 0..12 (spike up to ~40 occasionally)
+        self._sx = (w - 6) / 26.0
         self._sy = (h - 4) / 22.0
 
     def _step(self):
@@ -250,14 +258,85 @@ class RosslerRibbonPlugin(_AttractorBase):
         self._tz = z + dt * dz
 
     def _project(self):
-        sx = int(self._ox + self._tx * self._sx)
-        sy = int(self._oy - self._ty * self._sy)
+        # Rotating camera around the Y axis: mixes X and Z into the horizontal
+        # axis, so the flat spiral gradually tilts and the Z-spike cycles in/out
+        ca, sa = math.cos(self._roll), math.sin(self._roll)
+        ct, st = math.cos(self._tilt), math.sin(self._tilt)
+        # Rotate around Y: new_x = x*ca + z*sa,  new_z = -x*sa + z*ca
+        rx = self._tx * ca + self._tz * sa
+        rz = -self._tx * sa + self._tz * ca
+        # Tilt around X: new_y = y*ct - rz*st
+        ry = self._ty * ct - rz * st
+        sx = int(self._ox + rx * self._sx)
+        sy = int(self._oy - ry * self._sy)
         return sx, sy
 
     def _spatial_hue(self, x, y, w, h):
-        # Hue = angle from screen centre → full rainbow colour wheel
+        # Angle-from-centre + slow orbit offset
         angle = math.atan2(y - self._oy, x - self._ox)
-        return _rainbow_pair_angle(angle)
+        t = (angle / math.tau + self._hue_s) % 1.0
+        return _rainbow_pair(t)
+
+    def draw_extras(self, stdscr, state, color_pairs):
+        # Advance camera rotation — full 360° every ~1050 frames (~17s at 60fps)
+        self._roll  = (self._roll  + 0.006) % math.tau
+        # Secondary nod: ±25° over a ~700 frame cycle
+        self._tilt  = math.sin(state.frame * 0.009) * 0.44
+        # Hue orbit: full cycle every ~330 frames
+        self._hue_s = (self._hue_s + 0.003) % 1.0
+        # Use faster decay so rotating view doesn't blur into smear
+        # (patch the grid decay via a subclass trick: temporarily lower decay)
+        self._fast_decay = True
+        super().draw_extras(stdscr, state, color_pairs)
+        self._fast_decay = False
+
+
+# Patch _AttractorBase.draw_extras to respect _fast_decay flag on subclasses
+_orig_attractor_draw = _AttractorBase.draw_extras
+
+def _patched_attractor_draw(self, stdscr, state, color_pairs):
+    import curses as _curses
+    w, h = state.width, state.height
+    if self._grid is None or (w, h) != (self._w, self._h):
+        self._setup(w, h)
+    _ensure_rainbow()
+    grid = self._grid
+    intensity = state.intensity_multiplier
+
+    n_steps = int(600 * (0.5 + intensity))
+    for _ in range(n_steps):
+        self._step()
+        if not self._is_valid():
+            self._reset_trajectory()
+            continue
+        sx, sy = self._project()
+        if 1 <= sy < h - 1 and 0 <= sx < w - 1:
+            grid[sy][sx] = min(grid[sy][sx] + 0.04, 1.0)
+
+    fast = getattr(self, '_fast_decay', False)
+    if fast:
+        decay = 0.88 - 0.04 * intensity   # fast: clears in ~8 frames
+    else:
+        decay = 0.977 - 0.008 * intensity  # normal: long persistence
+
+    chars = " ·.,:;=+*#▒▓█"
+    n_chars = len(chars)
+    for y in range(1, h - 1):
+        row = grid[y]
+        for x in range(w - 1):
+            v = row[x] * decay
+            row[x] = v
+            if v < 0.01:
+                continue
+            ch   = chars[max(0, min(n_chars - 1, int(v * (n_chars - 1))))]
+            attr = _attr_by_density(v)
+            hue  = self._spatial_hue(x, y, w, h)
+            try:
+                stdscr.addstr(y, x, ch, hue | attr)
+            except _curses.error:
+                pass
+
+_AttractorBase.draw_extras = _patched_attractor_draw
 
 
 register(RosslerRibbonPlugin())
@@ -272,12 +351,30 @@ class HalvorsenStarPlugin(_AttractorBase):
     dy/dt = -a·y - 4z - 4x - z²
     dz/dt = -a·z - 4x - 4y - x²   (a=1.4)
 
-    3-fold symmetry naturally divides the colour wheel into thirds:
-    120° = red-yellow, 120° = green-cyan, 120° = blue-magenta.
+    v0.2 upgrade: neural field resonance, 12-pointed mandala via rotate_4
+    symmetry, gravitational lensing warp, 3 vortex force points, full
+    reactive event system, special star-resonance effect, and enhanced
+    draw_extras with particle overlays and arm indicators.
     """
     name = "halvorsen-star"
     _DT = 0.005  # halved — Halvorsen has y² and z² terms that blow up with large dt
     _A  = 1.4
+
+    # 3 arm angles: 0°, 120°, 240° (in radians)
+    _ARM_ANGLES = [0.0, math.tau / 3.0, 2 * math.tau / 3.0]
+
+    def __init__(self):
+        super().__init__()
+        # cron arm rotation counter
+        self._cron_arm_idx = 0
+        # palette state: 'normal', 'error', 'skill', 'bright'
+        self._palette_state = 'normal'
+        # wobble phase for ambient rotation
+        self._wobble_phase = 0.0
+        # previous trajectory positions for velocity display
+        self._prev_tx = -1.48
+        self._prev_ty = -1.51
+        self._prev_tz = 2.04
 
     def _reset_trajectory(self):
         # Verified on-attractor starting point (avoids transient divergence)
@@ -310,6 +407,319 @@ class HalvorsenStarPlugin(_AttractorBase):
         # Hue by angle — three arms each get their own colour sector
         angle = math.atan2(y - self._oy, (x - self._ox) * 0.5)
         return _rainbow_pair_angle(angle)
+
+    # ── v0.2: Emergent system ─────────────────────────────────────────────────
+
+    def neural_field_config(self):
+        """Neural field resonance: attractor density maxima trigger neural firing."""
+        return {
+            "threshold": 3,
+            "fire_duration": 4,
+            "refractory": 6,
+        }
+
+    def emergent_layer(self):
+        return "background"
+
+    # ── v0.2: Post-FX ─────────────────────────────────────────────────────────
+
+    def symmetry(self):
+        """4-fold rotation × 3-fold Halvorsen = 12-pointed mandala."""
+        return "rotate_4"
+
+    def glow_radius(self):
+        """Arms glow with radius 2."""
+        return 2
+
+    def echo_decay(self):
+        """Orbit trails linger for 4 frames."""
+        return 4
+
+    def warp_field(self, x, y, w, h, frame, intensity):
+        """Gravitational lensing: dense regions bend space via sinusoidal warp."""
+        xf = x / max(w, 1)
+        yf = y / max(h, 1)
+        cx = 0.5
+        cy = 0.5
+        dx = xf - cx
+        dy = yf - cy
+        dist = math.sqrt(dx * dx + dy * dy * 4) + 0.001
+        # Warp magnitude scales with intensity and proximity to center
+        amp = intensity * 1.8 * max(0.0, 0.4 - dist)
+        t = frame * 0.04
+        wx = int(amp * math.sin(t + dist * 12.0) * 2)
+        wy = int(amp * 0.6 * math.cos(t * 0.7 + dist * 10.0))
+        nx = max(0, min(w - 1, x + wx))
+        ny = max(0, min(h - 1, y + wy))
+        return (nx, ny)
+
+    def force_points(self, w, h, frame, intensity):
+        """3 vortex attractors at the 3 Halvorsen arm tips, rotating slowly."""
+        cx = w / 2.0
+        cy = h / 2.0
+        arm_r_x = (w - 6) / 20.0 * 7.0   # ~7 units out in attractor space
+        arm_r_y = (h - 4) / 14.0 * 5.0
+        t = frame * 0.012  # slow rotation
+        strength = 0.3 + intensity * 0.4
+        points = []
+        for ang in self._ARM_ANGLES:
+            rot_ang = ang + t
+            points.append({
+                "x": int(cx + math.cos(rot_ang) * arm_r_x),
+                "y": int(cy + math.sin(rot_ang) * arm_r_y),
+                "strength": strength,
+                "type": "vortex",
+            })
+        return points
+
+    # ── v0.2: Intensity curve ─────────────────────────────────────────────────
+
+    def intensity_curve(self, raw):
+        """Power curve raw^0.8 — moderate sensitivity."""
+        return raw ** 0.8
+
+    # ── v0.2: Reactive system ─────────────────────────────────────────────────
+
+    def react(self, event_kind, data):
+        cx, cy = 0.5, 0.5
+        rng = random
+
+        if event_kind == "agent_start":
+            return Reaction(
+                element=ReactiveElement.PULSE,
+                intensity=1.0,
+                origin=(cx, cy),
+                color_key="bright",
+                duration=2.5,
+                data={"style": "rays"},
+            )
+        if event_kind == "agent_end":
+            return Reaction(
+                element=ReactiveElement.PULSE,
+                intensity=0.3,
+                origin=(cx, cy),
+                color_key="soft",
+                duration=2.0,
+            )
+        if event_kind == "llm_start":
+            return Reaction(
+                element=ReactiveElement.STREAM,
+                intensity=0.8,
+                origin=(cx, cy),
+                color_key="accent",
+                duration=4.0,
+                data={"direction": "outward"},
+            )
+        if event_kind == "llm_chunk":
+            # SPARK at random arm position
+            arm_ang = rng.choice(self._ARM_ANGLES)
+            ox = 0.5 + math.cos(arm_ang) * 0.3
+            oy = 0.5 + math.sin(arm_ang) * 0.2
+            return Reaction(
+                element=ReactiveElement.SPARK,
+                intensity=0.5,
+                origin=(max(0.0, min(1.0, ox)), max(0.0, min(1.0, oy))),
+                color_key="accent",
+                duration=0.7,
+            )
+        if event_kind == "llm_end":
+            return Reaction(
+                element=ReactiveElement.RIPPLE,
+                intensity=0.6,
+                origin=(cx, cy),
+                color_key="soft",
+                duration=1.5,
+            )
+        if event_kind == "tool_call":
+            return Reaction(
+                element=ReactiveElement.ORBIT,
+                intensity=0.7,
+                origin=(cx, cy),
+                color_key="accent",
+                duration=3.0,
+                data={"tool": data.get("name", "")},
+            )
+        if event_kind == "memory_save":
+            return Reaction(
+                element=ReactiveElement.BLOOM,
+                intensity=0.75,
+                origin=(cx, cy),
+                color_key="bright",
+                duration=2.5,
+            )
+        if event_kind == "skill_create":
+            return Reaction(
+                element=ReactiveElement.BLOOM,
+                intensity=1.0,
+                origin=(cx, cy),
+                color_key="bright",
+                duration=3.5,
+                data={"maximal": True},
+            )
+        if event_kind == "error":
+            return Reaction(
+                element=ReactiveElement.SHATTER,
+                intensity=1.0,
+                origin=(rng.random(), rng.random()),
+                color_key="warning",
+                duration=2.0,
+            )
+        if event_kind == "subagent_started":
+            return Reaction(
+                element=ReactiveElement.ORBIT,
+                intensity=0.65,
+                origin=(rng.random(), rng.random()),
+                color_key="soft",
+                duration=2.5,
+            )
+        if event_kind == "cron_tick":
+            # Rotate which arm each tick
+            arm_ang = self._ARM_ANGLES[self._cron_arm_idx % 3]
+            self._cron_arm_idx += 1
+            ox = 0.5 + math.cos(arm_ang) * 0.35
+            oy = 0.5 + math.sin(arm_ang) * 0.25
+            return Reaction(
+                element=ReactiveElement.ORBIT,
+                intensity=0.55,
+                origin=(max(0.0, min(1.0, ox)), max(0.0, min(1.0, oy))),
+                color_key="soft",
+                duration=2.0,
+            )
+        if event_kind == "reasoning_change":
+            return Reaction(
+                element=ReactiveElement.GLYPH,
+                intensity=0.7,
+                origin=(cx, cy),
+                color_key="accent",
+                duration=2.0,
+                data={"morph": True},
+            )
+        return None
+
+    # ── v0.2: Palette shift ───────────────────────────────────────────────────
+
+    def palette_shift(self, trigger_effect, intensity, base_palette):
+        if trigger_effect == "error":
+            self._palette_state = "error"
+        elif trigger_effect == "skill_create":
+            self._palette_state = "skill"
+        elif trigger_effect == "agent_start":
+            self._palette_state = "bright"
+        return None  # actual curses palette management deferred to engine
+
+    # ── v0.2: Special effects ─────────────────────────────────────────────────
+
+    def special_effects(self):
+        return [
+            SpecialEffect(
+                name="star-resonance",
+                trigger_kinds=["burst", "skill_create"],
+                min_intensity=0.5,
+                cooldown=4.0,
+                duration=3.0,
+            ),
+        ]
+
+    def draw_special(self, stdscr, state, color_pairs, special_name, progress, intensity):
+        if special_name != "star-resonance":
+            return
+        w, h = state.width, state.height
+        cx, cy = w // 2, h // 2
+        _ensure_rainbow()
+        star_chars = "✦✧⟡◆"
+        # 3 expanding arcs at 120° each, filling out over progress
+        max_r = int(min(w // 2, h // 2) * progress * 1.2)
+        for arm_idx, arm_ang in enumerate(self._ARM_ANGLES):
+            pair = _rainbow_pair_angle(arm_ang)
+            bold = curses.A_BOLD
+            # Draw expanding arc radiating from center along arm direction
+            for r in range(1, max(1, max_r)):
+                # arc spans ±30° around arm angle
+                for dang in range(-30, 31, 6):
+                    theta = arm_ang + math.radians(dang)
+                    px = int(cx + r * math.cos(theta) * 2)
+                    py = int(cy + r * math.sin(theta))
+                    if 1 <= py < h - 1 and 1 <= px < w - 1:
+                        ch_idx = (r + arm_idx) % len(star_chars)
+                        try:
+                            stdscr.addstr(py, px, star_chars[ch_idx], pair | bold)
+                        except curses.error:
+                            pass
+
+    # ── v0.2: Ambient tick ────────────────────────────────────────────────────
+
+    def ambient_tick(self, stdscr, state, color_pairs, idle_seconds):
+        if idle_seconds > 1.5:
+            # Add a subtle wobble to the projection offset
+            self._wobble_phase += 0.03
+            wobble = math.sin(self._wobble_phase) * 0.5
+            if self._grid is not None:
+                self._oy = self._h / 2.0 + wobble
+
+    # ── v0.2: Enhanced draw_extras ────────────────────────────────────────────
+
+    def draw_extras(self, stdscr, state, color_pairs):
+        # Save pre-step trajectory for velocity vector
+        self._prev_tx = self._tx
+        self._prev_ty = self._ty
+
+        # Parent renders the full density grid
+        super().draw_extras(stdscr, state, color_pairs)
+
+        if self._grid is None:
+            return
+        w, h = state.width, state.height
+        _ensure_rainbow()
+        f = state.frame
+
+        # ── Center of mass indicator ────────────────────────────────────────
+        cx = int(self._ox)
+        cy = int(self._oy)
+        # Pulse between ◉ and ◎ based on frame
+        com_ch = "◉" if (f // 8) % 2 == 0 else "◎"
+        pair_bright = _rainbow_pair(0.55)  # cyan
+        try:
+            stdscr.addstr(cy, cx, com_ch, pair_bright | curses.A_BOLD)
+        except curses.error:
+            pass
+
+        # ── 3 arm tip indicators (dots at arm tips) ────────────────────────
+        arm_r_x = self._sx * 7.0
+        arm_r_y = self._sy * 5.0
+        t_rot = f * 0.012
+        for idx, arm_ang in enumerate(self._ARM_ANGLES):
+            rot_ang = arm_ang + t_rot
+            ax = int(cx + math.cos(rot_ang) * arm_r_x)
+            ay = int(cy + math.sin(rot_ang) * arm_r_y)
+            pair = _rainbow_pair_angle(arm_ang)
+            if 1 <= ay < h - 1 and 1 <= ax < w - 1:
+                try:
+                    stdscr.addstr(ay, ax, "✦", pair | curses.A_BOLD)
+                except curses.error:
+                    pass
+
+        # ── Current particle position as bright star + velocity vector ──────
+        px_cur, py_cur = self._project()
+        if 1 <= py_cur < h - 1 and 1 <= px_cur < w - 1:
+            pair_cur = _rainbow_pair(0.15)  # yellow
+            try:
+                stdscr.addstr(py_cur, px_cur, "✦", pair_cur | curses.A_BOLD)
+            except curses.error:
+                pass
+            # Velocity vector (difference from prev projected position)
+            prev_px = int(self._ox + self._prev_tx * self._sx)
+            prev_py = int(self._oy - self._prev_ty * self._sy)
+            vx = px_cur - prev_px
+            vy = py_cur - prev_py
+            # Draw 2-step velocity line
+            for step in (1, 2):
+                lx = px_cur + vx * step
+                ly = py_cur + vy * step
+                if 1 <= ly < h - 1 and 1 <= lx < w - 1:
+                    try:
+                        stdscr.addstr(ly, lx, "·", pair_cur)
+                    except curses.error:
+                        pass
 
 
 register(HalvorsenStarPlugin())
@@ -378,19 +788,26 @@ register(AizawaTorusPlugin())
 # ── Thomas Labyrinth ──────────────────────────────────────────────────────────
 
 class ThomasLabyrinthPlugin(_AttractorBase):
-    """Thomas' cyclically symmetric attractor — labyrinthine space-filling maze.
+    """Thomas' cyclically symmetric attractor — slowly rotating 3D camera + hue shift.
 
     dx/dt = sin(y) - b·x
     dy/dt = sin(z) - b·y
     dz/dt = sin(x) - b·z    (b=0.208186 — edge of chaos)
 
-    Unlike the other attractors, this one fills 3D space with a web of tubes.
-    Projected onto a tilted plane (x+y, z) to see the labyrinthine cross-section.
-    Hue by diagonal position for a sweeping rainbow diagonal.
+    The cyclically symmetric 3D web looks totally different from each viewing
+    angle.  Camera rotates slowly through all three projection planes (XY, YZ, XZ)
+    and a second oscillation tilts it up/down, exposing the full spatial structure.
+    Hue uses a time-shifted diagonal so the rainbow sweeps across the screen.
     """
     name = "thomas-labyrinth"
-    _DT  = 0.04  # reduced from 0.05 — sin(x) terms well-behaved but cautious
+    _DT  = 0.04
     _B   = 0.208186
+
+    def __init__(self):
+        super().__init__()
+        self._az   = 0.0   # azimuth  (rotation around Z axis)
+        self._el   = 0.0   # elevation (tilt around X axis)
+        self._hue_shift = 0.0
 
     def _reset_trajectory(self):
         self._tx, self._ty, self._tz = 0.1, 0.0, -0.1
@@ -398,7 +815,7 @@ class ThomasLabyrinthPlugin(_AttractorBase):
     def _setup_projection(self, w, h):
         self._ox = w / 2.0
         self._oy = h / 2.0
-        # Range roughly ±5 for all axes; project onto (x+y)/√2, z
+        # Range ±5 for all axes
         self._sx = (w - 6) / 14.0
         self._sy = (h - 4) / 10.0
 
@@ -414,26 +831,37 @@ class ThomasLabyrinthPlugin(_AttractorBase):
         self._tz = z + dt * dz
 
     def _project(self):
-        # Tilted projection: horizontal = (x+y)/√2, vertical = z
-        px = (self._tx + self._ty) * 0.7071
-        pz = self._tz
+        x, y, z = self._tx, self._ty, self._tz
+        # Azimuth rotation (around Z): mixes X and Y
+        ca, sa = math.cos(self._az), math.sin(self._az)
+        rx = x * ca - y * sa
+        ry = x * sa + y * ca
+        # Elevation rotation (around new X): tilts Z into Y
+        ce, se = math.cos(self._el), math.sin(self._el)
+        # projected: px = rx (horizontal), py = ry*ce - z*se (vertical)
+        px = rx
+        py = ry * ce - z * se
         sx = int(self._ox + px * self._sx)
-        sy = int(self._oy - pz * self._sy)
+        sy = int(self._oy - py * self._sy)
         return sx, sy
 
     def _spatial_hue(self, x, y, w, h):
-        # Diagonal rainbow that slowly rotates over time
-        # The _draw_extras base calls this per-pixel but doesn't pass frame,
-        # so we store a slow clock on the instance updated in draw_extras.
+        # Diagonal band + time shift — bands travel across the screen
         t_diag = (x / max(w - 1, 1) + (1.0 - y / max(h - 1, 1))) * 0.5
-        t_shift = getattr(self, "_hue_shift", 0.0)
-        return _rainbow_pair((t_diag + t_shift) % 1.0)
+        return _rainbow_pair((t_diag + self._hue_shift) % 1.0)
 
     def draw_extras(self, stdscr, state, color_pairs):
-        # Advance the hue shift before letting the base render
-        shift = getattr(self, "_hue_shift", 0.0)
-        self._hue_shift = (shift + 0.0012) % 1.0
+        f = state.frame
+        # Slow azimuth sweep: full 360° every ~1400 frames (~23s)
+        self._az = (f * 0.0045) % math.tau
+        # Elevation nods between -40° and +40° on a different period
+        self._el = math.sin(f * 0.0033) * 0.70
+        # Hue shift: full cycle every ~830 frames
+        self._hue_shift = (f * 0.0012) % 1.0
+        # Fast decay so rotating view stays sharp
+        self._fast_decay = True
         super().draw_extras(stdscr, state, color_pairs)
+        self._fast_decay = False
 
 
 register(ThomasLabyrinthPlugin())
