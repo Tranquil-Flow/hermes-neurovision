@@ -176,7 +176,8 @@ def _opacity_hint_for_terminal(term: str) -> str:
 
 def _terminal_get_opacity() -> Optional[float]:
     """Read backgroundAlpha of the front Terminal.app window via AppleScript."""
-    script = 'tell application "Terminal" to return backgroundAlpha of front window'
+    # Use 'get' not 'return' — 'return' is only valid inside a handler/subroutine
+    script = 'tell application "Terminal" to get backgroundAlpha of front window'
     try:
         result = subprocess.run(
             ["osascript", "-e", script],
@@ -200,11 +201,11 @@ def diagnose_terminal_opacity() -> None:
 
     tests = [
         ("get count of windows",
-         'tell application "Terminal" to return count of windows'),
+         'tell application "Terminal" to get count of windows'),
         ("get backgroundAlpha of front window",
-         'tell application "Terminal" to return backgroundAlpha of front window'),
-        ("set backgroundAlpha of window 1 to 0.9",
-         'tell application "Terminal" to set backgroundAlpha of window 1 to 0.9'),
+         'tell application "Terminal" to get backgroundAlpha of front window'),
+        ("set backgroundAlpha of every window to 0.9",
+         'tell application "Terminal" to set backgroundAlpha of every window to 0.9'),
     ]
     for label, script in tests:
         try:
@@ -221,44 +222,21 @@ def diagnose_terminal_opacity() -> None:
 def _terminal_set_opacity(opacity: float) -> bool:
     """Set backgroundAlpha of all Terminal.app windows via AppleScript.
 
-    Uses the inline single-line 'tell App to ...' form per window index,
-    which is the confirmed-working pattern on macOS Terminal.app.
+    Uses 'set backgroundAlpha of every window' — the confirmed-working form.
+    Window-by-index access fails with -1700 on some Terminal.app versions.
     backgroundAlpha: 1.0 = opaque, 0.0 = transparent.
     """
     opacity = max(0.0, min(1.0, opacity))
     val = str(round(opacity, 4))
-
-    # First get the window count, then set each window by index.
-    # We use single-line inline tell...to syntax which is reliably parsed
-    # by osascript -e without multi-line block issues.
     try:
-        # Get number of windows
-        count_result = subprocess.run(
+        result = subprocess.run(
             ["osascript", "-e",
-             'tell application "Terminal" to return count of windows'],
+             f'tell application "Terminal" to set backgroundAlpha of every window to {val}'],
             capture_output=True, text=True, timeout=3
         )
-        if count_result.returncode != 0:
-            return False
-        n = int(count_result.stdout.strip())
-    except (subprocess.TimeoutExpired, FileNotFoundError, ValueError):
+        return result.returncode == 0
+    except (subprocess.TimeoutExpired, FileNotFoundError):
         return False
-
-    # Set each window individually with a single-line inline tell
-    ok = True
-    for i in range(1, n + 1):
-        try:
-            result = subprocess.run(
-                ["osascript", "-e",
-                 f'tell application "Terminal" to set backgroundAlpha of window {i} to {val}'],
-                capture_output=True, text=True, timeout=3
-            )
-            if result.returncode != 0:
-                ok = False
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            ok = False
-
-    return ok and n > 0
 
 
 # ──────────────────────────────────────────────────────────────────────────────
