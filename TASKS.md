@@ -75,7 +75,7 @@ Read the full plan at `docs/superpowers/plans/2026-03-13-hermes-neurovision.md` 
 
 ### Disable / enable themes
 
-- [ ] Task 49: Add theme disable/enable system. [QWEN14B]
+- [x] Task 49: Add theme disable/enable system. [QWEN14B]
   Config file: ~/.hermes/neurovision/disabled.json → {"disabled": ["theme-a", "theme-b"]}
   New module: hermes_neurovision/disabled.py with:
     load_disabled() -> set[str]
