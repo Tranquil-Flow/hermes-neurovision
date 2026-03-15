@@ -29,6 +29,10 @@ _TOGGLES: List[Tuple[str, str]] = [
     ("nodes",      "show_nodes"),
     ("flash",      "show_flash"),
     ("spawn",      "show_spawn_node"),
+    ("streaks",    "show_streaks"),
+    ("specials",   "show_specials"),
+    ("overlays",   "show_overlays"),
+    ("color_shifts", "color_shifts"),
 ]
 
 
@@ -54,6 +58,12 @@ class TuneSettings:
     show_flash: bool = True
     show_spawn_node: bool = True
 
+    # NEW — visual effects (Phase 3)
+    show_streaks: bool = True
+    show_specials: bool = True
+    show_overlays: bool = True
+    color_shifts: bool = True
+
     def is_default(self) -> bool:
         return (
             self.burst_scale == 1.0
@@ -70,6 +80,10 @@ class TuneSettings:
             and self.show_nodes
             and self.show_flash
             and self.show_spawn_node
+            and self.show_streaks
+            and self.show_specials
+            and self.show_overlays
+            and self.color_shifts
         )
 
     def reset(self) -> None:
@@ -87,6 +101,10 @@ class TuneSettings:
         self.show_nodes = True
         self.show_flash = True
         self.show_spawn_node = True
+        self.show_streaks = True
+        self.show_specials = True
+        self.show_overlays = True
+        self.color_shifts = True
 
 
 # ── TuneOverlay ───────────────────────────────────────────────────────────────
