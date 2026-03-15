@@ -58,9 +58,15 @@ class DnaHelixPlugin(ThemePlugin):
         self._codons = "ATCGATCGAATTCCGG"  # repeating pattern
         self._scroll = 0.0
 
-    # -- emergent: none (pure procedural) --
+    # -- emergent: wave field — rhythmic pulses travel up the helix like
+    #    transcription bubbles reading the DNA strand --
+    def wave_config(self) -> Optional[Dict[str, Any]]:
+        return {"speed": 0.35, "damping": 0.97}
 
-    # -- postfx: keep it clean — subtle warp only, no glow halos or block smear --
+    def emergent_layer(self) -> str:
+        return "background"
+
+    # -- postfx --
     def warp_field(self, x: int, y: int, w: int, h: int,
                    frame: int, intensity: float) -> Tuple[int, int]:
         # Gentle horizontal wobble — amp capped so helix doesn't blur
@@ -69,9 +75,13 @@ class DnaHelixPlugin(ThemePlugin):
         dx = int(amp * math.sin(t + y * 0.18))
         return (max(0, min(w - 1, x + dx)), y)
 
-    # No echo_decay — smear obscures the paired base-pair rungs
-    # No glow_radius — creates purple box halos with MAGENTA palette
-    # No decay_sequence — block chars produce flashing fills
+    def echo_decay(self) -> int:
+        # Short echo so codon glyphs leave brief phosphor trails
+        return 2
+
+    def glow_radius(self) -> int:
+        # Subtle — just enough to make bright base pairs bloom
+        return 1
 
     # -- layout: two vertical columns of nodes (backbone) --
     def build_nodes(self, w: int, h: int, cx: float, cy: float,
@@ -160,34 +170,194 @@ class DnaHelixPlugin(ThemePlugin):
     def particle_color_key(self, age_ratio: float) -> str:
         return "bright" if age_ratio > 0.6 else "soft"
 
+    # -- intensity curve: sigmoid so idle is dim, transcription spikes are bright --
+    def intensity_curve(self, raw: float) -> float:
+        x = (raw - 0.4) * 9.0
+        return 1.0 / (1.0 + math.exp(-x))
+
     # -- reactive --
     def react(self, event_kind: str, data: Dict[str, Any]) -> Optional[Reaction]:
-        if event_kind == "memory_save" or event_kind == "skill_create":
+        # Memory/skill events: new base pairs encoded — BLOOM from centre
+        if event_kind in ("memory_save", "skill_create", "checkpoint_created"):
             return Reaction(
                 element=ReactiveElement.BLOOM,
                 intensity=1.0,
                 origin=(0.5, 0.5),
                 color_key="accent",
                 duration=3.0,
-                data={"helix_bloom": True},
             )
-        if event_kind == "tool_call":
+        # LLM generating: the polymerase is running — STREAM up the strand
+        if event_kind == "llm_start":
+            return Reaction(
+                element=ReactiveElement.STREAM,
+                intensity=0.8,
+                origin=(0.5, 1.0),
+                color_key="bright",
+                duration=2.5,
+            )
+        # Each token: a nucleotide clicking into place — SPARK at random rung
+        if event_kind == "llm_chunk":
+            return Reaction(
+                element=ReactiveElement.SPARK,
+                intensity=0.4,
+                origin=(0.5 + random.uniform(-0.1, 0.1), random.random()),
+                color_key="soft",
+                duration=0.6,
+            )
+        # LLM done: strand closes — RIPPLE propagates outward
+        if event_kind == "llm_end":
+            return Reaction(
+                element=ReactiveElement.RIPPLE,
+                intensity=0.6,
+                origin=(0.5, 0.5),
+                color_key="accent",
+                duration=1.5,
+            )
+        # Tool call: enzyme acting on the strand — RIPPLE at a random rung
+        if event_kind in ("tool_call", "mcp_tool_call"):
             return Reaction(
                 element=ReactiveElement.SPARK,
                 intensity=0.7,
-                origin=(random.random(), random.random()),
+                origin=(0.5 + random.uniform(-0.05, 0.05), random.random()),
                 color_key="bright",
                 duration=1.5,
             )
-        if event_kind == "error":
+        # Tool complete: enzyme detaches — soft RIPPLE
+        if event_kind == "tool_complete":
+            return Reaction(
+                element=ReactiveElement.RIPPLE,
+                intensity=0.4,
+                origin=(0.5, random.random()),
+                color_key="soft",
+                duration=1.0,
+            )
+        # Agent start: double helix unzips — PULSE from centre
+        if event_kind == "agent_start":
+            return Reaction(
+                element=ReactiveElement.PULSE,
+                intensity=1.0,
+                origin=(0.5, 0.5),
+                color_key="bright",
+                duration=2.5,
+            )
+        # Agent end: strand recondenses — WAVE sweeping upward
+        if event_kind == "agent_end":
+            return Reaction(
+                element=ReactiveElement.WAVE,
+                intensity=0.7,
+                origin=(0.5, 1.0),
+                color_key="soft",
+                duration=2.0,
+            )
+        # Error: mutation event — SHATTER, helix destabilises
+        if event_kind in ("error", "crash"):
             return Reaction(
                 element=ReactiveElement.SHATTER,
+                intensity=1.0,
+                origin=(0.5, random.random()),
+                color_key="warning",
+                duration=2.5,
+            )
+        # Cron / background: replication checkpoint signal — ORBIT
+        if event_kind in ("cron_tick", "background_proc"):
+            return Reaction(
+                element=ReactiveElement.ORBIT,
+                intensity=0.5,
+                origin=(0.5, 0.5),
+                color_key="soft",
+                duration=3.5,
+            )
+        # Subagent: new strand synthesis begins — BLOOM off-centre
+        if event_kind == "subagent_started":
+            return Reaction(
+                element=ReactiveElement.BLOOM,
+                intensity=0.8,
+                origin=(random.uniform(0.3, 0.7), random.random()),
+                color_key="bright",
+                duration=2.0,
+            )
+        # Git/file: sequence committed — TRAIL along backbone
+        if event_kind in ("git_commit", "file_edit"):
+            return Reaction(
+                element=ReactiveElement.TRAIL,
+                intensity=0.6,
+                origin=(0.5, random.random()),
+                color_key="accent",
+                duration=2.0,
+            )
+        # Approval / dangerous: restriction enzyme found — SPARK bright
+        if event_kind in ("approval_request", "dangerous_cmd"):
+            return Reaction(
+                element=ReactiveElement.SPARK,
                 intensity=1.0,
                 origin=(0.5, 0.5),
                 color_key="warning",
                 duration=2.0,
             )
         return None
+
+    def palette_shift(self, trigger_effect: str, intensity: float,
+                      base_palette) -> Optional[Tuple[int, int, int, int]]:
+        if trigger_effect in ("error", "crash") or str(trigger_effect) == str(ReactiveElement.SHATTER):
+            # Mutation — helix goes red/yellow
+            return (curses.COLOR_RED, curses.COLOR_YELLOW, curses.COLOR_WHITE, curses.COLOR_RED)
+        if trigger_effect in ("memory_save", "skill_create") or str(trigger_effect) == str(ReactiveElement.BLOOM):
+            # Successful encoding — cyan/white luminescence
+            return (curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_WHITE, curses.COLOR_CYAN)
+        return None
+
+    # -- special effects --
+    def special_effects(self) -> List[SpecialEffect]:
+        return [
+            SpecialEffect(
+                name="helix-transcribe",
+                trigger_kinds=["burst"],
+                min_intensity=0.5,
+                cooldown=7.0,
+                duration=3.5,
+            ),
+        ]
+
+    def draw_special(self, stdscr, state, color_pairs, special_name: str,
+                     progress: float, intensity: float) -> None:
+        if special_name != "helix-transcribe":
+            return
+        # A bright transcription bubble races up the helix
+        # Visualised as a horizontal scanning band that sweeps from bottom to top
+        w, h = state.width, state.height
+        scan_y = int(h - 2 - (h - 4) * progress)
+        scan_y = max(1, min(h - 2, scan_y))
+        cx = w / 2.0
+        attr_b = curses.color_pair(color_pairs.get("bright", 0)) | curses.A_BOLD
+        attr_a = curses.color_pair(color_pairs.get("accent", 0))
+        # Draw a glowing band 3 rows tall centred on scan_y
+        for dy in (-1, 0, 1):
+            row = scan_y + dy
+            if not (1 <= row <= h - 2):
+                continue
+            phase = self._scroll + row * 0.25
+            x1 = int(cx + math.sin(phase) * 12)
+            x2 = int(cx + math.sin(phase + math.pi) * 12)
+            for rx in range(min(x1, x2) - 1, max(x1, x2) + 2):
+                if 0 <= rx < w - 1:
+                    ch = "A" if (rx + row) % 4 == 0 else ("T" if (rx + row) % 4 == 1
+                         else ("C" if (rx + row) % 4 == 2 else "G"))
+                    _safe(stdscr, row, rx, ch, attr_b if dy == 0 else attr_a)
+
+    # -- ambient: helix breathes slowly when idle, base pairs glow in sequence --
+    def ambient_tick(self, stdscr, state, color_pairs, idle_seconds: float) -> None:
+        if idle_seconds > 1.5 and state.frame % 12 == 0:
+            w, h = state.width, state.height
+            cx = w / 2.0
+            # Light up a random base-pair rung
+            row = random.randint(1, max(2, h - 2))
+            phase = self._scroll + row * 0.25
+            x1 = int(cx + math.sin(phase) * 12)
+            x2 = int(cx + math.sin(phase + math.pi) * 12)
+            attr = curses.color_pair(color_pairs.get("soft", 0)) | curses.A_DIM
+            for rx in range(min(x1, x2), max(x1, x2) + 1):
+                if 0 <= rx < w - 1:
+                    _safe(stdscr, row, rx, "·", attr)
 
     # -- draw_extras: helix backbone highlight --
     def draw_extras(self, stdscr, state, color_pairs) -> None:
