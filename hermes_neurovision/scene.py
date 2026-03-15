@@ -110,7 +110,7 @@ class ThemeState:
     intensity_multiplier: float = 0.6
     _intensity_target: float = 0.6
     _intensity_rate: float = 0.0
-    _dynamic_nodes: List[int] = field(default_factory=list)
+    _dynamic_nodes: List[Tuple[float, float]] = field(default_factory=list)
     flash_until: float = 0.0
     flash_color_key: str = "warning"
 
@@ -318,13 +318,16 @@ class ThemeState:
             if self.tune and not self.tune.show_spawn_node:
                 return
             if len(self._dynamic_nodes) >= self.MAX_DYNAMIC_NODES:
-                oldest = self._dynamic_nodes.pop(0)
-                if oldest < len(self.nodes):
-                    self.nodes.pop(oldest)
+                oldest_node = self._dynamic_nodes.pop(0)
+                try:
+                    self.nodes.remove(oldest_node)
+                except ValueError:
+                    pass  # already gone (e.g. after resize)
             x = self.rng.uniform(4, max(5, self.width - 5))
             y = self.rng.uniform(2, max(3, self.height - 3))
-            self.nodes.append((x, y))
-            self._dynamic_nodes.append(len(self.nodes) - 1)
+            node = (x, y)
+            self.nodes.append(node)
+            self._dynamic_nodes.append(node)
             self._build_edges()
 
         elif effect == "wake":

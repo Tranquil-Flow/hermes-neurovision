@@ -103,6 +103,6 @@ class BoidsFlock:
             elif angle >= 1.95 or angle <= -1.95: ch = '<'
             elif -1.95 < angle <= -1.2: ch = '^'
             elif -1.2 < angle <= -0.4: ch = '/'
-            else: ch = '*'
+            else: ch = '>'  # shouldn't reach here; atan2 covered above
             result.append((int(x) % self.w, int(y) % self.h, ch, 'accent'))
         return result

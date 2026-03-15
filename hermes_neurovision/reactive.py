@@ -8,7 +8,7 @@ from __future__ import annotations
 import math
 import time
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional
 
 from hermes_neurovision.plugin import Reaction, ReactiveElement
 from hermes_neurovision.renderer import FrameBuffer
@@ -41,23 +41,31 @@ class ActiveReaction:
 
 # ── Element renderers (write to FrameBuffer) ──────────────────────────
 
-def _render_pulse(buf: FrameBuffer, ar: ActiveReaction) -> None:
+def _resolve_color(ar: ActiveReaction, color_pairs: dict) -> int:
+    """Resolve a reaction's color_key to a curses color_pair int."""
+    key = ar.reaction.color_key
+    if key and color_pairs:
+        return color_pairs.get(key, 0)
+    return 0
+
+
+def _render_pulse(buf: FrameBuffer, ar: ActiveReaction, cp: int) -> None:
     r = ar.reaction
     cx = int(r.origin[0] * buf.w)
     cy = int(r.origin[1] * buf.h)
     radius = int(ar.progress * min(buf.w, buf.h) * 0.3 * r.intensity)
     if radius < 1:
-        buf.put(cx, cy, "*", 0)
+        buf.put(cx, cy, "*", cp)
         return
     steps = max(8, radius * 6)
     for i in range(steps):
         angle = math.tau * i / steps
         x = int(round(cx + math.cos(angle) * radius * 2))
         y = int(round(cy + math.sin(angle) * radius))
-        buf.put(x, y, "·", 0)
+        buf.put(x, y, "·", cp)
 
 
-def _render_ripple(buf: FrameBuffer, ar: ActiveReaction) -> None:
+def _render_ripple(buf: FrameBuffer, ar: ActiveReaction, cp: int) -> None:
     r = ar.reaction
     cx = int(r.origin[0] * buf.w)
     cy = int(r.origin[1] * buf.h)
@@ -70,20 +78,20 @@ def _render_ripple(buf: FrameBuffer, ar: ActiveReaction) -> None:
             angle = math.tau * i / steps
             x = int(round(cx + math.cos(angle) * radius * 2))
             y = int(round(cy + math.sin(angle) * radius))
-            buf.put(x, y, "○", 0)
+            buf.put(x, y, "○", cp)
 
 
-def _render_stream(buf: FrameBuffer, ar: ActiveReaction) -> None:
+def _render_stream(buf: FrameBuffer, ar: ActiveReaction, cp: int) -> None:
     r = ar.reaction
     cx = int(r.origin[0] * buf.w)
     cy = int(r.origin[1] * buf.h)
     length = int(ar.progress * 10 * r.intensity)
     dx = r.data.get("dx", 1)
     for i in range(length):
-        buf.put(cx + i * dx, cy, "~", 0)
+        buf.put(cx + i * dx, cy, "~", cp)
 
 
-def _render_bloom(buf: FrameBuffer, ar: ActiveReaction) -> None:
+def _render_bloom(buf: FrameBuffer, ar: ActiveReaction, cp: int) -> None:
     r = ar.reaction
     cx = int(r.origin[0] * buf.w)
     cy = int(r.origin[1] * buf.h)
@@ -91,10 +99,10 @@ def _render_bloom(buf: FrameBuffer, ar: ActiveReaction) -> None:
     for dy in range(-size, size + 1):
         for dx in range(-size, size + 1):
             if abs(dx) + abs(dy) <= size:
-                buf.put(cx + dx, cy + dy, "❀", 0)
+                buf.put(cx + dx, cy + dy, "❀", cp)
 
 
-def _render_shatter(buf: FrameBuffer, ar: ActiveReaction) -> None:
+def _render_shatter(buf: FrameBuffer, ar: ActiveReaction, cp: int) -> None:
     r = ar.reaction
     cx = int(r.origin[0] * buf.w)
     cy = int(r.origin[1] * buf.h)
@@ -104,10 +112,10 @@ def _render_shatter(buf: FrameBuffer, ar: ActiveReaction) -> None:
         angle = math.tau * i / 8
         x = int(round(cx + math.cos(angle) * spread * 2))
         y = int(round(cy + math.sin(angle) * spread))
-        buf.put(x, y, chars[i % len(chars)], 0)
+        buf.put(x, y, chars[i % len(chars)], cp)
 
 
-def _render_orbit(buf: FrameBuffer, ar: ActiveReaction) -> None:
+def _render_orbit(buf: FrameBuffer, ar: ActiveReaction, cp: int) -> None:
     r = ar.reaction
     cx = int(r.origin[0] * buf.w)
     cy = int(r.origin[1] * buf.h)
@@ -115,10 +123,10 @@ def _render_orbit(buf: FrameBuffer, ar: ActiveReaction) -> None:
     angle = ar.progress * math.tau * 3
     x = int(round(cx + math.cos(angle) * radius * 2))
     y = int(round(cy + math.sin(angle) * radius))
-    buf.put(x, y, "◦", 0)
+    buf.put(x, y, "◦", cp)
 
 
-def _render_gauge(buf: FrameBuffer, ar: ActiveReaction) -> None:
+def _render_gauge(buf: FrameBuffer, ar: ActiveReaction, cp: int) -> None:
     r = ar.reaction
     cx = int(r.origin[0] * buf.w)
     cy = int(r.origin[1] * buf.h)
@@ -126,45 +134,44 @@ def _render_gauge(buf: FrameBuffer, ar: ActiveReaction) -> None:
     filled = int(ar.progress * width)
     for i in range(width):
         ch = "█" if i < filled else "░"
-        buf.put(cx + i, cy, ch, 0)
+        buf.put(cx + i, cy, ch, cp)
 
 
-def _render_spark(buf: FrameBuffer, ar: ActiveReaction) -> None:
+def _render_spark(buf: FrameBuffer, ar: ActiveReaction, cp: int) -> None:
     r = ar.reaction
     cx = int(r.origin[0] * buf.w)
     cy = int(r.origin[1] * buf.h)
     if ar.progress < 0.3:
-        buf.put(cx, cy, "✦", 0)
+        buf.put(cx, cy, "✦", cp)
     else:
-        buf.put(cx, cy, "✧", 0)
+        buf.put(cx, cy, "✧", cp)
 
 
-def _render_wave(buf: FrameBuffer, ar: ActiveReaction) -> None:
-    r = ar.reaction
+def _render_wave(buf: FrameBuffer, ar: ActiveReaction, cp: int) -> None:
     sweep_x = int(ar.progress * buf.w)
     for y in range(buf.h):
-        buf.put(sweep_x, y, "│", 0)
+        buf.put(sweep_x, y, "│", cp)
 
 
-def _render_glyph(buf: FrameBuffer, ar: ActiveReaction) -> None:
+def _render_glyph(buf: FrameBuffer, ar: ActiveReaction, cp: int) -> None:
     r = ar.reaction
     cx = int(r.origin[0] * buf.w)
     cy = int(r.origin[1] * buf.h)
     glyphs = "⟁⟐⟟⟠⟡"
     idx = int(ar.progress * (len(glyphs) - 1))
-    buf.put(cx, cy, glyphs[idx], 0)
+    buf.put(cx, cy, glyphs[idx], cp)
 
 
-def _render_trail(buf: FrameBuffer, ar: ActiveReaction) -> None:
+def _render_trail(buf: FrameBuffer, ar: ActiveReaction, cp: int) -> None:
     r = ar.reaction
     sx = int(r.origin[0] * buf.w)
     sy = int(r.origin[1] * buf.h)
     length = int(ar.progress * 15 * r.intensity)
     for i in range(length):
-        buf.put(sx + i, sy, "─", 0)
+        buf.put(sx + i, sy, "─", cp)
 
 
-def _render_constellation(buf: FrameBuffer, ar: ActiveReaction) -> None:
+def _render_constellation(buf: FrameBuffer, ar: ActiveReaction, cp: int) -> None:
     r = ar.reaction
     cx = int(r.origin[0] * buf.w)
     cy = int(r.origin[1] * buf.h)
@@ -174,7 +181,7 @@ def _render_constellation(buf: FrameBuffer, ar: ActiveReaction) -> None:
         radius = 4 * r.intensity
         x = int(round(cx + math.cos(angle) * radius * 2))
         y = int(round(cy + math.sin(angle) * radius))
-        buf.put(x, y, "•", 0)
+        buf.put(x, y, "•", cp)
 
 
 _ELEMENT_RENDERERS = {
@@ -213,13 +220,20 @@ class ReactiveRenderer:
         self._active.append(ar)
         return ar
 
-    def step_and_render(self, buf: FrameBuffer) -> None:
-        """Advance one frame: prune expired, render all active reactions."""
+    def step_and_render(self, buf: FrameBuffer,
+                        color_pairs: Optional[dict] = None) -> None:
+        """Advance one frame: prune expired, render all active reactions.
+
+        color_pairs: mapping of color key names → curses color pair ints.
+        If provided, each reaction's color_key is resolved to a pair int;
+        otherwise falls back to 0 (default terminal color).
+        """
         self._prune()
         for ar in self._active:
             renderer = _ELEMENT_RENDERERS.get(ar.reaction.element)
             if renderer:
-                renderer(buf, ar)
+                cp = _resolve_color(ar, color_pairs or {})
+                renderer(buf, ar, cp)
 
     def _prune(self) -> None:
         self._active = [ar for ar in self._active if ar.alive]
