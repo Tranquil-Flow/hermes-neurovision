@@ -60,7 +60,8 @@ class Renderer:
             except curses.error:
                 pass
 
-    def draw(self, state: "ThemeState", gallery_index: int, gallery_total: int, end_time: Optional[float]) -> None:
+    def draw(self, state: "ThemeState", gallery_index: int, gallery_total: int,
+             end_time: Optional[float], hide_hud: bool = False) -> None:
         stdscr = self.stdscr
         h, w = stdscr.getmaxyx()
         state.resize(w, h)
@@ -81,8 +82,22 @@ class Renderer:
         self._draw_particles(state)
         if not tune or tune.show_background:
             state.plugin.draw_extras(stdscr, state, self.color_pairs)
-        self._draw_overlay(state, gallery_index, gallery_total, end_time)
+        if hide_hud:
+            self._draw_hide_hint(h, w)
+        else:
+            self._draw_overlay(state, gallery_index, gallery_total, end_time)
         stdscr.refresh()
+
+    def _draw_hide_hint(self, h: int, w: int) -> None:
+        """Draw minimal unhide reminder in bottom-right corner."""
+        hint = " [h] show HUD "
+        try:
+            self.stdscr.addstr(
+                h - 1, max(0, w - len(hint) - 1), hint,
+                curses.color_pair(self.color_pairs["soft"]) | curses.A_DIM
+            )
+        except curses.error:
+            pass
 
     def _draw_stars(self, state: "ThemeState") -> None:
         plugin = state.plugin

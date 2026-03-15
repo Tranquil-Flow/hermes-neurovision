@@ -11,6 +11,8 @@ from hermes_neurovision.scene import ThemeState
 from hermes_neurovision.renderer import Renderer
 from hermes_neurovision.tune import TuneSettings, TuneOverlay
 from hermes_neurovision.debug_panel import DebugPanel
+from hermes_neurovision.command_menu import CommandMenu
+from hermes_neurovision.theme_editor import ThemeEditor, apply_custom_overrides
 
 
 class GalleryApp:
@@ -26,17 +28,30 @@ class GalleryApp:
         self.paused = False
         self.locked = False
         self.quiet = False
+        self.hide_hud = False
         self.selected_theme = None
         self.tune = TuneSettings()
         self.tune_overlay = TuneOverlay(self.tune)
         self.debug_panel = DebugPanel()
+        self.command_menu = CommandMenu()
+        self.theme_editor = ThemeEditor()
         self._escape_buf = ""
         self.state = self._make_state(self.themes[self.theme_index])
         self.switch_at = time.time() + self.theme_seconds if len(self.themes) > 1 else float("inf")
+        self._configure_menu()
+
+    def _configure_menu(self) -> None:
+        self.command_menu.configure(
+            "gallery",
+            quiet=lambda: self.quiet,
+            include_legacy=lambda: self.include_legacy,
+        )
 
     def _make_state(self, theme_name: str) -> ThemeState:
         h, w = self.stdscr.getmaxyx()
-        state = ThemeState(build_theme_config(theme_name), w, h, seed=(hash(theme_name) & 0xFFFF), quiet=self.quiet)
+        config = build_theme_config(theme_name)
+        config = apply_custom_overrides(config)
+        state = ThemeState(config, w, h, seed=(hash(theme_name) & 0xFFFF), quiet=self.quiet)
         state.tune = self.tune
         return state
 
@@ -52,6 +67,7 @@ class GalleryApp:
                 break
 
             self._handle_input()
+            self._process_menu_action()
             if not self.paused:
                 self.state.step()
                 if len(self.themes) > 1 and not self.locked and now >= self.switch_at:
@@ -64,7 +80,16 @@ class GalleryApp:
         """Draw scene with lock and selection indicators."""
         h, w = self.stdscr.getmaxyx()
         self.renderer.draw(self.state, self.theme_index, len(self.themes),
-                          time.time() + (self.end_after or 0) if self.end_after else None)
+                          time.time() + (self.end_after or 0) if self.end_after else None,
+                          hide_hud=self.hide_hud)
+
+        # When HUD is hidden, skip all overlays except command menu
+        if self.hide_hud:
+            if self.command_menu.active:
+                self.command_menu.draw(self.stdscr, self.renderer.color_pairs)
+            if self.theme_editor.active:
+                self.theme_editor.draw(self.stdscr, self.renderer.color_pairs)
+            return
 
         # Top-right: LOCKED indicator
         if self.locked:
@@ -83,18 +108,24 @@ class GalleryApp:
             except curses.error:
                 pass
 
-        # Draw overlays
-        if self.tune_overlay.active:
+        # Draw overlays (command menu supersedes others when active)
+        if self.command_menu.active:
+            self.command_menu.draw(self.stdscr, self.renderer.color_pairs)
+        elif self.theme_editor.active:
+            self.theme_editor.draw(self.stdscr, self.renderer.color_pairs)
+        elif self.tune_overlay.active:
             self.tune_overlay.draw(self.stdscr, self.renderer.color_pairs)
-        if self.debug_panel.visible:
+
+        if self.debug_panel.visible and not self.command_menu.active:
             self.debug_panel.draw(self.stdscr, self.state, self.renderer.color_pairs)
 
         # Bottom: single consolidated footer with all hints
         tuned_flag = " [TUNED]" if not self.tune.is_default() else ""
         quiet_flag = " [QUIET]" if self.quiet else ""
         legacy_flag = " [+LEGACY]" if self.include_legacy else ""
+        hide_flag = " [HIDDEN]" if self.hide_hud else ""
         # Left side: navigation + controls
-        left = f" theme {self.theme_index + 1}/{len(self.themes)}{quiet_flag}{legacy_flag}{tuned_flag} | Q quit  ←/→ nav  q quiet  L legacy  t tune  space pause"
+        left = f" theme {self.theme_index + 1}/{len(self.themes)}{quiet_flag}{legacy_flag}{tuned_flag} | Q quit  ←/→ nav  m menu  h hide  space pause"
         # Right side: selection hints
         right = "enter lock  s use theme "
         gap = w - len(left) - len(right) - 1
@@ -122,6 +153,72 @@ class GalleryApp:
                 return
             self._handle_key(ch)
 
+    def _process_menu_action(self) -> None:
+        """Check for and execute any pending command menu action."""
+        action = self.command_menu.pop_action()
+        if action is None:
+            return
+
+        if action == "quit":
+            raise SystemExit(0)
+        elif action == "theme_editor":
+            self.command_menu.close()
+            self.theme_editor.open(self.state.config)
+        elif action == "tune":
+            self.command_menu.close()
+            self.tune_overlay.active = True
+        elif action == "debug":
+            self.command_menu.close()
+            self.debug_panel.toggle()
+        elif action == "toggle_quiet":
+            self.quiet = not self.quiet
+            self.state.quiet = self.quiet
+            self._configure_menu()
+        elif action == "toggle_legacy":
+            self.include_legacy = not self.include_legacy
+            self.themes = self._base_themes + (list(LEGACY_THEMES) if self.include_legacy else [])
+            self.theme_index = 0
+            self.state = self._make_state(self.themes[self.theme_index])
+            self.switch_at = time.time() + self.theme_seconds
+            self._configure_menu()
+        elif action == "disable_theme":
+            from hermes_neurovision.disabled import add_disabled
+            current = self.themes[self.theme_index]
+            add_disabled(current)
+            self.themes = [t for t in self.themes if t != current]
+            if not self.themes:
+                from hermes_neurovision.themes import THEMES as _ALL
+                self.themes = list(_ALL)
+            self.theme_index = self.theme_index % len(self.themes)
+            self.state = self._make_state(self.themes[self.theme_index])
+            self.switch_at = time.time() + self.theme_seconds
+        elif action == "hide":
+            self.hide_hud = True
+            self.command_menu.close()
+        elif action == "export_theme":
+            self._do_export()
+            self.command_menu.close()
+        elif action == "import_theme":
+            self._do_import()
+            self.command_menu.close()
+
+    def _do_export(self) -> None:
+        """Export current theme to .hvtheme file."""
+        try:
+            from hermes_neurovision.export import export_theme
+            theme_name = self.themes[self.theme_index]
+            export_theme(theme_name)
+        except Exception:
+            pass
+
+    def _do_import(self) -> None:
+        """Import themes from default import directory."""
+        try:
+            from hermes_neurovision.import_theme import scan_and_import
+            scan_and_import()
+        except Exception:
+            pass
+
     def _handle_key(self, ch: int) -> None:
         """Process a single key code. Handles escape sequences internally."""
         # Escape sequence buffering for Shift+Arrow terminals
@@ -142,12 +239,43 @@ class GalleryApp:
 
         if ch == ord("Q"):
             raise SystemExit(0)
+
+        # Command menu takes priority
+        if self.command_menu.active:
+            self.command_menu.handle_key(ch)
+            return
+
+        # Theme editor takes priority
+        if self.theme_editor.active:
+            self.theme_editor.handle_key(ch)
+            return
+
+        # Tune overlay
         if self.tune_overlay.active:
             if self.tune_overlay.handle_key(ch):
                 return
-        elif ch == ord("t"):
+
+        # Toggle hide mode
+        if ch == ord("h"):
+            self.hide_hud = not self.hide_hud
+            return
+
+        # Open command menu
+        if ch == ord("m"):
+            self._configure_menu()
+            self.command_menu.open()
+            return
+
+        # Open theme editor directly
+        if ch == ord("e"):
+            self.theme_editor.open(self.state.config)
+            return
+
+        # Open tune overlay
+        if ch == ord("t"):
             self.tune_overlay.active = True
             return
+
         if ch == ord("d"):
             self.debug_panel.toggle()
             return
@@ -217,16 +345,28 @@ class LiveApp:
         self.log_overlay = log_overlay
         self.show_logs = show_logs
         self.end_after = end_after
+        self.hide_hud = False
         self.renderer = Renderer(stdscr)
         h, w = stdscr.getmaxyx()
         self.tune = TuneSettings()
         self.tune_overlay = TuneOverlay(self.tune)
         self.debug_panel = DebugPanel()
-        self.state = ThemeState(build_theme_config(theme_name), w, h, seed=hash(theme_name) & 0xFFFF, quiet=quiet)
+        self.command_menu = CommandMenu()
+        self.theme_editor = ThemeEditor()
+        config = build_theme_config(theme_name)
+        config = apply_custom_overrides(config)
+        self.state = ThemeState(config, w, h, seed=hash(theme_name) & 0xFFFF, quiet=quiet)
         self.state.tune = self.tune
         self._last_event_time = time.time()
         self._idle_threshold = 10.0
         self._poll_counter = 0
+        self._configure_menu()
+
+    def _configure_menu(self) -> None:
+        self.command_menu.configure(
+            "live",
+            show_logs=lambda: self.show_logs,
+        )
 
     def run(self) -> None:
         curses.curs_set(0)
@@ -239,6 +379,7 @@ class LiveApp:
                 break
 
             self._handle_input()
+            self._process_menu_action()
             self.state.step()
 
             # Poll every ~5 frames (0.25 seconds at 50ms/frame)
@@ -260,18 +401,28 @@ class LiveApp:
             # Idle fallback — generative mode kicks in
             # (already handled by scene.py's normal step())
 
-            self.renderer.draw(self.state, 0, 1, deadline)
+            self.renderer.draw(self.state, 0, 1, deadline, hide_hud=self.hide_hud)
 
-            # Draw log overlay if enabled
-            if self.show_logs:
+            # Draw log overlay if enabled (but not when HUD hidden or menu active)
+            if self.show_logs and not self.hide_hud and not self.command_menu.active:
                 self._draw_logs(now)
-                # Draw status indicator
                 self._draw_status_indicator()
 
-            if self.tune_overlay.active:
-                self.tune_overlay.draw(self.stdscr, self.renderer.color_pairs)
-            if self.debug_panel.visible:
-                self.debug_panel.draw(self.stdscr, self.state, self.renderer.color_pairs)
+            # Overlays — command menu supersedes logs and other overlays
+            if self.hide_hud:
+                if self.command_menu.active:
+                    self.command_menu.draw(self.stdscr, self.renderer.color_pairs)
+                if self.theme_editor.active:
+                    self.theme_editor.draw(self.stdscr, self.renderer.color_pairs)
+            else:
+                if self.command_menu.active:
+                    self.command_menu.draw(self.stdscr, self.renderer.color_pairs)
+                elif self.theme_editor.active:
+                    self.theme_editor.draw(self.stdscr, self.renderer.color_pairs)
+                elif self.tune_overlay.active:
+                    self.tune_overlay.draw(self.stdscr, self.renderer.color_pairs)
+                if self.debug_panel.visible and not self.command_menu.active:
+                    self.debug_panel.draw(self.stdscr, self.state, self.renderer.color_pairs)
 
             self.stdscr.refresh()
             time.sleep(FRAME_DELAY / max(0.1, self.tune.animation_speed))
@@ -306,23 +457,92 @@ class LiveApp:
         except curses.error:
             pass
 
+    def _process_menu_action(self) -> None:
+        """Check for and execute any pending command menu action."""
+        action = self.command_menu.pop_action()
+        if action is None:
+            return
+
+        if action == "quit":
+            raise SystemExit(0)
+        elif action == "theme_editor":
+            self.command_menu.close()
+            self.theme_editor.open(self.state.config)
+        elif action == "tune":
+            self.command_menu.close()
+            self.tune_overlay.active = True
+        elif action == "debug":
+            self.command_menu.close()
+            self.debug_panel.toggle()
+        elif action == "toggle_logs":
+            self.show_logs = not self.show_logs
+            self._configure_menu()
+        elif action == "hide":
+            self.hide_hud = True
+            self.command_menu.close()
+        elif action == "export_theme":
+            try:
+                from hermes_neurovision.export import export_theme
+                export_theme(self.theme_name)
+            except Exception:
+                pass
+            self.command_menu.close()
+        elif action == "import_theme":
+            try:
+                from hermes_neurovision.import_theme import scan_and_import
+                scan_and_import()
+            except Exception:
+                pass
+            self.command_menu.close()
+
     def _handle_input(self) -> None:
         while True:
             ch = self.stdscr.getch()
             if ch == -1:
                 return
-            if ch in (ord("q"), ord("Q")):
+
+            if ch in (ord("Q"),):
                 raise SystemExit(0)
+
+            # Command menu takes priority
+            if self.command_menu.active:
+                self.command_menu.handle_key(ch)
+                continue
+
+            # Theme editor takes priority
+            if self.theme_editor.active:
+                self.theme_editor.handle_key(ch)
+                continue
+
+            # Tune overlay
             if self.tune_overlay.active:
                 if self.tune_overlay.handle_key(ch):
                     continue
-            elif ch == ord("t"):
+
+            # Toggle hide
+            if ch == ord("h"):
+                self.hide_hud = not self.hide_hud
+                continue
+
+            # Open menu
+            if ch == ord("m"):
+                self._configure_menu()
+                self.command_menu.open()
+                continue
+
+            # Direct shortcuts
+            if ch == ord("e"):
+                self.theme_editor.open(self.state.config)
+                continue
+            if ch == ord("t"):
                 self.tune_overlay.active = True
                 continue
             if ch == ord("d"):
                 self.debug_panel.toggle()
             if ch == ord("l"):
                 self.show_logs = not self.show_logs
+            if ch == ord("q"):
+                raise SystemExit(0)
             if ch == ord(" "):
                 pass  # pause not yet wired
 
@@ -339,32 +559,54 @@ class DaemonApp:
         self.log_overlay = log_overlay
         self.show_logs = show_logs
         self.quiet = quiet
+        self.hide_hud = False
         self.renderer = Renderer(stdscr)
-        
+        self.command_menu = CommandMenu()
+        self.theme_editor = ThemeEditor()
+        self.tune = TuneSettings()
+        self.tune_overlay = TuneOverlay(self.tune)
+        self.debug_panel = DebugPanel()
+
         # Gallery state
         self.theme_index = 0
         self.selected_theme_name = themes[0] if themes else "neural-sky"
-        
+
         # Mode tracking
         self.mode = "gallery"  # "gallery" or "live"
         self.last_event_time: Optional[float] = None
         self.idle_threshold = 30.0  # seconds to wait before returning to gallery
         self.transition_alpha = 0.0  # for visual transitions
-        
+
         # Initialize with gallery state
         self.gallery_state = self._make_gallery_state(self.themes[self.theme_index])
         self.live_state: Optional[ThemeState] = None
         self.switch_at = time.time() + self.theme_seconds if len(self.themes) > 1 else float("inf")
-        
+
         self._poll_counter = 0
+        self._configure_menu()
+
+    def _configure_menu(self) -> None:
+        self.command_menu.configure(
+            "daemon",
+            show_logs=lambda: self.show_logs,
+            quiet=lambda: self.quiet,
+        )
 
     def _make_gallery_state(self, theme_name: str) -> ThemeState:
         h, w = self.stdscr.getmaxyx()
-        return ThemeState(build_theme_config(theme_name), w, h, seed=(hash(theme_name) & 0xFFFF), quiet=False)
+        config = build_theme_config(theme_name)
+        config = apply_custom_overrides(config)
+        state = ThemeState(config, w, h, seed=(hash(theme_name) & 0xFFFF), quiet=False)
+        state.tune = self.tune
+        return state
 
     def _make_live_state(self) -> ThemeState:
         h, w = self.stdscr.getmaxyx()
-        return ThemeState(build_theme_config(self.selected_theme_name), w, h, seed=hash(self.selected_theme_name) & 0xFFFF, quiet=self.quiet)
+        config = build_theme_config(self.selected_theme_name)
+        config = apply_custom_overrides(config)
+        state = ThemeState(config, w, h, seed=hash(self.selected_theme_name) & 0xFFFF, quiet=self.quiet)
+        state.tune = self.tune
+        return state
 
     def run(self) -> None:
         curses.curs_set(0)
@@ -373,49 +615,52 @@ class DaemonApp:
         while True:
             now = time.time()
             self._handle_input()
-            
-            # Poll for events every ~20 frames (1 second)
+            self._process_menu_action()
+
+            # Poll for events every ~5 frames
             self._poll_counter += 1
             if self._poll_counter >= 5:
                 self._poll_counter = 0
                 events = self.poller.poll()
-                
+
                 if events:
                     # Transition to live mode on first event
                     if self.mode == "gallery":
                         self._transition_to_live()
-                    
+
                     self.last_event_time = now
-                    
+
                     # Apply events to live state
                     for ev in events:
                         triggers = self.bridge.translate(ev)
                         for trigger in triggers:
                             if self.live_state:
                                 self.live_state.apply_trigger(trigger)
+                            self.debug_panel.record_trigger(trigger, source_event=ev)
+                        self.debug_panel.record_event(ev)
                         if self.show_logs:
                             self.log_overlay.add_event(ev)
-            
+
             # Check idle timeout
             if self.mode == "live" and self.last_event_time is not None:
                 idle_time = now - self.last_event_time
                 if idle_time >= self.idle_threshold:
                     self._transition_to_gallery()
-            
+
             # Step the appropriate state
             if self.mode == "gallery":
                 self.gallery_state.step()
                 # Auto-advance themes in gallery mode
                 if len(self.themes) > 1 and now >= self.switch_at:
                     self._advance_theme(1)
-                self._draw_gallery()
+                self._draw_gallery(now)
             else:  # live mode
                 if self.live_state:
                     self.live_state.step()
                 self._draw_live(now)
-            
+
             self.stdscr.refresh()
-            time.sleep(FRAME_DELAY)
+            time.sleep(FRAME_DELAY / max(0.1, self.tune.animation_speed))
 
     def _transition_to_live(self) -> None:
         """Transition from gallery to live mode."""
@@ -424,6 +669,7 @@ class DaemonApp:
         self.selected_theme_name = self.themes[self.theme_index]
         self.live_state = self._make_live_state()
         self.last_event_time = time.time()
+        self._configure_menu()
 
     def _transition_to_gallery(self) -> None:
         """Transition from live to gallery mode."""
@@ -432,6 +678,7 @@ class DaemonApp:
         # Reset gallery state to current theme
         self.gallery_state = self._make_gallery_state(self.themes[self.theme_index])
         self.switch_at = time.time() + self.theme_seconds if len(self.themes) > 1 else float("inf")
+        self._configure_menu()
 
     def _advance_theme(self, direction: int) -> None:
         """Advance to next/previous theme in gallery mode."""
@@ -439,11 +686,22 @@ class DaemonApp:
         self.gallery_state = self._make_gallery_state(self.themes[self.theme_index])
         self.switch_at = time.time() + self.theme_seconds
 
-    def _draw_gallery(self) -> None:
+    def _current_state(self) -> ThemeState:
+        """Return the currently active state (gallery or live)."""
+        if self.mode == "live" and self.live_state:
+            return self.live_state
+        return self.gallery_state
+
+    def _draw_gallery(self, now: float) -> None:
         """Draw gallery mode with indicator."""
         h, w = self.stdscr.getmaxyx()
-        self.renderer.draw(self.gallery_state, self.theme_index, len(self.themes), None)
-        
+        self.renderer.draw(self.gallery_state, self.theme_index, len(self.themes), None,
+                          hide_hud=self.hide_hud)
+
+        if self.hide_hud:
+            self._draw_modals()
+            return
+
         # Draw mode indicator
         mode_text = " DAEMON: gallery "
         try:
@@ -451,22 +709,55 @@ class DaemonApp:
         except curses.error:
             pass
 
+        # Footer
+        footer = f" theme {self.theme_index + 1}/{len(self.themes)} | Q quit  ←/→ nav  m menu  h hide"
+        try:
+            self.stdscr.addstr(h - 1, 1, footer[:max(0, w - 2)], curses.color_pair(2) | curses.A_DIM)
+        except curses.error:
+            pass
+
+        self._draw_modals()
+
     def _draw_live(self, now: float) -> None:
         """Draw live mode with indicator and optional logs."""
         h, w = self.stdscr.getmaxyx()
         if self.live_state:
-            self.renderer.draw(self.live_state, 0, 1, None)
-        
+            self.renderer.draw(self.live_state, 0, 1, None, hide_hud=self.hide_hud)
+
+        if self.hide_hud:
+            self._draw_modals()
+            return
+
         # Draw mode indicator
         mode_text = " DAEMON: live "
         try:
             self.stdscr.addstr(0, w - len(mode_text) - 1, mode_text, curses.color_pair(5) | curses.A_BOLD)
         except curses.error:
             pass
-        
-        # Draw log overlay if enabled
-        if self.show_logs:
+
+        # Draw log overlay if enabled (but not when menu is open — menu supersedes)
+        if self.show_logs and not self.command_menu.active:
             self._draw_logs(now)
+
+        # Footer
+        footer = f" Q quit  m menu  h hide  l logs  e editor"
+        try:
+            self.stdscr.addstr(h - 1, 1, footer[:max(0, w - 2)], curses.color_pair(2) | curses.A_DIM)
+        except curses.error:
+            pass
+
+        self._draw_modals()
+
+    def _draw_modals(self) -> None:
+        """Draw modal overlays (menu supersedes others)."""
+        if self.command_menu.active:
+            self.command_menu.draw(self.stdscr, self.renderer.color_pairs)
+        elif self.theme_editor.active:
+            self.theme_editor.draw(self.stdscr, self.renderer.color_pairs)
+        elif self.tune_overlay.active:
+            self.tune_overlay.draw(self.stdscr, self.renderer.color_pairs)
+        if self.debug_panel.visible and not self.command_menu.active:
+            self.debug_panel.draw(self.stdscr, self._current_state(), self.renderer.color_pairs)
 
     def _draw_logs(self, now: float) -> None:
         """Draw log overlay (same as LiveApp)."""
@@ -490,20 +781,106 @@ class DaemonApp:
             except curses.error:
                 pass
 
+    def _process_menu_action(self) -> None:
+        """Check for and execute any pending command menu action."""
+        action = self.command_menu.pop_action()
+        if action is None:
+            return
+
+        current_state = self._current_state()
+
+        if action == "quit":
+            raise SystemExit(0)
+        elif action == "theme_editor":
+            self.command_menu.close()
+            self.theme_editor.open(current_state.config)
+        elif action == "tune":
+            self.command_menu.close()
+            self.tune_overlay.active = True
+        elif action == "debug":
+            self.command_menu.close()
+            self.debug_panel.toggle()
+        elif action == "toggle_logs":
+            self.show_logs = not self.show_logs
+            self._configure_menu()
+        elif action == "toggle_quiet":
+            self.quiet = not self.quiet
+            if self.gallery_state:
+                self.gallery_state.quiet = self.quiet
+            if self.live_state:
+                self.live_state.quiet = self.quiet
+            self._configure_menu()
+        elif action == "hide":
+            self.hide_hud = True
+            self.command_menu.close()
+        elif action == "export_theme":
+            try:
+                from hermes_neurovision.export import export_theme
+                theme_name = self.themes[self.theme_index]
+                export_theme(theme_name)
+            except Exception:
+                pass
+            self.command_menu.close()
+        elif action == "import_theme":
+            try:
+                from hermes_neurovision.import_theme import scan_and_import
+                scan_and_import()
+            except Exception:
+                pass
+            self.command_menu.close()
+
     def _handle_input(self) -> None:
         """Handle keyboard input."""
         while True:
             ch = self.stdscr.getch()
             if ch == -1:
                 return
+
             if ch == ord("Q"):
                 raise SystemExit(0)
-            elif ch == ord("q"):
+
+            # Command menu takes priority
+            if self.command_menu.active:
+                self.command_menu.handle_key(ch)
+                continue
+
+            # Theme editor takes priority
+            if self.theme_editor.active:
+                self.theme_editor.handle_key(ch)
+                continue
+
+            # Tune overlay
+            if self.tune_overlay.active:
+                if self.tune_overlay.handle_key(ch):
+                    continue
+
+            # Toggle hide
+            if ch == ord("h"):
+                self.hide_hud = not self.hide_hud
+                continue
+
+            # Open menu
+            if ch == ord("m"):
+                self._configure_menu()
+                self.command_menu.open()
+                continue
+
+            # Direct shortcuts
+            if ch == ord("e"):
+                self.theme_editor.open(self._current_state().config)
+                continue
+            if ch == ord("t"):
+                self.tune_overlay.active = True
+                continue
+
+            if ch == ord("q"):
                 self.quiet = not self.quiet
                 if self.gallery_state:
                     self.gallery_state.quiet = self.quiet
                 if self.live_state:
                     self.live_state.quiet = self.quiet
+            if ch == ord("d"):
+                self.debug_panel.toggle()
             if ch == ord("l"):
                 self.show_logs = not self.show_logs
             if self.mode == "gallery":
