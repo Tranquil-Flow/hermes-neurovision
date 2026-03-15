@@ -8,7 +8,7 @@ import json
 import os
 import sys
 
-from hermes_neurovision.themes import THEMES, DEFAULT_THEME_SECONDS
+from hermes_neurovision.themes import THEMES, LEGACY_THEMES, DEFAULT_THEME_SECONDS
 
 _CONFIG_PATH = os.path.expanduser("~/.hermes/neurovision/config.json")
 
@@ -68,6 +68,8 @@ def parse_args(argv=None):
     parser.add_argument("--trust", action="store_true", help="Trust custom plugins without confirmation")
     parser.add_argument("--list-themes", action="store_true", help="List all imported themes")
     parser.add_argument("--custom-only", action="store_true", help="Show only custom/imported themes")
+    parser.add_argument("--include-legacy", action="store_true", help="Include legacy themes in gallery rotation")
+    parser.add_argument("--list-legacy", action="store_true", help="List all legacy theme names and exit")
 
     return parser.parse_args(argv)
 
@@ -132,6 +134,14 @@ def main(argv=None):
             print(f"✗ Import failed: {e}")
             sys.exit(1)
     
+    # Handle list-legacy
+    if args.list_legacy:
+        from hermes_neurovision.themes import build_theme_config
+        for name in LEGACY_THEMES:
+            config = build_theme_config(name)
+            print(f"{name}: {config.title}")
+        sys.exit(0)
+
     # Handle list
     if args.list_themes:
         from hermes_neurovision.import_theme import list_themes
@@ -139,33 +149,36 @@ def main(argv=None):
         return
 
     if args.gallery:
-        _run_gallery(args)
+        _run_gallery(args, include_legacy=args.include_legacy)
     elif args.daemon:
         _run_daemon(args)
     else:
         _run_live(args)  # --live is the default
 
 
-def _run_gallery(args):
+def _run_gallery(args, include_legacy=False):
     from hermes_neurovision.app import GalleryApp
+
+    base_themes = list(THEMES) + (list(LEGACY_THEMES) if include_legacy else [])
 
     if not sys.stdin.isatty() or not sys.stdout.isatty():
         # Headless mode
         result = GalleryApp.run_headless(
-            themes=[args.theme] if args.theme != "neural-sky" or not args.gallery else list(THEMES),
+            themes=[args.theme] if args.theme != "neural-sky" or not args.gallery else base_themes,
             seconds=args.seconds or 2.0,
             theme_seconds=args.theme_seconds,
         )
         print(f"headless: {result}")
         return
 
-    themes = list(THEMES) if args.gallery else [args.theme]
-    
+    themes = base_themes if args.gallery else [args.theme]
+
     # Run gallery and check if a theme was selected
     gallery_app = None
     def run_gallery_wrapper(stdscr):
         nonlocal gallery_app
-        gallery_app = GalleryApp(stdscr, themes, args.theme_seconds, args.seconds)
+        gallery_app = GalleryApp(stdscr, themes, args.theme_seconds, args.seconds,
+                                 include_legacy=include_legacy)
         gallery_app.run()
     
     try:
