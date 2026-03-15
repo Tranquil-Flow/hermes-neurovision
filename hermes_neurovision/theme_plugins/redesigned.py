@@ -7,8 +7,15 @@ import math
 import random
 from typing import List, Optional, Tuple
 
-from hermes_neurovision.plugin import ThemePlugin
+from hermes_neurovision.plugin import ThemePlugin, Reaction, ReactiveElement, SpecialEffect
 from hermes_neurovision.theme_plugins import register
+
+
+def _safe(stdscr, y: int, x: int, ch: str, attr: int = 0) -> None:
+    try:
+        stdscr.addstr(y, x, ch, attr)
+    except curses.error:
+        pass
 
 
 # ── Starfall v2: 3D perspective starfield ─────────────────────────────────────
@@ -264,12 +271,267 @@ class QuasarV2Plugin(ThemePlugin):
 # ── Supernova v2: Periodic explosion cycle ────────────────────────────────────
 
 class SupernovaV2Plugin(ThemePlugin):
-    """Periodic explosion cycle — implosion, shockwave, nebula, fade."""
+    """Periodic explosion cycle — implosion, shockwave, nebula, fade.
+
+    v0.2: neural_field emergent (stellar plasma), warp_field (spacetime distortion),
+    echo_decay (blast afterimages), force_points (blast pressure), full reactive
+    event system (agent_start triggers detonation), palette_shift (phases shift hue),
+    special_effects (cataclysm mode), intensity_curve (threshold ignition).
+    """
     name = "supernova"
+
+    # Phase durations (sum = 600)
+    _PHASE_IMPLODE  = 100   # 0   – 99:  core collapse / implosion
+    _PHASE_BLAST    = 250   # 100 – 349: shockwave ring
+    _PHASE_NEBULA   = 200   # 350 – 549: nebula expansion
+    _PHASE_FADE     = 50    # 550 – 599: remnant wisps
+    _CYCLE          = 600
+
+    def __init__(self):
+        super().__init__()
+        # Forced phase-skip: when agent_start fires we jump straight to blast
+        self._force_phase: Optional[int] = None
 
     def build_nodes(self, w, h, cx, cy, count, rng):
         return []
 
+    # ── v0.2: Emergent ────────────────────────────────────────────────────────
+    def neural_field_config(self):
+        # Stellar plasma: fast-firing, short refractory — creates crackling texture
+        return {"threshold": 2, "fire_duration": 2, "refractory": 3}
+
+    def emergent_layer(self):
+        return "background"
+
+    # ── v0.2: Post-FX ─────────────────────────────────────────────────────────
+    def warp_field(self, x, y, w, h, frame, intensity):
+        # Spacetime curvature — gravity well at centre distorts surrounding space.
+        # Strongest during implosion, fades away during nebula phase.
+        phase = frame % self._CYCLE
+        if phase >= self._PHASE_IMPLODE + self._PHASE_BLAST:
+            return (x, y)   # nebula/fade: no warp
+        cx, cy = w / 2.0, h / 2.0
+        nx = (x - cx) / max(cx, 1.0)
+        ny = (y - cy) / max(cy, 1.0)
+        dist = math.sqrt(nx * nx + ny * ny * 2.0) + 0.001
+        # Implode: inward pull; blast: outward push
+        if phase < self._PHASE_IMPLODE:
+            t = phase / self._PHASE_IMPLODE
+            strength = intensity * 2.5 * (1.0 - t)   # fades as core ignites
+            pull = -strength / dist                   # inward
+        else:
+            t = (phase - self._PHASE_IMPLODE) / self._PHASE_BLAST
+            strength = intensity * 3.0 * math.exp(-t * 2.5)   # sharp blast, decays fast
+            pull = strength / dist                    # outward
+        wx = int(pull * nx * 0.5)
+        wy = int(pull * ny * 0.5)
+        return (max(0, min(w - 1, x + wx)), max(0, min(h - 1, y + wy)))
+
+    def echo_decay(self):
+        # Blast rings leave burning afterimages for 5 frames
+        return 5
+
+    def glow_radius(self):
+        # Shockwave front glows
+        return 2
+
+    def force_points(self, w, h, frame, intensity):
+        # During blast phase: radial pressure wave pushes outward from centre.
+        phase = frame % self._CYCLE
+        if self._PHASE_IMPLODE <= phase < self._PHASE_IMPLODE + self._PHASE_BLAST:
+            t = (phase - self._PHASE_IMPLODE) / self._PHASE_BLAST
+            strength = intensity * 1.5 * math.exp(-t * 3.0)
+            return [{"x": w // 2, "y": h // 2, "strength": strength, "type": "radial"}]
+        return []
+
+    # ── v0.2: Intensity curve ─────────────────────────────────────────────────
+    def intensity_curve(self, raw):
+        # Hard threshold: below 0.25 the star is dormant; above it ignites fast
+        if raw < 0.25:
+            return raw * 0.4
+        return 0.1 + 0.9 * ((raw - 0.25) / 0.75) ** 0.7
+
+    # ── v0.2: Reactive ────────────────────────────────────────────────────────
+    def react(self, event_kind, data):
+        # Agent start: the star ignites — jump straight to blast
+        if event_kind == "agent_start":
+            self._force_phase = self._PHASE_IMPLODE  # skip to shockwave
+            return Reaction(
+                element=ReactiveElement.PULSE,
+                intensity=1.0,
+                origin=(0.5, 0.5),
+                color_key="bright",
+                duration=2.5,
+            )
+        # LLM generating: pre-ignition stellar accretion — STREAM from edge
+        if event_kind == "llm_start":
+            return Reaction(
+                element=ReactiveElement.STREAM,
+                intensity=0.8,
+                origin=(0.0, 0.5),
+                color_key="accent",
+                duration=2.5,
+            )
+        # Each token: photon ejection — SPARK at random sky position
+        if event_kind == "llm_chunk":
+            return Reaction(
+                element=ReactiveElement.SPARK,
+                intensity=0.35,
+                origin=(random.random(), random.random()),
+                color_key="soft",
+                duration=0.5,
+            )
+        # LLM end: emission line fades — soft RIPPLE
+        if event_kind == "llm_end":
+            return Reaction(
+                element=ReactiveElement.RIPPLE,
+                intensity=0.5,
+                origin=(0.5, 0.5),
+                color_key="soft",
+                duration=1.5,
+            )
+        # Tool call: instrument measuring the explosion — RIPPLE at field position
+        if event_kind in ("tool_call", "mcp_tool_call"):
+            return Reaction(
+                element=ReactiveElement.RIPPLE,
+                intensity=0.75,
+                origin=(random.random(), random.random()),
+                color_key="accent",
+                duration=1.8,
+            )
+        # Memory/skill: heavy element synthesis — BLOOM (nucleosynthesis burst)
+        if event_kind in ("memory_save", "skill_create"):
+            return Reaction(
+                element=ReactiveElement.BLOOM,
+                intensity=1.0,
+                origin=(0.5, 0.5),
+                color_key="bright",
+                duration=3.0,
+            )
+        # Error/crash: stellar instability — SHATTER + trigger cataclysm phase-skip
+        if event_kind in ("error", "crash"):
+            self._force_phase = self._PHASE_IMPLODE
+            return Reaction(
+                element=ReactiveElement.SHATTER,
+                intensity=1.0,
+                origin=(0.5, 0.5),
+                color_key="warning",
+                duration=2.5,
+            )
+        # Compression: stellar compression event — WAVE sweeping inward
+        if event_kind in ("compression_started", "checkpoint_rollback"):
+            return Reaction(
+                element=ReactiveElement.WAVE,
+                intensity=0.9,
+                origin=(1.0, 0.5),
+                color_key="accent",
+                duration=2.0,
+            )
+        # Cron/background: pulsar timing signal — ORBIT
+        if event_kind in ("cron_tick", "background_proc"):
+            return Reaction(
+                element=ReactiveElement.ORBIT,
+                intensity=0.45,
+                origin=(0.5, 0.5),
+                color_key="soft",
+                duration=3.5,
+            )
+        # Subagent: secondary stellar ignition — BLOOM off-centre
+        if event_kind == "subagent_started":
+            return Reaction(
+                element=ReactiveElement.BLOOM,
+                intensity=0.8,
+                origin=(random.uniform(0.2, 0.8), random.uniform(0.2, 0.8)),
+                color_key="accent",
+                duration=2.0,
+            )
+        # Dangerous cmd / approval: radiation warning — SPARK at centre
+        if event_kind in ("dangerous_cmd", "approval_request"):
+            return Reaction(
+                element=ReactiveElement.SPARK,
+                intensity=1.0,
+                origin=(0.5, 0.5),
+                color_key="warning",
+                duration=2.0,
+            )
+        # Context pressure: Chandrasekhar limit approaching — GAUGE
+        if event_kind in ("context_pressure", "token_usage"):
+            return Reaction(
+                element=ReactiveElement.GAUGE,
+                intensity=data.get("ratio", 0.7),
+                origin=(0.05, 0.95),
+                color_key="warning",
+                duration=3.0,
+            )
+        return None
+
+    def palette_shift(self, trigger_effect, intensity, base_palette):
+        # Implosion/error phase: core collapse — deep red-white
+        if trigger_effect in ("error", "crash") or str(trigger_effect) == str(ReactiveElement.SHATTER):
+            return (curses.COLOR_RED, curses.COLOR_YELLOW, curses.COLOR_WHITE, curses.COLOR_RED)
+        # Memory/skill: nucleosynthesis — cyan-white brilliance
+        if trigger_effect in ("memory_save", "skill_create") or str(trigger_effect) == str(ReactiveElement.BLOOM):
+            return (curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_WHITE, curses.COLOR_YELLOW)
+        return None
+
+    # ── v0.2: Special effects ─────────────────────────────────────────────────
+    def special_effects(self):
+        return [
+            # Cataclysm: full detonation on demand — resets cycle to blast
+            SpecialEffect(
+                name="supernova-cataclysm",
+                trigger_kinds=["burst"],
+                min_intensity=0.5,
+                cooldown=8.0,
+                duration=4.0,
+            ),
+        ]
+
+    def draw_special(self, stdscr, state, color_pairs, special_name, progress, intensity):
+        if special_name != "supernova-cataclysm":
+            return
+        w, h = state.width, state.height
+        cx, cy = w // 2, h // 2
+        attr_w = curses.color_pair(color_pairs.get("bright", 0)) | curses.A_BOLD
+        attr_a = curses.color_pair(color_pairs.get("accent", 0))
+        attr_s = curses.color_pair(color_pairs.get("soft", 0))
+        # Three concentric expanding rings at different speeds
+        max_r = min(w // 2 - 1, h - 2)
+        for ring, (speed, attr) in enumerate([(1.0, attr_w), (0.7, attr_a), (0.45, attr_s)]):
+            r = int(max_r * progress * speed)
+            if r < 1:
+                continue
+            chars = "◉●◎○·"
+            ci = int(progress * (len(chars) - 1)) % len(chars)
+            steps = max(24, r * 3)
+            for i in range(steps):
+                theta = (i / steps) * math.tau
+                px = int(cx + r * math.cos(theta) * 2)
+                py = int(cy + r * math.sin(theta))
+                if 0 <= px < w and 0 <= py < h:
+                    _safe(stdscr, py, px, chars[ci], attr)
+        # Detonation core flash at centre
+        if progress < 0.3:
+            core_chars = "◉●◎"
+            ci = int(progress / 0.3 * len(core_chars)) % len(core_chars)
+            _safe(stdscr, cy, cx, core_chars[ci], attr_w)
+
+    # ── v0.2: Ambient ─────────────────────────────────────────────────────────
+    def ambient_tick(self, stdscr, state, color_pairs, idle_seconds):
+        # When idle, the star gently pulses — a pre-main-sequence flicker
+        if idle_seconds > 2.0 and state.frame % 20 == 0:
+            w, h = state.width, state.height
+            cx, cy = w // 2, h // 2
+            r = int(2 + 2 * abs(math.sin(state.frame * 0.04)))
+            attr = curses.color_pair(color_pairs.get("soft", 0)) | curses.A_DIM
+            for deg in range(0, 360, 30):
+                theta = math.radians(deg)
+                px = int(cx + r * math.cos(theta) * 2)
+                py = int(cy + r * math.sin(theta))
+                if 0 <= px < w and 0 <= py < h:
+                    _safe(stdscr, py, px, "·", attr)
+
+    # ── Draw ──────────────────────────────────────────────────────────────────
     def draw_extras(self, stdscr, state, color_pairs):
         w = state.width
         h = state.height
@@ -278,7 +540,13 @@ class SupernovaV2Plugin(ThemePlugin):
 
         cx = w / 2.0
         cy = h / 2.0
-        phase = f % 600
+
+        # Honour forced phase-skip from reactive events
+        if self._force_phase is not None:
+            phase = self._force_phase
+            self._force_phase = None
+        else:
+            phase = f % self._CYCLE
 
         bright_attr = curses.color_pair(color_pairs["bright"]) | curses.A_BOLD
         accent_attr = curses.color_pair(color_pairs["accent"])
