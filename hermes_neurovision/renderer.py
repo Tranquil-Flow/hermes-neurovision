@@ -67,13 +67,18 @@ class Renderer:
         self._apply_palette(state.config.palette)
         stdscr.erase()
 
-        self._draw_stars(state)
-        self._draw_edges(state)
+        tune = getattr(state, "tune", None)
+        if not tune or tune.show_stars:
+            self._draw_stars(state)
+        if not tune or tune.show_nodes:
+            self._draw_edges(state)
         self._draw_pulses(state)
-        self._draw_nodes(state)
+        if not tune or tune.show_nodes:
+            self._draw_nodes(state)
         self._draw_packets(state)
         self._draw_particles(state)
-        state.plugin.draw_extras(stdscr, state, self.color_pairs)
+        if not tune or tune.show_background:
+            state.plugin.draw_extras(stdscr, state, self.color_pairs)
         self._draw_overlay(state, gallery_index, gallery_total, end_time)
         stdscr.refresh()
 

@@ -109,3 +109,136 @@ def test_apply_trigger_spawn_node():
     before = len(state.nodes)
     state.apply_trigger(FakeTrigger("spawn_node", target="new"))
     assert len(state.nodes) == before + 1
+
+
+# Task 46: TuneSettings integration tests
+
+def _tuned_state(show_packets=True, show_particles=True, show_pulses=True,
+                 show_stars=True, show_flash=True, show_spawn_node=True,
+                 burst_scale=1.0, packet_rate_mult=1.0, event_sensitivity=1.0):
+    from hermes_neurovision.tune import TuneSettings
+    config = build_theme_config("electric-mycelium")
+    state = ThemeState(config, 100, 30, seed=42)
+    t = TuneSettings()
+    t.show_packets = show_packets
+    t.show_particles = show_particles
+    t.show_pulses = show_pulses
+    t.show_stars = show_stars
+    t.show_flash = show_flash
+    t.show_spawn_node = show_spawn_node
+    t.burst_scale = burst_scale
+    t.packet_rate_mult = packet_rate_mult
+    t.event_sensitivity = event_sensitivity
+    state.tune = t
+    return state
+
+
+def test_tune_toggle_packets_suppresses_passive_spawn():
+    """With show_packets=False, no packets ever spawn during step()."""
+    state = _tuned_state(show_packets=False)
+    for _ in range(500):
+        state.step()
+    assert state.packets == []
+
+
+def test_tune_toggle_packets_suppresses_event_trigger():
+    """With show_packets=False, apply_trigger('packet') adds nothing."""
+    state = _tuned_state(show_packets=False)
+    state.apply_trigger(FakeTrigger("packet", target="random_edge"))
+    assert state.packets == []
+
+
+def test_tune_toggle_particles_suppresses_event_burst():
+    """With show_particles=False, apply_trigger('burst') adds no particles."""
+    state = _tuned_state(show_particles=False)
+    state.apply_trigger(FakeTrigger("burst", intensity=1.0))
+    assert state.particles == []
+
+
+def test_tune_toggle_pulses_suppresses_passive_spawn():
+    """With show_pulses=False, no pulses ever spawn during step()."""
+    state = _tuned_state(show_pulses=False)
+    for _ in range(500):
+        state.step()
+    assert state.pulses == []
+
+
+def test_tune_toggle_pulses_suppresses_event_trigger():
+    """With show_pulses=False, apply_trigger('pulse') adds nothing."""
+    state = _tuned_state(show_pulses=False)
+    state.apply_trigger(FakeTrigger("pulse"))
+    assert state.pulses == []
+
+
+def test_tune_toggle_flash_suppresses_event_trigger():
+    """With show_flash=False, apply_trigger('flash') leaves flash_until at 0."""
+    state = _tuned_state(show_flash=False)
+    state.flash_until = 0.0
+    state.apply_trigger(FakeTrigger("flash", intensity=1.0))
+    assert state.flash_until == 0.0
+
+
+def test_tune_toggle_spawn_node_suppresses_event_trigger():
+    """With show_spawn_node=False, apply_trigger('spawn_node') adds no node."""
+    state = _tuned_state(show_spawn_node=False)
+    before = len(state.nodes)
+    state.apply_trigger(FakeTrigger("spawn_node", target="new"))
+    assert len(state.nodes) == before
+
+
+def test_tune_toggle_stars_suppresses_movement():
+    """With show_stars=False, calling _step_stars() leaves star positions unchanged."""
+    state = _tuned_state(show_stars=False)
+    # Force all stars to a known x=50 so drift would move them if not gated
+    for star in state.stars:
+        star[0] = 50.0
+    positions_before = [star[0] for star in state.stars]
+    state._step_stars()
+    positions_after = [star[0] for star in state.stars]
+    assert positions_before == positions_after
+
+
+def test_tune_slider_burst_scale_multiplies_particle_count():
+    """burst_scale=2.0 produces more particles than burst_scale=1.0."""
+    state_normal = _tuned_state(burst_scale=1.0)
+    state_normal.apply_trigger(FakeTrigger("burst", intensity=1.0))
+    count_normal = len(state_normal.particles)
+
+    state_scaled = _tuned_state(burst_scale=2.0)
+    state_scaled.apply_trigger(FakeTrigger("burst", intensity=1.0))
+    count_scaled = len(state_scaled.particles)
+
+    assert count_scaled > count_normal
+
+
+def test_tune_slider_event_sensitivity_scales_burst_intensity():
+    """event_sensitivity=0.0 produces fewer particles than sensitivity=1.0."""
+    state_full = _tuned_state(event_sensitivity=1.0)
+    state_full.apply_trigger(FakeTrigger("burst", intensity=1.0))
+    count_full = len(state_full.particles)
+
+    state_zero = _tuned_state(event_sensitivity=0.0)
+    state_zero.apply_trigger(FakeTrigger("burst", intensity=1.0))
+    count_zero = len(state_zero.particles)
+
+    assert count_zero < count_full
+
+
+def test_tune_slider_packet_rate_mult_zero_suppresses_passive_spawn():
+    """packet_rate_mult=0.0 means no passive packets spawn over many steps."""
+    state = _tuned_state(packet_rate_mult=0.0)
+    for _ in range(500):
+        state.step()
+    assert state.packets == []
+
+
+def test_tune_none_means_no_gating():
+    """When state.tune is None, all normal behaviour is preserved."""
+    config = build_theme_config("electric-mycelium")
+    state = ThemeState(config, 100, 30, seed=42)
+    assert state.tune is None
+    # Triggers work normally
+    state.apply_trigger(FakeTrigger("burst", intensity=1.0))
+    assert len(state.particles) > 0
+    state.apply_trigger(FakeTrigger("packet", target="random_edge"))
+    assert len(state.packets) > 0

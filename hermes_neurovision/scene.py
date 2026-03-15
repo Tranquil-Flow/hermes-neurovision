@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 import random
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 from hermes_neurovision.themes import ThemeConfig, STAR_CHARS, PACKET_CHARS
 
@@ -77,6 +77,7 @@ class ThemeState:
     flash_color_key: str = "warning"
 
     quiet: bool = False  # suppress passive spawning; only react to explicit events
+    tune: Any = None    # Optional[TuneSettings], set by app code
 
     MAX_DYNAMIC_NODES = 64
 
@@ -187,14 +188,20 @@ class ThemeState:
 
         effect = trigger.effect
         intensity = trigger.intensity
+        if self.tune:
+            intensity = intensity * self.tune.event_sensitivity
 
         if effect == "packet" and self.edges:
+            if self.tune and not self.tune.show_packets:
+                return
             edge_idx = self.rng.randrange(len(self.edges))
             edge = self.edges[edge_idx]
             speed = 0.04 + intensity * 0.06
             self.packets.append(Packet((edge[0], edge[1]), 0.0, speed))
 
         elif effect == "pulse" and self.nodes:
+            if self.tune and not self.tune.show_pulses:
+                return
             if trigger.target == "center":
                 idx = len(self.nodes) // 2
             else:
@@ -203,22 +210,31 @@ class ThemeState:
             self.pulses.append((nx, ny, 0.0))
 
         elif effect == "burst" and self.nodes:
+            if self.tune and not self.tune.show_particles:
+                return
             if trigger.target == "center":
                 idx = len(self.nodes) // 2
             else:
                 idx = self.rng.randrange(len(self.nodes))
             nx, ny = self.nodes[idx]
-            for _ in range(int(3 + intensity * 5)):
+            count = int(3 + intensity * 5)
+            if self.tune:
+                count = max(0, int(count * self.tune.burst_scale))
+            for _ in range(count):
                 vx = self.rng.uniform(-0.3, 0.3) * intensity
                 vy = self.rng.uniform(-0.2, 0.2) * intensity
                 life = self.rng.randint(6, 14)
                 self.particles.append(Particle(nx, ny, vx, vy, life, life, self.rng.choice(".:*+@")))
 
         elif effect == "flash":
+            if self.tune and not self.tune.show_flash:
+                return
             self.flash_until = _time.time() + 0.3 * intensity
             self.flash_color_key = trigger.color_key
 
         elif effect == "spawn_node":
+            if self.tune and not self.tune.show_spawn_node:
+                return
             if len(self._dynamic_nodes) >= self.MAX_DYNAMIC_NODES:
                 oldest = self._dynamic_nodes.pop(0)
                 if oldest < len(self.nodes):
@@ -254,6 +270,8 @@ class ThemeState:
         self._step_pulses()
 
     def _step_stars(self) -> None:
+        if self.tune and not self.tune.show_stars:
+            return
         drift = self.config.star_drift
         for star in self.stars:
             if self.plugin.step_star(star, self.frame, self.width, self.height, self.rng):
@@ -272,6 +290,8 @@ class ThemeState:
                 star[1] = self.rng.uniform(1, max(2, self.height - 2))
 
     def _spawn_packets(self) -> None:
+        if self.tune and not self.tune.show_packets:
+            return
         if self.quiet:
             return
         if not self.edges:
@@ -279,7 +299,10 @@ class ThemeState:
         packet_budget = self.plugin.packet_budget()
         if len(self.packets) >= packet_budget:
             return
-        if self.rng.random() > self.config.packet_rate:
+        rate = self.config.packet_rate
+        if self.tune:
+            rate *= self.tune.packet_rate_mult
+        if rate <= 0.0 or self.rng.random() > rate:
             return
         edge_index = self.rng.randrange(len(self.edges))
         speed = self.rng.uniform(*self.config.packet_speed)
@@ -296,12 +319,19 @@ class ThemeState:
 
     def _spawn_particles(self) -> None:
         if not self.quiet:
-            if self.rng.random() < self.config.pulse_rate and self.nodes:
+            pulse_rate = self.config.pulse_rate
+            if self.tune:
+                pulse_rate *= self.tune.pulse_rate_mult
+            show_pulses = not (self.tune and not self.tune.show_pulses)
+            if show_pulses and pulse_rate > 0.0 and self.rng.random() < pulse_rate and self.nodes:
                 nx, ny = self.rng.choice(self.nodes)
                 self.pulses.append((nx, ny, 0.0))
 
         base_chance = self.plugin.particle_base_chance()
-        if self.quiet or self.rng.random() > base_chance:
+        if self.tune:
+            base_chance *= self.tune.particle_density
+        show_particles = not (self.tune and not self.tune.show_particles)
+        if self.quiet or not show_particles or base_chance <= 0.0 or self.rng.random() > base_chance:
             return
 
         # Try plugin particle first

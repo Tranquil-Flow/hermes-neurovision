@@ -9,6 +9,7 @@ from typing import Optional, Sequence
 from hermes_neurovision.themes import build_theme_config, FRAME_DELAY
 from hermes_neurovision.scene import ThemeState
 from hermes_neurovision.renderer import Renderer
+from hermes_neurovision.tune import TuneSettings, TuneOverlay
 
 
 class GalleryApp:
@@ -23,12 +24,16 @@ class GalleryApp:
         self.locked = False
         self.quiet = False
         self.selected_theme = None
+        self.tune = TuneSettings()
+        self.tune_overlay = TuneOverlay(self.tune)
         self.state = self._make_state(self.themes[self.theme_index])
         self.switch_at = time.time() + self.theme_seconds if len(self.themes) > 1 else float("inf")
 
     def _make_state(self, theme_name: str) -> ThemeState:
         h, w = self.stdscr.getmaxyx()
-        return ThemeState(build_theme_config(theme_name), w, h, seed=(hash(theme_name) & 0xFFFF), quiet=self.quiet)
+        state = ThemeState(build_theme_config(theme_name), w, h, seed=(hash(theme_name) & 0xFFFF), quiet=self.quiet)
+        state.tune = self.tune
+        return state
 
     def run(self) -> None:
         curses.curs_set(0)
@@ -48,7 +53,7 @@ class GalleryApp:
                     self._advance_theme(1)
             self._draw_with_indicators()
             self.stdscr.refresh()
-            time.sleep(FRAME_DELAY)
+            time.sleep(FRAME_DELAY / max(0.1, self.tune.animation_speed))
 
     def _draw_with_indicators(self) -> None:
         """Draw scene with lock and selection indicators."""
@@ -73,10 +78,14 @@ class GalleryApp:
             except curses.error:
                 pass
 
+        # Draw tune overlay if active
+        if self.tune_overlay.active:
+            self.tune_overlay.draw(self.stdscr, self.renderer.color_pairs)
+
         # Bottom: single consolidated footer with all hints
-        quiet_flag = " [QUIET]" if self.quiet else ""
+        tuned_flag = " [TUNED]" if not self.tune.is_default() else ""
         # Left side: navigation + controls
-        left = f" theme {self.theme_index + 1}/{len(self.themes)}{quiet_flag} | Q quit  ←/→ nav  q quiet  space pause"
+        left = f" theme {self.theme_index + 1}/{len(self.themes)}{quiet_flag}{tuned_flag} | Q quit  ←/→ nav  q quiet  t tune  space pause"
         # Right side: selection hints
         right = "enter lock  s use theme "
         gap = w - len(left) - len(right) - 1
@@ -104,7 +113,13 @@ class GalleryApp:
                 return
             if ch == ord("Q"):
                 raise SystemExit(0)
-            elif ch == ord("q"):
+            if self.tune_overlay.active:
+                if self.tune_overlay.handle_key(ch):
+                    continue
+            elif ch == ord("t"):
+                self.tune_overlay.active = True
+                continue
+            if ch == ord("q"):
                 self.quiet = not self.quiet
                 self.state.quiet = self.quiet
             if ch in (curses.KEY_RIGHT, ord("n")):
@@ -155,7 +170,10 @@ class LiveApp:
         self.end_after = end_after
         self.renderer = Renderer(stdscr)
         h, w = stdscr.getmaxyx()
+        self.tune = TuneSettings()
+        self.tune_overlay = TuneOverlay(self.tune)
         self.state = ThemeState(build_theme_config(theme_name), w, h, seed=hash(theme_name) & 0xFFFF, quiet=quiet)
+        self.state.tune = self.tune
         self._last_event_time = time.time()
         self._idle_threshold = 10.0
         self._poll_counter = 0
@@ -198,8 +216,11 @@ class LiveApp:
                 # Draw status indicator
                 self._draw_status_indicator()
 
+            if self.tune_overlay.active:
+                self.tune_overlay.draw(self.stdscr, self.renderer.color_pairs)
+
             self.stdscr.refresh()
-            time.sleep(FRAME_DELAY)
+            time.sleep(FRAME_DELAY / max(0.1, self.tune.animation_speed))
 
     def _draw_logs(self, now: float) -> None:
         h, w = self.stdscr.getmaxyx()
@@ -238,6 +259,12 @@ class LiveApp:
                 return
             if ch in (ord("q"), ord("Q")):
                 raise SystemExit(0)
+            if self.tune_overlay.active:
+                if self.tune_overlay.handle_key(ch):
+                    continue
+            elif ch == ord("t"):
+                self.tune_overlay.active = True
+                continue
             if ch == ord("l"):
                 self.show_logs = not self.show_logs
             if ch == ord(" "):
