@@ -23,6 +23,7 @@ from hermes_neurovision.themes import build_theme_config, FRAME_DELAY
 from hermes_neurovision.renderer import Renderer
 from hermes_neurovision.tune import TuneSettings
 from hermes_neurovision.theme_editor import apply_custom_overrides
+from hermes_neurovision.bridge import VisualTrigger
 
 
 # ---------------------------------------------------------------------------
@@ -72,6 +73,7 @@ FONT = {
     '/': ["    █", "   █ ", "  █  ", " █   ", "█    "],
     '-': ["     ", "     ", "█████", "     ", "     "],
     '·': ["  ", "  ", " █", "  ", "  "],
+    '+': ["  █  ", "  █  ", "█████", "  █  ", "  █  "],
 }
 
 def big_text_width(text, scale_x=1, gap=1):
@@ -247,8 +249,8 @@ BOOT_LINES = [
     "[SYS]     macOS native fullscreen (AppleScript) ............ OK",
     "[SYS]     LOCKED / MUTED / QUIET / PERF / TUNED HUD ....... OK",
     "\u2501" * 51,
-    "[OK] 83 themes  |  14 categories  |  6 emergent systems",
-    "[OK] 12 reactive types  |  9 post-FX  |  10 data sources",
+    "[OK] 128 themes  |  101 active  |  20 emergent systems",
+    "[OK] 35 reactive types  |  99 post-FX  |  12 data sources",
     "[OK] 29 tunable parameters  |  22 shortcuts  |  54 event types",
     "[OK] v0.2.0 READY",
     "\u2501" * 51,
@@ -258,8 +260,8 @@ BOOT_LINES = [
 # Feature highlight cards (duration, title, subtitle)
 # ---------------------------------------------------------------------------
 FEATURE_CARDS = [
-    (3.0,  "100+ SCREENS",       "83 active themes  \u00b7  18 legacy themes\n14 categories  \u00b7  and growing"),
-    (2.5,  "RAW STATS",          "12 reactive types  \u00b7  9 post-FX\n6 emergent systems  \u00b7  54 event types"),
+    (3.0,  "100+ SCREENS",       "101 active themes  \u00b7  27 legacy themes\n128 total  \u00b7  and growing"),
+    (2.5,  "RAW STATS",          "35 reactive  \u00b7  99 post-FX\n20 emergent systems  \u00b7  128 total"),
     (2.0,  "AUDIO ENGINE",       "Sound that reacts to your agent's thoughts"),
     (1.5,  "GALLERY MODE",       "Auto-opens from scheduled jobs"),
     (1.0,  "AGENT TOOLING",      "AI builds screens for you"),
@@ -291,23 +293,26 @@ NEUROVISION_BANNER = [
 ]
 
 # ---------------------------------------------------------------------------
-# Color pair constants — use pairs 10+ so renderer._apply_palette() (pairs 1-5)
-# never overwrites our overlay pairs.  Re-init after every renderer.draw() call.
+# Color pair constants — use pairs 30+ to avoid clashing with:
+#   renderer palette: pairs 1-5
+#   attractor rainbow: pairs 10-15
+#   renderer black pair: pair 9
 # ---------------------------------------------------------------------------
-CP_GREEN   = 10  # green on black   — boot [TAG] + OK
-CP_CYAN    = 11  # cyan on black    — boot headers
-CP_WHITE   = 12  # white on black   — body text, boot middle
-CP_MAGENTA = 13  # magenta on black — v0.2.0 label
-CP_YELLOW  = 14  # yellow on black  — energy/warning
-CP_BLACK   = 15  # black on black   — backing strips
-# Purple gradient pairs for outro banner (16-21)
-CP_PUR0    = 16  # brightest magenta-purple
-CP_PUR1    = 17
-CP_PUR2    = 18
-CP_PUR3    = 19
-CP_PUR4    = 20
-CP_PUR5    = 21  # deepest violet
-CP_PINK    = 22  # pink-magenta for link text
+CP_GREEN   = 30  # green on black   — boot [TAG] + OK
+CP_CYAN    = 31  # cyan on black    — boot headers
+CP_WHITE   = 32  # white on black   — body text, boot middle
+CP_MAGENTA = 33  # magenta on black — v0.2.0 label
+CP_YELLOW  = 34  # yellow on black  — energy/warning
+CP_BLACK   = 35  # black on black   — backing strips
+# Purple gradient pairs for outro banner (36-41)
+CP_PUR0    = 36  # brightest magenta-purple
+CP_PUR1    = 37
+CP_PUR2    = 38
+CP_PUR3    = 39
+CP_PUR4    = 40
+CP_PUR5    = 41  # deepest violet
+CP_PINK    = 42  # pink-magenta for link text
+CP_RED     = 43  # red on black     — sol body text
 
 
 def init_colors():
@@ -320,6 +325,7 @@ def init_colors():
     curses.init_pair(CP_MAGENTA, curses.COLOR_MAGENTA, curses.COLOR_BLACK)
     curses.init_pair(CP_YELLOW,  curses.COLOR_YELLOW,  curses.COLOR_BLACK)
     curses.init_pair(CP_BLACK,   curses.COLOR_BLACK,   curses.COLOR_BLACK)
+    curses.init_pair(CP_RED,     curses.COLOR_RED,     curses.COLOR_BLACK)
     # Purple gradient — all map to MAGENTA since curses only has 8 base colors.
     # A_BOLD gives the bright variant, A_DIM gives the dim. Combined they make a gradient.
     for cp in [CP_PUR0, CP_PUR1, CP_PUR2, CP_PUR3, CP_PUR4, CP_PUR5, CP_PINK]:
@@ -328,8 +334,7 @@ def init_colors():
 
 def reinit_overlay_colors():
     """Re-assert overlay pairs after renderer.draw() stomps pairs 1-5."""
-    # Renderer only touches 1-5, ours are 10-22, so actually safe — but call
-    # init_colors() here defensively in case curses resets.
+    # Renderer touches 1-5, attractors use 10-15, ours are 30-42 — no overlap.
     try:
         init_colors()
     except Exception:
@@ -375,11 +380,36 @@ def draw_black_strip(stdscr, start_row, num_rows):
 def make_state(theme_name, w, h, seed=42, speed=1.0):
     config = build_theme_config(theme_name)
     config = apply_custom_overrides(config)
-    state = ThemeState(config, w, h, seed=seed, quiet=True)
+    state = ThemeState(config, w, h, seed=seed, quiet=False)
     tune = TuneSettings()
     tune.animation_speed = speed
     state.tune = tune
+    # Start at full intensity so screens look alive immediately
+    state.intensity_multiplier = 1.0
+    state._intensity_target = 1.0
     return state
+
+
+# Simulated activity events — fired periodically to keep screens lively
+_SIM_TRIGGERS = [
+    VisualTrigger("packet",     0.7, "accent",  "random_edge"),
+    VisualTrigger("pulse",      0.6, "bright",  "random_node"),
+    VisualTrigger("burst",      0.5, "accent",  "random_node"),
+    VisualTrigger("packet",     0.5, "soft",    "random_edge"),
+    VisualTrigger("ripple",     0.7, "accent",  "random_node"),
+    VisualTrigger("packet",     0.8, "bright",  "random_edge"),
+    VisualTrigger("pulse",      0.9, "accent",  "center"),
+]
+
+def fire_sim_activity(state, rng, rate=0.35):
+    """Randomly fire a simulated trigger so screens don't look dead.
+    rate = probability per frame that something fires."""
+    if rng.random() < rate:
+        trigger = rng.choice(_SIM_TRIGGERS)
+        try:
+            state.apply_trigger(trigger)
+        except Exception:
+            pass
 
 
 def draw_version_label(stdscr, version, is_v020=False):
@@ -389,19 +419,26 @@ def draw_version_label(stdscr, version, is_v020=False):
     draw_big_text(stdscr, row, version, attr, scale_x=2, scale_y=2)
 
 
-def draw_body_big(stdscr, text, is_v020=False):
+def draw_body_big(stdscr, text, is_v020=False, body_color=None):
     """Draw big body text centered vertically, floating over theme."""
     h, w = stdscr.getmaxyx()
     # version label is 5*2=10 rows tall + 1 row padding = starts at row 12
     row = max(12, h // 2 - 3)
-    attr = curses.color_pair(CP_WHITE) | curses.A_BOLD if not is_v020 else curses.color_pair(CP_MAGENTA) | curses.A_BOLD
+    if body_color == "red":
+        attr = curses.color_pair(CP_RED) | curses.A_BOLD
+    elif body_color == "cyan":
+        attr = curses.color_pair(CP_CYAN) | curses.A_BOLD
+    elif is_v020:
+        attr = curses.color_pair(CP_MAGENTA) | curses.A_BOLD
+    else:
+        attr = curses.color_pair(CP_WHITE) | curses.A_BOLD
     draw_big_text(stdscr, row, text, attr)
 
 
 # ---------------------------------------------------------------------------
 # Theme screen runner
 # ---------------------------------------------------------------------------
-def run_theme_screen(stdscr, renderer, theme_name, duration, version, body="", seed=42, is_v020=False, speed=1.0):
+def run_theme_screen(stdscr, renderer, theme_name, duration, version, body="", seed=42, is_v020=False, speed=1.0, body_color=None):
     h, w = stdscr.getmaxyx()
     state = make_state(theme_name, w, h, seed=seed, speed=speed)
     deadline = time.time() + duration
@@ -413,9 +450,10 @@ def run_theme_screen(stdscr, renderer, theme_name, duration, version, body="", s
         except Exception:
             pass
         reinit_overlay_colors()
+        fire_sim_activity(state, state.rng)
         draw_version_label(stdscr, version, is_v020=is_v020)
         if body:
-            draw_body_big(stdscr, body, is_v020=is_v020)
+            draw_body_big(stdscr, body, is_v020=is_v020, body_color=body_color)
         stdscr.refresh()
         time.sleep(FRAME_DELAY)
 
@@ -432,12 +470,14 @@ def section_early_builds(stdscr, renderer):
         ("lava-lamp",               "V0.1.1", "BUILT FOR HERMES AGENT",       103),
         ("aurora-borealis",         "V0.1.1", "EVERY EVENT IS A SIGNAL",      104),
         ("legacy-beach-lighthouse", "V0.1.1", "NOT A SCREENSAVER",            105),
-        ("sol",                     "V0.1.2", "ONE INSTALL. AGENT TALKS.",    106),
-        ("starfall",                "V0.1.2", "10 SOURCES. 54 EVENT TYPES.",  107),
+        ("legacy-storm-sea",        "V0.1.2", "ONE INSTALL. AGENT TALKS.",    106),
+        ("starfall",                "V0.1.2", "12 SOURCES. 54 EVENT TYPES.",  107),
         ("stellar-weave",           "V0.1.2", "BUILD YOUR OWN SCREENS.",      108),
     ]
-    for (theme, ver, body, seed) in screens:
-        run_theme_screen(stdscr, renderer, theme, 3.0, ver, body, seed=seed)
+    for entry in screens:
+        theme, ver, body, seed = entry[0], entry[1], entry[2], entry[3]
+        body_color = entry[4] if len(entry) > 4 else None
+        run_theme_screen(stdscr, renderer, theme, 3.0, ver, body, seed=seed, body_color=body_color)
 
 
 # ---------------------------------------------------------------------------
@@ -842,14 +882,14 @@ def section_terminal_boot(stdscr, renderer):
 def section_v020_showcase(stdscr, renderer):
     # Each entry: (theme, duration, card_title, card_subtitle)
     screens = [
-        ("plasma-rainbow",  4.0,  "100+ SCREENS",        "83 active  ·  18 legacy\n14 categories  ·  and growing"),
-        ("electric-storm",  3.5,  "RAW STATS",            "12 reactive  ·  9 post-FX\n6 emergent systems  ·  54 events"),
+        ("plasma-rainbow",  4.0,  "100+ SCREENS",        "101 active  ·  27 legacy\n128 total  ·  and growing"),
+        ("electric-storm",  3.5,  "RAW STATS",            "35 reactive  ·  99 post-FX\n20 emergent  ·  128 total"),
         ("synaptic-plasma", 3.0,  "AUDIO ENGINE",         "Sound reacts to your agent"),
         ("dna-strand",      2.5,  "GALLERY MODE",         "Auto-opens from cron jobs"),
-        ("storm-core",      2.0,  "AGENT TOOLING",        "AI builds screens for you"),
+        ("flow-field",      2.0,  "AGENT TOOLING",        "AI builds screens for you"),
         ("swarm-mind",      1.5,  "LIVE AGENT LOGS",      "See what your agent sees"),
-        ("quasar",          1.0,  "IMPORT EXPORT SHARE",  ""),
-        ("fractal-engine",  0.75, "FULL CUSTOMIZATION",   ""),
+        ("hypnotic-tunnel", 1.0,  "IMPORT EXPORT SHARE",  ""),
+        ("fractal-zoom",    0.75, "FULL CUSTOMIZATION",   ""),
         ("barnsley-fern",   0.5,  "PURE PYTHON",          ""),
     ]
 
@@ -857,9 +897,20 @@ def section_v020_showcase(stdscr, renderer):
     title_attr = curses.color_pair(CP_MAGENTA) | curses.A_BOLD
     sub_attr   = curses.color_pair(CP_CYAN)    | curses.A_BOLD
 
+    # Pre-warm fractal-zoom in the background while earlier screens play.
+    # We step it once per frame alongside the visible screen so no blank
+    # pause appears. By the time its slot arrives (~18s of earlier screens)
+    # it has well over 10s of warmup iterations accumulated.
+    h, w = stdscr.getmaxyx()
+    _fz_warmup = make_state("fractal-zoom", w, h, seed=207)
+
     for i, (theme_name, duration, card_title, card_sub) in enumerate(screens):
         h, w = stdscr.getmaxyx()
-        state = make_state(theme_name, w, h, seed=200 + i)
+        # Use pre-warmed state for fractal-zoom (index 7, seed=207)
+        if theme_name == "fractal-zoom":
+            state = _fz_warmup
+        else:
+            state = make_state(theme_name, w, h, seed=200 + i)
         deadline = time.time() + duration
         is_last = (i == len(screens) - 1)
         screen_start = time.time()
@@ -867,6 +918,9 @@ def section_v020_showcase(stdscr, renderer):
         while time.time() < deadline:
             h, w = stdscr.getmaxyx()
             state.step()
+            # Step fractal-zoom warmup in the background until it's the active screen
+            if theme_name != "fractal-zoom":
+                _fz_warmup.step()
             try:
                 renderer.draw(state, 0, 1, deadline, hide_hud=True, skip_refresh=True)
             except Exception:
@@ -894,6 +948,7 @@ def section_v020_showcase(stdscr, renderer):
                         draw_big_text(stdscr, sub_row, line, sub_attr)
                         sub_row += 6  # 5 + 1 gap
 
+            fire_sim_activity(state, state.rng)
             stdscr.refresh()
             time.sleep(FRAME_DELAY)
 
@@ -995,21 +1050,103 @@ def draw_outro_overlay(stdscr, alpha=1.0):
     draw_centered(stdscr, row, "github.com/Tranquil-Flow/hermes-neurovision", link_attr)
     row += 2
     draw_centered(stdscr, row, "Build your own screen today!", sub_attr)
-    row += 1
-    draw_centered(stdscr, row, "Then ask your agent to generate a screen based on your idea!", sub_attr)
 
 
-def section_finale(stdscr, renderer):
+# ---------------------------------------------------------------------------
+# SECTION 4.5: Rapid flash — 5 screens shown very briefly
+# ---------------------------------------------------------------------------
+def section_rapid_flash(stdscr, renderer):
+    """Rapid-fire montage of screens before the outro fade-in.
+
+    Shows: tide-pool, hypnotic-tunnel, chladni-sand, moonwire, pendulum-waves
+    Each for ~0.35s (eye-blink fast), then a half-second of black.
+
+    The halvorsen-star attractor for the finale is pre-warmed here so it has
+    full density when the outro begins (replaces the old 3-second black hold).
+    """
+    flash_screens = [
+        "tide-pool",
+        "black-hole",
+        "chladni-sand",
+        "moonwire",
+        "pendulum-waves",
+        "quasar",
+        "binary-star",
+        "life-colony",
+        "standing-waves",
+        "neural-cascade",
+        "plasma-grid",
+    ]
+
+    # Pre-warm halvorsen-star in background while flashing
     h, w = stdscr.getmaxyx()
+    warmup_state = make_state("halvorsen-star", w, h, seed=999)
 
-    # Black hold 3 seconds
+    n = len(flash_screens)
+    # Accelerating schedule: first screen gets 0.35s, last gets ~0.07s.
+    # After pendulum-waves (index 4) the remaining 6 screens split ~1s total,
+    # shrinking each time so they fly by faster and faster.
+    # Formula: duration[i] = start * (end/start)^(i/(n-1))
+    # First 5 (pre-pendulum): 0.35 → 0.18  (gentle ramp-down)
+    # Last 6 (post-pendulum): 0.16 → 0.05  (rapid acceleration)
+    def screen_duration(i):
+        if i < 5:
+            # 0.35 → 0.18 across indices 0-4
+            return 0.35 * (0.18 / 0.35) ** (i / max(1, 4))
+        else:
+            # 0.16 → 0.05 across indices 5-10
+            j = i - 5
+            return 0.16 * (0.05 / 0.16) ** (j / max(1, 5))
+
+    for i, theme_name in enumerate(flash_screens):
+        h, w = stdscr.getmaxyx()
+        state = make_state(theme_name, w, h, seed=300 + i)
+        duration = screen_duration(i)
+        deadline = time.time() + duration
+        while time.time() < deadline:
+            h, w = stdscr.getmaxyx()
+            state.step()
+            warmup_state.step()  # keep warming attractor
+            fire_sim_activity(state, state.rng, rate=0.5)
+            try:
+                renderer.draw(state, 0, 1, deadline, hide_hud=True, skip_refresh=True)
+            except Exception:
+                pass
+            reinit_overlay_colors()
+            stdscr.refresh()
+            time.sleep(FRAME_DELAY)
+
+    # Half second of black
     stdscr.clear()
     stdscr.refresh()
-    time.sleep(3.0)
+    half_sec_end = time.time() + 0.5
+    while time.time() < half_sec_end:
+        warmup_state.step()  # still warming
+        time.sleep(FRAME_DELAY)
 
-    state = make_state("halvorsen-star", w, h, seed=999)
+    return warmup_state  # hand off to finale so it skips its own warmup
+
+
+def section_finale(stdscr, renderer, warmup_state=None):
+    h, w = stdscr.getmaxyx()
+
+    if warmup_state is None:
+        # Black hold (fallback if called standalone)
+        stdscr.clear()
+        stdscr.refresh()
+        time.sleep(0.5)
+
+        # Pre-warm the attractor for 3 seconds off-screen so density builds up
+        # before the banner fades in — gives the rainbow its full shape.
+        warmup_state = make_state("halvorsen-star", w, h, seed=999)
+        warmup_end = time.time() + 3.0
+        while time.time() < warmup_end:
+            warmup_state.step()
+
+    state = warmup_state
+
     fade_duration = 2.0
-    total_hold = 7.0
+    total_hold = 8.0
     fade_start = time.time()
     deadline = fade_start + total_hold
 
@@ -1048,7 +1185,8 @@ def run_demo(stdscr):
         section_early_builds(stdscr, renderer)
         section_terminal_boot(stdscr, renderer)
         section_v020_showcase(stdscr, renderer)
-        section_finale(stdscr, renderer)
+        warmup = section_rapid_flash(stdscr, renderer)
+        section_finale(stdscr, renderer, warmup_state=warmup)
     except KeyboardInterrupt:
         pass
 
