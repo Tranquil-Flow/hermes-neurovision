@@ -141,7 +141,12 @@ class Renderer:
         stdscr = self.stdscr
         h, w = stdscr.getmaxyx()
         state.resize(w, h)
-        self._apply_palette(state.config.palette)
+        # Palette shift handling
+        now = time.time()
+        if getattr(state, '_palette_shift_until', 0.0) > now and hasattr(state, '_shifted_palette') and state._shifted_palette is not None:
+            self._apply_palette(state._shifted_palette)
+        else:
+            self._apply_palette(state.config.palette)
 
         # Create / resize buffer
         if self._buffer is None or self._buffer.w != w or self._buffer.h != h:
@@ -163,12 +168,35 @@ class Renderer:
             self._draw_nodes(state)
         self._draw_packets(state)
         self._draw_particles(state)
+        # Streaks
+        if not tune or getattr(tune, 'show_streaks', True):
+            self._draw_streaks(state)
         if not tune or tune.show_background:
             state.plugin.draw_extras(shim, state, self.color_pairs)
 
         # Blit buffer → screen -----------------------------------------
         stdscr.erase()
         self._buffer.blit_to_screen(stdscr)
+
+        # Overlay effects (drawn on stdscr after blit, before HUD)
+        if not tune or getattr(tune, 'show_overlays', True):
+            now = time.time()
+            for oe in getattr(state, 'overlay_effects', []):
+                elapsed = now - oe.start_time
+                if elapsed < oe.duration:
+                    progress = elapsed / oe.duration
+                    state.plugin.draw_overlay_effect(stdscr, state, self.color_pairs,
+                                                    oe.trigger_effect, oe.intensity, progress)
+
+        # Special effects (drawn on stdscr after overlays, before HUD)
+        if not tune or getattr(tune, 'show_specials', True):
+            now = time.time()
+            for sp in getattr(state, 'active_specials', []):
+                elapsed = now - sp.start_time
+                if elapsed < sp.duration:
+                    progress = elapsed / sp.duration
+                    state.plugin.draw_special(stdscr, state, self.color_pairs,
+                                             sp.name, progress, sp.intensity)
 
         # HUD overlays (directly on stdscr, NOT buffered) ---------------
         if hide_hud:
@@ -277,6 +305,21 @@ class Renderer:
             y = int(round(ay + (by - ay) * packet.progress))
             cp = curses.color_pair(self.color_pairs[color_key])
             buf.put(x, y, packet.glyph, cp, curses.A_BOLD)
+
+    def _draw_streaks(self, state: 'ThemeState') -> None:
+        """Draw motion streaks/trails."""
+        buf = self._buffer
+        color_key = state.plugin.streak_color_key()
+        cp = curses.color_pair(self.color_pairs.get(color_key, 0))
+        for streak in getattr(state, 'streaks', []):
+            # Draw trail behind streak
+            age_ratio = streak.life / max(streak.max_life, 1)
+            for i in range(streak.length):
+                tx = int(round(streak.x - streak.dx * i))
+                ty = int(round(streak.y - streak.dy * i))
+                if 0 <= tx < state.width and 0 <= ty < state.height:
+                    style = curses.A_BOLD if i == 0 else (curses.A_DIM if i > streak.length // 2 else 0)
+                    buf.put(tx, ty, streak.char, cp, style)
 
     def _draw_particles(self, state: "ThemeState") -> None:
         plugin = state.plugin

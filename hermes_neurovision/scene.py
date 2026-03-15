@@ -4,8 +4,12 @@ from __future__ import annotations
 
 import math
 import random
+import time
 from dataclasses import dataclass, field
-from typing import Any, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, List, Optional, Tuple
+
+if TYPE_CHECKING:
+    from hermes_neurovision.plugin import SpecialEffect
 
 from hermes_neurovision.themes import ThemeConfig, STAR_CHARS, PACKET_CHARS
 
@@ -54,6 +58,40 @@ class Packet:
 
 
 @dataclass
+class Streak:
+    x: float
+    y: float
+    dx: float  # velocity x per frame
+    dy: float  # velocity y per frame
+    length: int  # trail length in chars
+    char: str = '━'
+    life: int = 30
+    max_life: int = 30
+
+    def step(self) -> bool:
+        self.x += self.dx
+        self.y += self.dy
+        self.life -= 1
+        return self.life > 0
+
+
+@dataclass
+class OverlayEffect:
+    trigger_effect: str
+    intensity: float
+    start_time: float
+    duration: float = 1.0
+
+
+@dataclass
+class ActiveSpecial:
+    name: str
+    intensity: float
+    start_time: float
+    duration: float = 1.0
+
+
+@dataclass
 class ThemeState:
     config: ThemeConfig
     width: int
@@ -79,6 +117,14 @@ class ThemeState:
     quiet: bool = False  # suppress passive spawning; only react to explicit events
     tune: Any = None    # Optional[TuneSettings], set by app code
 
+    streaks: List[Streak] = field(default_factory=list)
+    overlay_effects: List[OverlayEffect] = field(default_factory=list)
+    active_specials: List[ActiveSpecial] = field(default_factory=list)
+    _cascade_queue: List[Tuple[int, float]] = field(default_factory=list)
+    _palette_shift_until: float = 0.0
+    _shifted_palette: Optional[Tuple[int, int, int, int]] = None
+    _last_event_time: float = 0.0  # for idle detection / ambient_tick
+
     MAX_DYNAMIC_NODES = 64
 
     def __post_init__(self) -> None:
@@ -98,6 +144,10 @@ class ThemeState:
         self.packets.clear()
         self.particles.clear()
         self.pulses.clear()
+        self.streaks.clear()
+        self.overlay_effects.clear()
+        self.active_specials.clear()
+        self._cascade_queue.clear()
         self._build_scene()
 
     def _build_scene(self) -> None:
@@ -200,7 +250,7 @@ class ThemeState:
 
     def apply_trigger(self, trigger) -> None:
         """Apply a VisualTrigger to the scene state."""
-        import time as _time
+        _time = time
 
         effect = trigger.effect
         intensity = trigger.intensity
@@ -274,6 +324,98 @@ class ThemeState:
             self._intensity_target = 0.6
             self._intensity_rate = 0.08
 
+        elif effect == "ripple" and self.nodes:
+            if self.tune and not self.tune.show_pulses:
+                return
+            if trigger.target == "center":
+                idx = len(self.nodes) // 2
+            else:
+                idx = self.rng.randrange(len(self.nodes))
+            nx, ny = self.nodes[idx]
+            for offset in (0.0, -1.5, -3.0):
+                self.pulses.append((nx, ny, max(0.0, offset)))
+
+        elif effect == "cascade" and self.nodes:
+            if self.tune and not self.tune.show_flash:
+                return
+            now = _time.time()
+            if trigger.target == "all":
+                indices = list(range(len(self.nodes)))
+            else:
+                indices = [self.rng.randrange(len(self.nodes)) for _ in range(min(5, len(self.nodes)))]
+            for i, idx in enumerate(indices):
+                self._cascade_queue.append((idx, now + i * 0.08))
+
+        elif effect == "converge" and self.nodes:
+            if self.tune and not self.tune.show_particles:
+                return
+            if trigger.target == "center":
+                idx = len(self.nodes) // 2
+            else:
+                idx = self.rng.randrange(len(self.nodes))
+            tx, ty = self.nodes[idx]
+            count = self.rng.randint(5, 10)
+            for _ in range(count):
+                px = self.rng.uniform(0, self.width)
+                py = self.rng.uniform(0, self.height)
+                dx = tx - px
+                dy = ty - py
+                dist = math.hypot(dx, dy) or 1.0
+                speed = self.rng.uniform(0.3, 0.7) * intensity
+                vx = (dx / dist) * speed
+                vy = (dy / dist) * speed
+                life = max(6, int(dist / speed)) if speed > 0 else 10
+                self.particles.append(Particle(px, py, vx, vy, life, life, self.rng.choice("·∙•◦")))
+
+        elif effect == "streak":
+            if self.tune and not getattr(self.tune, 'show_streaks', True):
+                return
+            edge = self.rng.randint(0, 3)  # 0=top, 1=bottom, 2=left, 3=right
+            if edge == 0:
+                x, y = self.rng.uniform(0, self.width), 0.0
+                dx, dy = self.rng.uniform(-0.5, 0.5), self.rng.uniform(0.3, 0.8)
+            elif edge == 1:
+                x, y = self.rng.uniform(0, self.width), float(self.height)
+                dx, dy = self.rng.uniform(-0.5, 0.5), self.rng.uniform(-0.8, -0.3)
+            elif edge == 2:
+                x, y = 0.0, self.rng.uniform(0, self.height)
+                dx, dy = self.rng.uniform(0.5, 1.2), self.rng.uniform(-0.3, 0.3)
+            else:
+                x, y = float(self.width), self.rng.uniform(0, self.height)
+                dx, dy = self.rng.uniform(-1.2, -0.5), self.rng.uniform(-0.3, 0.3)
+            length = self.rng.randint(3, 8)
+            life = self.rng.randint(20, 40)
+            self.streaks.append(Streak(x, y, dx, dy, length, life=life, max_life=life))
+
+        # --- Post-trigger bookkeeping ---
+        self._last_event_time = _time.time()
+
+        # Overlay effect tracking
+        self.overlay_effects.append(OverlayEffect(
+            trigger_effect=effect,
+            intensity=intensity,
+            start_time=_time.time(),
+        ))
+
+        # Palette shift (if plugin supports it)
+        tune = getattr(self, 'tune', None)
+        if not tune or getattr(tune, 'color_shifts', True):
+            shifted = self.plugin.palette_shift(effect, intensity, self.config.palette)
+            if shifted is not None:
+                self._shifted_palette = shifted
+                self._palette_shift_until = _time.time() + 1.0
+
+        # Special effects (if plugin supports it)
+        if hasattr(self.plugin, 'special_effects'):
+            for spec in self.plugin.special_effects():
+                if effect in (spec.trigger_kinds if hasattr(spec, 'trigger_kinds') else []):
+                    self.active_specials.append(ActiveSpecial(
+                        name=spec.name if hasattr(spec, 'name') else effect,
+                        intensity=intensity,
+                        start_time=_time.time(),
+                        duration=spec.duration if hasattr(spec, 'duration') else 1.0,
+                    ))
+
     def step(self) -> None:
         self._step_intensity()
         self.frame += 1
@@ -284,6 +426,10 @@ class ThemeState:
         self._spawn_particles()
         self._step_particles()
         self._step_pulses()
+        self._step_streaks()
+        self._step_overlay_effects()
+        self._step_active_specials()
+        self._step_cascade_queue()
 
     def _step_stars(self) -> None:
         if self.tune and not self.tune.show_stars:
@@ -384,3 +530,43 @@ class ThemeState:
             if radius < limit:
                 next_pulses.append((x, y, radius))
         self.pulses = next_pulses[-10:]
+
+    def _step_streaks(self) -> None:
+        next_streaks: List[Streak] = []
+        for streak in self.streaks:
+            if streak.step():
+                if 0 <= streak.x < self.width and 0 <= streak.y < self.height:
+                    next_streaks.append(streak)
+        self.streaks = next_streaks[-16:]
+
+    def _step_overlay_effects(self) -> None:
+        now = time.time()
+        self.overlay_effects = [
+            oe for oe in self.overlay_effects
+            if now - oe.start_time < oe.duration
+        ][-16:]
+
+    def _step_active_specials(self) -> None:
+        now = time.time()
+        self.active_specials = [
+            sp for sp in self.active_specials
+            if now - sp.start_time < sp.duration
+        ][-8:]
+
+    def _step_cascade_queue(self) -> None:
+        if not self._cascade_queue:
+            return
+        now = time.time()
+        remaining: List[Tuple[int, float]] = []
+        for node_idx, flash_time in self._cascade_queue:
+            if now >= flash_time:
+                # Flash this node briefly
+                self.flash_until = now + 0.12
+                self.flash_color_key = "accent"
+                # Also spawn a small pulse at the node
+                if node_idx < len(self.nodes):
+                    nx, ny = self.nodes[node_idx]
+                    self.pulses.append((nx, ny, 0.0))
+            else:
+                remaining.append((node_idx, flash_time))
+        self._cascade_queue = remaining
