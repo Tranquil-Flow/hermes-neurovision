@@ -839,7 +839,7 @@ def test_main_without_bg_does_not_dispatch(tmp_config):
 def test_handle_bg_command_start(tmp_config):
     from hermes_neurovision.bg_mode import handle_bg_command
     args = MagicMock()
-    args.bg_action = "start"
+    args.bg = "start"
     args.bg_theme = "neural-cascade"
     args.bg_gallery = False
     args.bg_opacity = 0.5
@@ -857,7 +857,7 @@ def test_handle_bg_command_start(tmp_config):
 def test_handle_bg_command_start_no_auto_opacity(tmp_config):
     from hermes_neurovision.bg_mode import handle_bg_command
     args = MagicMock()
-    args.bg_action = "start"
+    args.bg = "start"
     args.bg_theme = None
     args.bg_gallery = False
     args.bg_opacity = None
@@ -873,7 +873,7 @@ def test_handle_bg_command_start_no_auto_opacity(tmp_config):
 def test_handle_bg_command_stop(tmp_config):
     from hermes_neurovision.bg_mode import handle_bg_command
     args = MagicMock()
-    args.bg_action = "stop"
+    args.bg = "stop"
 
     with patch("hermes_neurovision.bg_mode.stop_bg") as mock_stop:
         handle_bg_command(args)
@@ -883,7 +883,7 @@ def test_handle_bg_command_stop(tmp_config):
 def test_handle_bg_command_status_prints(tmp_config, capsys):
     from hermes_neurovision.bg_mode import handle_bg_command
     args = MagicMock()
-    args.bg_action = "status"
+    args.bg = "status"
 
     with patch("hermes_neurovision.bg_mode.is_bg_running", return_value=False):
         with patch("hermes_neurovision.bg_mode._detect_terminal_app", return_value="kitty"):
@@ -896,7 +896,7 @@ def test_handle_bg_command_status_prints(tmp_config, capsys):
 def test_handle_bg_command_unknown_action(tmp_config):
     from hermes_neurovision.bg_mode import handle_bg_command
     args = MagicMock()
-    args.bg_action = "explode"
+    args.bg = "explode"
 
     with pytest.raises(SystemExit):
         handle_bg_command(args)
