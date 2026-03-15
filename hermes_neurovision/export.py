@@ -11,6 +11,7 @@ from typing import Optional
 from hermes_neurovision.themes import build_theme_config
 from hermes_neurovision.theme_plugins import get_plugin
 from hermes_neurovision.plugin import ThemePlugin
+from hermes_neurovision import __version__
 
 
 def export_theme(
@@ -51,8 +52,10 @@ def export_theme(
         "author": author or "anonymous",
         "description": description or f"{config.title} theme for Hermes Neurovision",
         "created": datetime.utcnow().isoformat() + "Z",
-        "hermes_neurovision_version": "0.1.1",
-        "hermes_vision_version": "0.1.1"  # Backward compatibility
+        "hermes_neurovision_version": __version__,
+        "hermes_vision_version": "0.1.1",  # Backward compatibility
+        "hermes_agent_version": "0.2.0",
+        "min_api_version": "1.0"
     }
     
     # Build config dict
@@ -87,7 +90,7 @@ def export_theme(
     
     # Build complete export
     export_data = {
-        "format_version": "1.0",
+        "format_version": "1.1",
         "metadata": metadata,
         "config": config_dict,
         "plugin": plugin_dict

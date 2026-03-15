@@ -28,6 +28,9 @@ class Version:
     def __str__(self) -> str:
         return f"{self.major}.{self.minor}"
     
+    def __eq__(self, other) -> bool:
+        return self.major == other.major and self.minor == other.minor
+    
     def __ge__(self, other) -> bool:
         if self.major != other.major:
             return self.major > other.major
@@ -70,7 +73,7 @@ def import_theme(theme_path: str, preview_only: bool = False, trust: bool = Fals
     
     # Check version compatibility
     file_version = Version.parse(theme_data.get("format_version", "0.9"))
-    current_version = Version.parse("1.0")
+    current_version = Version.parse("1.1")
     
     # Check major version compatibility
     if file_version.major > current_version.major:
@@ -85,7 +88,12 @@ def import_theme(theme_path: str, preview_only: bool = False, trust: bool = Fals
         print("⚠  Theme from pre-release version detected")
         print("   Attempting automatic migration...\n")
         theme_data = _migrate_v0_to_v1(theme_data)
-        file_version = Version.parse("1.0")
+        file_version = Version.parse("1.1")
+    
+    # Migrate v1.0 to v1.1 (add missing metadata defaults)
+    if file_version == Version(1, 0):
+        theme_data = _migrate_v1_0_to_v1_1(theme_data)
+        file_version = Version.parse("1.1")
     
     # Warn about newer minor versions
     if file_version.minor > current_version.minor:
@@ -198,6 +206,18 @@ def _migrate_v0_to_v1(data: Dict[str, Any]) -> Dict[str, Any]:
             "class_name": data.get("plugin_class")
         }
     }
+
+
+def _migrate_v1_0_to_v1_1(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Migrate v1.0 format to v1.1 by adding missing metadata fields."""
+    data["format_version"] = "1.1"
+    metadata = data.get("metadata", {})
+    if "hermes_agent_version" not in metadata:
+        metadata["hermes_agent_version"] = "unknown"
+    if "min_api_version" not in metadata:
+        metadata["min_api_version"] = "1.0"
+    data["metadata"] = metadata
+    return data
 
 
 def _register_theme_config(theme_name: str, title: str, config_dict: Dict[str, Any]) -> None:
