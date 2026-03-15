@@ -158,9 +158,15 @@ class Renderer:
 
         # Build buffer --------------------------------------------------
         tune = getattr(state, "tune", None)
+
+        # Emergent systems rendering
+        layer = state.plugin.emergent_layer()
+
         if not tune or tune.show_stars:
             self._draw_stars(state)
         shim = _BufferShim(self._buffer)
+        if layer == 'background':
+            self._draw_emergent(state)
         if not tune or tune.show_background:
             state.plugin.draw_background(shim, state, self.color_pairs)
         if not tune or tune.show_nodes:
@@ -168,6 +174,8 @@ class Renderer:
         self._draw_pulses(state)
         if not tune or tune.show_nodes:
             self._draw_nodes(state)
+        if layer == 'midground':
+            self._draw_emergent(state)
         self._draw_packets(state)
         self._draw_particles(state)
         # Streaks
@@ -175,6 +183,8 @@ class Renderer:
             self._draw_streaks(state)
         if not tune or tune.show_background:
             state.plugin.draw_extras(shim, state, self.color_pairs)
+        if layer == 'foreground':
+            self._draw_emergent(state)
 
         # ── Post-processing pipeline ──────────────────────────────────
         plugin = state.plugin
@@ -529,3 +539,32 @@ class Renderer:
             glyph = "\u25c7" if d == r else "\u00b7"
             for x, y in points:
                 yield x, y, glyph
+
+    def _draw_emergent(self, state: 'ThemeState') -> None:
+        """Render active emergent systems into the buffer."""
+        import curses
+        buf = self._buffer
+        tune = getattr(state, 'tune', None)
+        opacity = getattr(tune, 'emergent_opacity', 1.0) if tune else 1.0
+        if opacity <= 0:
+            return
+
+        # Grid-based systems (automaton, neural_field, wave_field, physarum, reaction_diffusion)
+        for system in (state.automaton, state.neural_field, state.wave_field,
+                       state.physarum, state.reaction_diffusion):
+            if system is None:
+                continue
+            for y in range(min(state.height, getattr(system, 'h', state.height))):
+                for x in range(min(state.width, getattr(system, 'w', state.width))):
+                    result = system.render_char(x, y)
+                    if result is not None:
+                        char, color_key = result
+                        cp = curses.color_pair(self.color_pairs.get(color_key, 0))
+                        style = 0 if opacity >= 0.8 else curses.A_DIM
+                        buf.put(x, y, char, cp, style)
+
+        # Boids (individual agent characters)
+        if state.boids is not None:
+            for bx, by, ch, color_key in state.boids.render_boids():
+                cp = curses.color_pair(self.color_pairs.get(color_key, 0))
+                buf.put(bx, by, ch, cp, curses.A_BOLD)
