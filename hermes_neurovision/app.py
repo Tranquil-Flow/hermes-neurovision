@@ -6,7 +6,7 @@ import curses
 import time
 from typing import Optional, Sequence
 
-from hermes_neurovision.themes import build_theme_config, FRAME_DELAY
+from hermes_neurovision.themes import build_theme_config, FRAME_DELAY, THEMES, LEGACY_THEMES
 from hermes_neurovision.scene import ThemeState
 from hermes_neurovision.renderer import Renderer
 from hermes_neurovision.tune import TuneSettings, TuneOverlay
@@ -14,9 +14,11 @@ from hermes_neurovision.debug_panel import DebugPanel
 
 
 class GalleryApp:
-    def __init__(self, stdscr: "curses._CursesWindow", themes: Sequence[str], theme_seconds: float, end_after: Optional[float]) -> None:
+    def __init__(self, stdscr: "curses._CursesWindow", themes: Sequence[str], theme_seconds: float, end_after: Optional[float], include_legacy: bool = False) -> None:
         self.stdscr = stdscr
-        self.themes = list(themes)
+        self._base_themes = list(themes)
+        self.include_legacy = include_legacy
+        self.themes = self._base_themes + (list(LEGACY_THEMES) if include_legacy else [])
         self.theme_seconds = max(1.0, theme_seconds)
         self.end_after = end_after
         self.renderer = Renderer(stdscr)
@@ -89,8 +91,10 @@ class GalleryApp:
 
         # Bottom: single consolidated footer with all hints
         tuned_flag = " [TUNED]" if not self.tune.is_default() else ""
+        quiet_flag = " [QUIET]" if self.quiet else ""
+        legacy_flag = " [+LEGACY]" if self.include_legacy else ""
         # Left side: navigation + controls
-        left = f" theme {self.theme_index + 1}/{len(self.themes)}{quiet_flag}{tuned_flag} | Q quit  ←/→ nav  q quiet  t tune  space pause"
+        left = f" theme {self.theme_index + 1}/{len(self.themes)}{quiet_flag}{legacy_flag}{tuned_flag} | Q quit  ←/→ nav  q quiet  L legacy  t tune  space pause"
         # Right side: selection hints
         right = "enter lock  s use theme "
         gap = w - len(left) - len(right) - 1
@@ -150,6 +154,12 @@ class GalleryApp:
         if ch == ord("q"):
             self.quiet = not self.quiet
             self.state.quiet = self.quiet
+        if ch == ord("L"):
+            self.include_legacy = not self.include_legacy
+            self.themes = self._base_themes + (list(LEGACY_THEMES) if self.include_legacy else [])
+            self.theme_index = 0
+            self.state = self._make_state(self.themes[self.theme_index])
+            self.switch_at = time.time() + self.theme_seconds
         if ch in (curses.KEY_RIGHT, curses.KEY_SRIGHT, ord("n")):
             self._advance_theme(1)
         elif ch in (curses.KEY_LEFT, curses.KEY_SLEFT, ord("p")):
