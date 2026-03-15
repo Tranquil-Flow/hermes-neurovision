@@ -722,13 +722,14 @@ def handle_bg_command(args) -> None:
 
     args.bg_action: start | stop | status | config
     """
-    action = getattr(args, "bg_action", "start")
+    action = getattr(args, "bg", None) or "start"
 
     if action == "start":
         cfg = load_bg_config()
         # CLI overrides
         if getattr(args, "bg_theme", None):
             cfg["theme"] = args.bg_theme
+            cfg["gallery"] = False  # specific theme implies single-theme mode
         if getattr(args, "bg_gallery", False):
             cfg["gallery"] = True
         if getattr(args, "bg_opacity", None) is not None:
