@@ -26,6 +26,7 @@ class GalleryApp:
         self.selected_theme = None
         self.tune = TuneSettings()
         self.tune_overlay = TuneOverlay(self.tune)
+        self._escape_buf = ""
         self.state = self._make_state(self.themes[self.theme_index])
         self.switch_at = time.time() + self.theme_seconds if len(self.themes) > 1 else float("inf")
 
@@ -111,32 +112,52 @@ class GalleryApp:
             ch = self.stdscr.getch()
             if ch == -1:
                 return
-            if ch == ord("Q"):
-                raise SystemExit(0)
-            if self.tune_overlay.active:
-                if self.tune_overlay.handle_key(ch):
-                    continue
-            elif ch == ord("t"):
-                self.tune_overlay.active = True
-                continue
-            if ch == ord("q"):
-                self.quiet = not self.quiet
-                self.state.quiet = self.quiet
-            if ch in (curses.KEY_RIGHT, ord("n")):
+            self._handle_key(ch)
+
+    def _handle_key(self, ch: int) -> None:
+        """Process a single key code. Handles escape sequences internally."""
+        # Escape sequence buffering for Shift+Arrow terminals
+        if ch == 27 or self._escape_buf:
+            if ch == 27:
+                self._escape_buf = "\x1b"
+                return
+            self._escape_buf += chr(ch)
+            if self._escape_buf == "\x1b[1;2C":
+                self._escape_buf = ""
                 self._advance_theme(1)
-            elif ch in (curses.KEY_LEFT, ord("p")):
+            elif self._escape_buf == "\x1b[1;2D":
+                self._escape_buf = ""
                 self._advance_theme(-1)
-            elif ch == ord(" "):
-                self.paused = not self.paused
-            elif ch in (ord("\n"), ord("\r"), curses.KEY_ENTER, 10, 13):
-                # Enter key toggles lock mode
-                self.locked = not self.locked
-                if self.locked:
-                    self.switch_at = float("inf")  # Stop timer
-            elif ch == ord("s"):
-                # Select current theme for live mode
-                self.selected_theme = self.themes[self.theme_index]
-                raise SystemExit(0)
+            elif len(self._escape_buf) >= 7:
+                self._escape_buf = ""
+            return
+
+        if ch == ord("Q"):
+            raise SystemExit(0)
+        if self.tune_overlay.active:
+            if self.tune_overlay.handle_key(ch):
+                return
+        elif ch == ord("t"):
+            self.tune_overlay.active = True
+            return
+        if ch == ord("q"):
+            self.quiet = not self.quiet
+            self.state.quiet = self.quiet
+        if ch in (curses.KEY_RIGHT, curses.KEY_SRIGHT, ord("n")):
+            self._advance_theme(1)
+        elif ch in (curses.KEY_LEFT, curses.KEY_SLEFT, ord("p")):
+            self._advance_theme(-1)
+        elif ch == ord(" "):
+            self.paused = not self.paused
+        elif ch in (ord("\n"), ord("\r"), curses.KEY_ENTER, 10, 13):
+            # Enter key toggles lock mode
+            self.locked = not self.locked
+            if self.locked:
+                self.switch_at = float("inf")  # Stop timer
+        elif ch == ord("s"):
+            # Select current theme for live mode
+            self.selected_theme = self.themes[self.theme_index]
+            raise SystemExit(0)
 
     @classmethod
     def run_headless(cls, themes: Sequence[str], seconds: float, theme_seconds: float = 8.0) -> dict:
