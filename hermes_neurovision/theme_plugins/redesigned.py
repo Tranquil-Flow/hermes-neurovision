@@ -291,6 +291,8 @@ class SupernovaV2Plugin(ThemePlugin):
         super().__init__()
         # Forced phase-skip: when agent_start fires we jump straight to blast
         self._force_phase: Optional[int] = None
+        # Cycle offset — maintained so forced transitions continue naturally
+        self._cycle_offset: int = 0
 
     def build_nodes(self, w, h, cx, cy, count, rng):
         return []
@@ -541,12 +543,14 @@ class SupernovaV2Plugin(ThemePlugin):
         cx = w / 2.0
         cy = h / 2.0
 
-        # Honour forced phase-skip from reactive events
+        # Honour forced phase-skip from reactive events.
+        # We compute a persistent cycle_offset so the cycle continues running
+        # smoothly from the forced position — not jumping back on the next frame.
         if self._force_phase is not None:
-            phase = self._force_phase
+            # Align offset so that (f + offset) % CYCLE == force_phase
+            self._cycle_offset = (self._force_phase - f) % self._CYCLE
             self._force_phase = None
-        else:
-            phase = f % self._CYCLE
+        phase = (f + self._cycle_offset) % self._CYCLE
 
         bright_attr = curses.color_pair(color_pairs["bright"]) | curses.A_BOLD
         accent_attr = curses.color_pair(color_pairs["accent"])
@@ -600,15 +604,26 @@ class SupernovaV2Plugin(ThemePlugin):
                         attr = accent_attr
 
                 elif phase < 550:
-                    # Nebula expansion — colors sweep by angle + time
+                    # Nebula expansion — shell grows outward, inner core clears.
+                    # t 0→1: the hot shell front moves from dist_n≈0.15 to dist_n≈1.1
+                    # so the nebula always marches AWAY from the origin.
                     t = (phase - 350) / 200.0
-                    nebula_v = max(0.0, (1 - dist_n * (0.8 + t * 0.4)) * abs(math.sin(dist_n * 15 + f * 0.03)) * 0.8) * intensity
+                    # Shell centre radius travels 0.12 → 1.1 (expands outward)
+                    shell_r = 0.12 + t * 0.98
+                    # Shell is thickest early, spreads thin as it expands
+                    shell_w = 0.35 + t * 0.30
+                    # Radial distance from the shell front
+                    delta = abs(dist_n - shell_r)
+                    envelope = max(0.0, 1.0 - delta / max(shell_w, 0.01))
+                    # Turbulent texture — rippling waves on the ejecta shell
+                    angle = math.atan2(dy, dx)
+                    ripple = abs(math.sin(dist_n * 18 + angle * 4 - f * 0.035)) * 0.7 + 0.3
+                    nebula_v = envelope * ripple * intensity
                     if nebula_v > 0.05:
-                        dense_chars = " ·.:+*"
+                        dense_chars = " ·.:+*#"
                         ci = int(nebula_v * (len(dense_chars) - 1))
                         ch = dense_chars[ci]
                         # Angle-based color sweeping over time — sector rotates
-                        angle = math.atan2(dy, dx)
                         sector = int((angle + math.pi + f * 0.015) / (math.pi / 3)) % 3
                         if sector == 0:
                             attr = soft_attr
@@ -618,12 +633,16 @@ class SupernovaV2Plugin(ThemePlugin):
                             attr = bright_attr if nebula_v > 0.45 else accent_attr
 
                 else:
-                    # Fade — remnant wisps drift outward
+                    # Fade — remnant wisps disperse at the outer edge, leaving
+                    # a faint expanding ghost ring that slowly dissolves.
                     t = (phase - 550) / 50.0
                     angle = math.atan2(dy, dx)
-                    v = max(0.0, math.sin(x * 0.5 + y * 0.4 + f * 0.025 + angle) * 0.35 * (1 - t)) * intensity
-                    if v > 0.08:
-                        ch = "·" if v < 0.2 else ":"
+                    # Ghost ring at dist_n ≈ 1.0–1.2, fading by t
+                    ghost = max(0.0, 1.0 - abs(dist_n - (1.0 + t * 0.3)) * 6.0)
+                    drift = abs(math.sin(angle * 3 + f * 0.02)) * 0.5
+                    v = ghost * (0.3 + drift * 0.3) * (1.0 - t) * intensity
+                    if v > 0.06:
+                        ch = "·" if v < 0.18 else ":"
                         sector = int((angle + math.pi + f * 0.01) / (math.pi / 2)) % 2
                         attr = soft_attr if sector == 0 else accent_attr
 
@@ -636,16 +655,202 @@ class SupernovaV2Plugin(ThemePlugin):
 # ── Sol v2: Solar plasma with convection cells ────────────────────────────────
 
 class SolV2Plugin(ThemePlugin):
-    """Solar plasma surface with Voronoi convection cells and limb darkening."""
+    """Living solar surface — granulation, eruptions, coronal loops, limb darkening.
+
+    v0.2 upgrade:
+      - neural_field: crackling photospheric convection fires as emergent substrate
+      - warp_field: magnetic buoyancy warps the surface near active regions
+      - echo_decay: solar flares leave burning 6-frame afterimages
+      - glow_radius: bright granules bloom
+      - force_points: 4 magnetic flux tubes orbit the equator as vortex attractors
+      - intensity_curve: sigmoid — below 0.3 the sun is quiet, above it flares
+      - react() x10: llm_start → coronal mass ejection WAVE, error → SHATTER
+        (X-class flare), memory_save → BLOOM (new active region), tool_call
+        → RIPPLE (pressure wave), agent_start → PULSE (photospheric shock)
+      - palette_shift: error → red/orange (X-class flare), memory → white/gold
+      - special_effects: "solar-eruption" — magnetic loop arcs from equator
+      - ambient_tick: granule shimmer when idle
+    """
     name = "sol"
 
     def __init__(self):
         self._cells = None
         self._w = 0
         self._h = 0
+        # Track active-region centres for flare targeting
+        self._active_region: Optional[Tuple[float, float]] = None
+        self._flare_arm = 0  # which magnetic arm fires next
 
     def build_nodes(self, w, h, cx, cy, count, rng):
         return []
+
+    # ── v0.2: Emergent ────────────────────────────────────────────────────────
+    def neural_field_config(self):
+        # Photospheric convection: fast cells, short refractory — bright crackling
+        return {"threshold": 2, "fire_duration": 3, "refractory": 4}
+
+    def emergent_layer(self):
+        return "background"
+
+    # ── v0.2: Post-FX ─────────────────────────────────────────────────────────
+    def warp_field(self, x, y, w, h, frame, intensity):
+        # Magnetic buoyancy near active regions bends the visual field.
+        # Strong near the equator (y ≈ 0.5), weak near poles.
+        cx, cy = w / 2.0, h / 2.0
+        ny = (y - cy) / max(cy, 1.0)
+        # Equatorial buoyancy swell: strongest at latitude 0
+        lat_weight = max(0.0, 1.0 - abs(ny) * 2.5)
+        t = frame * 0.025
+        amp = intensity * 2.0 * lat_weight
+        wx = int(amp * math.sin(t * 1.4 + y * 0.22))
+        wy = int(amp * 0.35 * math.cos(t * 0.9 + x * 0.15))
+        return (max(0, min(w - 1, x + wx)), max(0, min(h - 1, y + wy)))
+
+    def echo_decay(self):
+        # Flares burn afterimages — bright streaks hang for 6 frames
+        return 6
+
+    def glow_radius(self):
+        # Bright granules and flare tips bloom
+        return 2
+
+    def force_points(self, w, h, frame, intensity):
+        # Four magnetic flux tube clusters orbit the equator.
+        # They pull nearby field lines in, mimicking active-region magnetism.
+        cx, cy = w / 2.0, h / 2.0
+        r = min(w, h * 2.0) * 0.25
+        t = frame * 0.018
+        strength = 0.3 + intensity * 0.5
+        return [
+            {"x": int(cx + r * math.cos(t + i * math.pi / 2)),
+             "y": int(cy + r * math.sin(t + i * math.pi / 2) * 0.35),
+             "strength": strength, "type": "vortex"}
+            for i in range(4)
+        ]
+
+    def depth_layers(self):
+        # 2 depth layers: granules mid-depth, corona at back
+        return 2
+
+    # ── v0.2: Intensity curve — sigmoid, sun is quiet below 0.3 ──────────────
+    def intensity_curve(self, raw):
+        x = (raw - 0.35) * 8.0
+        return 1.0 / (1.0 + math.exp(-x))
+
+    # ── v0.2: Reactive ────────────────────────────────────────────────────────
+    def react(self, event_kind, data):
+        import random as _r
+        if event_kind == "agent_start":
+            # Photospheric shock wave — PULSE from centre
+            return Reaction(element=ReactiveElement.PULSE, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.5)
+        if event_kind == "llm_start":
+            # Coronal mass ejection — WAVE sweeping from the limb
+            return Reaction(element=ReactiveElement.WAVE, intensity=0.9,
+                           origin=(0.0, 0.5), color_key="accent", duration=3.0)
+        if event_kind == "llm_chunk":
+            # Photon burst — SPARK at random active latitude
+            lat = _r.uniform(0.3, 0.7)
+            lon = _r.random()
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.45,
+                           origin=(lon, lat), color_key="bright", duration=0.5)
+        if event_kind == "llm_end":
+            # Post-flare loop — soft RIPPLE from equatorial zone
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.55,
+                           origin=(0.5, 0.5), color_key="soft", duration=1.8)
+        if event_kind in ("tool_call", "mcp_tool_call"):
+            # Pressure wave from a new active region — RIPPLE
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.75,
+                           origin=(_r.uniform(0.2, 0.8), _r.uniform(0.35, 0.65)),
+                           color_key="accent", duration=1.8)
+        if event_kind in ("memory_save", "skill_create"):
+            # New active magnetic region emerges — BLOOM, gold nucleosynthesis
+            return Reaction(element=ReactiveElement.BLOOM, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="bright", duration=3.0)
+        if event_kind in ("error", "crash"):
+            # X-class flare — SHATTER, red-orange eruption
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.5)
+        if event_kind in ("cron_tick", "background_proc"):
+            # Sunspot rotation — ORBIT at equatorial belt
+            self._flare_arm = (self._flare_arm + 1) % 4
+            ox = 0.25 + self._flare_arm * 0.165
+            return Reaction(element=ReactiveElement.ORBIT, intensity=0.45,
+                           origin=(ox, 0.5), color_key="soft", duration=3.5)
+        if event_kind == "subagent_started":
+            # Secondary flare site — BLOOM off-axis
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.75,
+                           origin=(_r.uniform(0.15, 0.85), _r.uniform(0.3, 0.7)),
+                           color_key="accent", duration=2.0)
+        if event_kind in ("context_pressure", "token_usage"):
+            # Rising flux — GAUGE at bottom edge (chromosphere fill)
+            return Reaction(element=ReactiveElement.GAUGE,
+                           intensity=data.get("ratio", 0.6),
+                           origin=(0.05, 0.9), color_key="warning", duration=3.0)
+        if event_kind in ("dangerous_cmd", "approval_request"):
+            return Reaction(element=ReactiveElement.SPARK, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.0)
+        return None
+
+    # ── v0.2: Palette shift ───────────────────────────────────────────────────
+    def palette_shift(self, trigger_effect, intensity, base_palette):
+        if trigger_effect in ("error", "crash") or str(trigger_effect) == str(ReactiveElement.SHATTER):
+            # X-class flare — red-orange chromosphere
+            return (curses.COLOR_RED, curses.COLOR_YELLOW, curses.COLOR_WHITE, curses.COLOR_RED)
+        if trigger_effect in ("memory_save", "skill_create") or str(trigger_effect) == str(ReactiveElement.BLOOM):
+            # Active region — white-gold photosphere
+            return (curses.COLOR_WHITE, curses.COLOR_YELLOW, curses.COLOR_YELLOW, curses.COLOR_RED)
+        return None
+
+    # ── v0.2: Special effects ─────────────────────────────────────────────────
+    def special_effects(self):
+        return [
+            SpecialEffect(name="solar-eruption",
+                         trigger_kinds=["burst", "llm_start"],
+                         min_intensity=0.5, cooldown=6.0, duration=3.5),
+        ]
+
+    def draw_special(self, stdscr, state, color_pairs, special_name, progress, intensity):
+        if special_name != "solar-eruption":
+            return
+        w, h = state.width, state.height
+        # Magnetic loop arc rises from equator — an inverted catenary arch
+        # that peaks higher and wider as progress grows
+        cx = w // 2
+        base_y = int(h * 0.55)
+        peak_rise = int(h * 0.35 * math.sin(progress * math.pi))
+        half_w = int(w * 0.25 * progress)
+        attr_b = curses.color_pair(color_pairs.get("bright", 0)) | curses.A_BOLD
+        attr_a = curses.color_pair(color_pairs.get("accent", 0))
+        loop_chars = "◌○◎◉●"
+        steps = max(40, half_w * 4)
+        for i in range(steps + 1):
+            t = i / max(steps, 1)
+            # Catenary-ish arc: x goes -1 → +1, y follows sin-arch
+            arc_x = int(cx + (t * 2 - 1) * half_w * 2)
+            arc_height = math.sin(t * math.pi)  # 0→1→0
+            arc_y = int(base_y - arc_height * peak_rise)
+            if 0 <= arc_x < w and 0 <= arc_y < h:
+                ci = int(t * (len(loop_chars) - 1)) % len(loop_chars)
+                attr = attr_b if arc_height > 0.65 else attr_a
+                _safe(stdscr, arc_y, arc_x, loop_chars[ci], attr)
+
+    # ── v0.2: Ambient tick — quiet sun shimmer ────────────────────────────────
+    def ambient_tick(self, stdscr, state, color_pairs, idle_seconds):
+        # A gentle granule flicker at the disc limb when idle
+        if idle_seconds > 1.5 and state.frame % 12 == 0:
+            w, h = state.width, state.height
+            import random as _r
+            rng2 = _r.Random(state.frame % 1000)
+            cx, cy = w / 2.0, h / 2.0
+            for _ in range(3):
+                # Random point on disc edge
+                theta = rng2.uniform(0, math.tau)
+                px = int(cx + math.cos(theta) * cx * 0.88)
+                py = int(cy + math.sin(theta) * cy * 0.80)
+                if 0 <= px < w and 1 <= py < h - 1:
+                    attr = curses.color_pair(color_pairs.get("soft", 0))
+                    _safe(stdscr, py, px, "·", attr)
 
     def _init_cells(self, rng):
         self._cells = [
@@ -891,14 +1096,244 @@ class TerraV2Plugin(ThemePlugin):
                     pass
 
 
-# ── Binary Star v2: Two orbiting stars with gravitational field ───────────────
+# ── Binary Star v2: Two orbiting stars with Roche lobe + mass transfer ────────
 
 class BinaryStarV2Plugin(ThemePlugin):
-    """Two orbiting stars with equipotential gravitational field visualization."""
+    """Binary star system — gravitational potential field, Roche lobe overflow,
+    mass-transfer stream, and orbital mechanics.
+
+    v0.2 upgrade:
+      - physarum_config: slime-mold agents trace mass-transfer stream between stars
+      - wave_config: tidal ripples in the potential field substrate
+      - warp_field: gravitational lensing distortion — strongest near each star
+      - echo_decay: 5-frame orbital smear leaves the stars' recent path visible
+      - force_points: two gravity wells track the star positions — true
+        gravitational sinks that pull particles in
+      - depth_layers: 2 — stars in front, potential field behind
+      - intensity_curve: linear — activity maps directly to brightness
+      - react() x10: agent_start → PULSE (orbital resonance), llm_start → STREAM
+        (mass-transfer jet), error → SHATTER (stellar merger), memory_save →
+        BLOOM (common envelope), tool_call → RIPPLE (tidal pulse)
+      - palette_shift: error → red (merger flash), memory → blue/white (CE phase)
+      - special_effects: "roche-overflow" — mass stream arc between the two stars
+      - ambient_tick: slow orbital sweep of Lagrange point marker
+    """
     name = "binary-star"
+
+    _AY = 2.1  # terminal cell aspect ratio
+
+    def __init__(self):
+        super().__init__()
+        # Mass ratio — set by react/ambient, drives lobe asymmetry
+        self._mass_ratio = 1.0   # 1 = equal masses
+        self._transfer_active = False
+        self._transfer_dir = 1   # which star is donor: +1 s1→s2, -1 s2→s1
 
     def build_nodes(self, w, h, cx, cy, count, rng):
         return []
+
+    # ── v0.2: Emergent ────────────────────────────────────────────────────────
+    def physarum_config(self):
+        # Slime mold traces the mass-transfer stream between the two stars
+        return {
+            "n_agents": 120,
+            "sensor_angle": 0.5,
+            "sensor_dist": 4,
+            "turn_speed": 0.45,
+            "speed": 1.2,
+            "deposit": 1.0,
+            "decay": 0.92,
+        }
+
+    def wave_config(self):
+        # Tidal waves ripple through the potential field
+        return {"speed": 0.35, "damping": 0.96}
+
+    def emergent_layer(self):
+        return "background"
+
+    # ── v0.2: Post-FX ─────────────────────────────────────────────────────────
+    def warp_field(self, x, y, w, h, frame, intensity):
+        # Gravitational lensing: space bends toward each star.
+        # Computed from analytical potential gradient.
+        period = 150
+        angle = frame * (math.tau / period)
+        sep = min(w, h) * 0.22
+        cx, cy = w / 2.0, h / 2.0
+        s1x = cx + math.cos(angle) * sep
+        s1y = cy + math.sin(angle) * sep * 0.42
+        s2x = cx - math.cos(angle) * sep * self._mass_ratio
+        s2y = cy - math.sin(angle) * sep * 0.42 * self._mass_ratio
+
+        def _lens_pull(px, py, sx, sy, strength):
+            ddx = (px - sx) / max(self._AY, 1)
+            ddy = py - sy
+            d = math.sqrt(ddx * ddx + ddy * ddy) + 0.5
+            pull = strength / (d * d)
+            return (ddx / d) * pull, (ddy / d) * pull
+
+        p1x, p1y = _lens_pull(x, y, s1x, s1y, intensity * 1.8)
+        p2x, p2y = _lens_pull(x, y, s2x, s2y, intensity * 1.8)
+        wx = int(-(p1x + p2x))
+        wy = int(-(p1y + p2y))
+        return (max(0, min(w - 1, x + wx)), max(0, min(h - 1, y + wy)))
+
+    def echo_decay(self):
+        # Orbital smear — 5 frames of trailing position visible
+        return 5
+
+    def glow_radius(self):
+        return 2
+
+    def force_points(self, w, h, frame, intensity):
+        # Gravity wells track both stars — particles spiral inward
+        period = 150
+        angle = frame * (math.tau / period)
+        sep = min(w, h) * 0.22
+        cx, cy = w / 2.0, h / 2.0
+        strength = 0.5 + intensity * 0.6
+        return [
+            {"x": int(cx + math.cos(angle) * sep),
+             "y": int(cy + math.sin(angle) * sep * 0.42),
+             "strength": strength, "type": "gravity"},
+            {"x": int(cx - math.cos(angle) * sep * self._mass_ratio),
+             "y": int(cy - math.sin(angle) * sep * 0.42 * self._mass_ratio),
+             "strength": strength * self._mass_ratio, "type": "gravity"},
+        ]
+
+    def depth_layers(self):
+        return 2
+
+    # ── v0.2: Intensity curve ─────────────────────────────────────────────────
+    def intensity_curve(self, raw):
+        return raw ** 0.75
+
+    # ── v0.2: Reactive ────────────────────────────────────────────────────────
+    def react(self, event_kind, data):
+        import random as _r
+        if event_kind == "agent_start":
+            # Orbital resonance kick — PULSE at centre of mass
+            return Reaction(element=ReactiveElement.PULSE, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="bright", duration=2.5)
+        if event_kind == "llm_start":
+            # Mass-transfer jet fires — STREAM from L1 point toward donor
+            self._transfer_active = True
+            return Reaction(element=ReactiveElement.STREAM, intensity=0.85,
+                           origin=(0.5, 0.5), color_key="accent", duration=3.0)
+        if event_kind == "llm_chunk":
+            # Infalling matter — SPARK near current star positions
+            ox = 0.3 + _r.random() * 0.4
+            return Reaction(element=ReactiveElement.SPARK, intensity=0.4,
+                           origin=(ox, 0.5 + _r.uniform(-0.15, 0.15)),
+                           color_key="soft", duration=0.5)
+        if event_kind == "llm_end":
+            self._transfer_active = False
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.5,
+                           origin=(0.5, 0.5), color_key="soft", duration=1.5)
+        if event_kind in ("tool_call", "mcp_tool_call"):
+            # Tidal pulse — RIPPLE at L4/L5 Lagrange point (±60° from axis)
+            lag_ang = _r.choice([-1, 1]) * math.pi / 3
+            ox = 0.5 + math.cos(lag_ang) * 0.28
+            oy = 0.5 + math.sin(lag_ang) * 0.15
+            return Reaction(element=ReactiveElement.RIPPLE, intensity=0.7,
+                           origin=(max(0, min(1, ox)), max(0, min(1, oy))),
+                           color_key="accent", duration=1.8)
+        if event_kind in ("memory_save", "skill_create"):
+            # Common envelope phase — BLOOM engulfs the system
+            return Reaction(element=ReactiveElement.BLOOM, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="bright", duration=3.0)
+        if event_kind in ("error", "crash"):
+            # Stellar merger — SHATTER, system fragments
+            self._mass_ratio = 1.0  # reset asymmetry
+            return Reaction(element=ReactiveElement.SHATTER, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.5)
+        if event_kind in ("cron_tick", "background_proc"):
+            # Orbital tick — ORBIT, star marker sweeps
+            return Reaction(element=ReactiveElement.ORBIT, intensity=0.4,
+                           origin=(0.5, 0.5), color_key="soft", duration=3.0)
+        if event_kind == "subagent_started":
+            # New companion — BLOOM off-centre (secondary ignition)
+            self._mass_ratio = _r.uniform(0.7, 1.4)
+            return Reaction(element=ReactiveElement.BLOOM, intensity=0.75,
+                           origin=(_r.uniform(0.3, 0.7), _r.uniform(0.35, 0.65)),
+                           color_key="accent", duration=2.0)
+        if event_kind in ("context_pressure", "token_usage"):
+            return Reaction(element=ReactiveElement.GAUGE,
+                           intensity=data.get("ratio", 0.6),
+                           origin=(0.05, 0.9), color_key="warning", duration=3.0)
+        if event_kind in ("dangerous_cmd", "approval_request"):
+            return Reaction(element=ReactiveElement.SPARK, intensity=1.0,
+                           origin=(0.5, 0.5), color_key="warning", duration=2.0)
+        return None
+
+    # ── v0.2: Palette shift ───────────────────────────────────────────────────
+    def palette_shift(self, trigger_effect, intensity, base_palette):
+        if trigger_effect in ("error", "crash") or str(trigger_effect) == str(ReactiveElement.SHATTER):
+            # Merger flash — red/white
+            return (curses.COLOR_RED, curses.COLOR_YELLOW, curses.COLOR_WHITE, curses.COLOR_RED)
+        if trigger_effect in ("memory_save", "skill_create") or str(trigger_effect) == str(ReactiveElement.BLOOM):
+            # Common envelope — blue/cyan/white
+            return (curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_BLUE, curses.COLOR_CYAN)
+        return None
+
+    # ── v0.2: Special effects ─────────────────────────────────────────────────
+    def special_effects(self):
+        return [
+            SpecialEffect(name="roche-overflow",
+                         trigger_kinds=["burst", "llm_start"],
+                         min_intensity=0.4, cooldown=5.0, duration=3.0),
+        ]
+
+    def draw_special(self, stdscr, state, color_pairs, special_name, progress, intensity):
+        if special_name != "roche-overflow":
+            return
+        w, h = state.width, state.height
+        # Mass-transfer stream: a curved jet from star 1 to star 2 via L1 point.
+        # The stream follows a parabolic arc that brightens at the accretion disc.
+        f = state.frame
+        period = 150
+        angle = f * (math.tau / period)
+        sep = min(w, h) * 0.22
+        cx, cy = w // 2, h // 2
+        s1x = cx + math.cos(angle) * sep
+        s1y = cy + math.sin(angle) * sep * 0.42
+        s2x = cx - math.cos(angle) * sep
+        s2y = cy - math.sin(angle) * sep * 0.42
+        # Interpolate stream points — curved path via L1 (midpoint offset)
+        l1x = (s1x + s2x) / 2
+        l1y = (s1y + s2y) / 2 - h * 0.06   # L1 slightly above midpoint
+        attr_b = curses.color_pair(color_pairs.get("bright", 0)) | curses.A_BOLD
+        attr_a = curses.color_pair(color_pairs.get("accent", 0))
+        stream_chars = "·:*◦○"
+        steps = 60
+        active_steps = int(steps * progress)
+        for i in range(active_steps):
+            t = i / steps
+            # Quadratic Bezier from s1 → l1 → s2
+            bx = int((1-t)**2 * s1x + 2*(1-t)*t * l1x + t**2 * s2x)
+            by = int((1-t)**2 * s1y + 2*(1-t)*t * l1y + t**2 * s2y)
+            if 0 <= bx < w and 0 <= by < h:
+                ci = int(t * (len(stream_chars) - 1)) % len(stream_chars)
+                attr = attr_b if t > 0.7 else attr_a
+                _safe(stdscr, by, bx, stream_chars[ci], attr)
+
+    # ── v0.2: Ambient tick — Lagrange point marker ────────────────────────────
+    def ambient_tick(self, stdscr, state, color_pairs, idle_seconds):
+        if state.frame % 25 == 0:
+            w, h = state.width, state.height
+            f = state.frame
+            period = 150
+            angle = f * (math.tau / period)
+            sep = min(w, h) * 0.22
+            cx, cy = w // 2, h // 2
+            # L4 and L5 Lagrange points at ±60° from the line of apsides
+            for sign in (+1, -1):
+                lag_a = angle + sign * math.pi / 3
+                lx = int(cx + math.cos(lag_a) * sep * 0.9)
+                ly = int(cy + math.sin(lag_a) * sep * 0.38)
+                if 0 <= lx < w and 1 <= ly < h - 1:
+                    attr = curses.color_pair(color_pairs.get("soft", 0)) | curses.A_DIM
+                    _safe(stdscr, ly, lx, "·", attr)
 
     def draw_extras(self, stdscr, state, color_pairs):
         w = state.width
@@ -906,42 +1341,64 @@ class BinaryStarV2Plugin(ThemePlugin):
         f = state.frame
         intensity = state.intensity_multiplier
 
-        period = 120
+        period = 150
         angle = f * (2 * math.pi / period)
         sep = min(w, h) * 0.22
         cx = w / 2.0
         cy = h / 2.0
 
         s1x = cx + math.cos(angle) * sep
-        s1y = cy + math.sin(angle) * sep * 0.45
-        s2x = cx - math.cos(angle) * sep
-        s2y = cy - math.sin(angle) * sep * 0.45
+        s1y = cy + math.sin(angle) * sep * 0.42
+        s2x = cx - math.cos(angle) * sep * self._mass_ratio
+        s2y = cy - math.sin(angle) * sep * 0.42 * self._mass_ratio
 
         bright_attr = curses.color_pair(color_pairs["bright"]) | curses.A_BOLD
         accent_attr = curses.color_pair(color_pairs["accent"])
         soft_attr = curses.color_pair(color_pairs["soft"])
         base_dim_attr = curses.color_pair(color_pairs["base"]) | curses.A_DIM
+        warn_attr = curses.color_pair(color_pairs.get("warning", color_pairs["bright"])) | curses.A_BOLD
 
         potential_chars = " \u00b7.:;+=*#"
+        # Hue phase sweeps slowly — gives potential surface a rippling color motion
+        hue_base = (f * 0.004) % 1.0
 
         for y in range(1, h - 1):
             for x in range(0, w - 1):
                 r1 = math.sqrt((x - s1x) ** 2 / 2.25 + (y - s1y) ** 2)
                 r2 = math.sqrt((x - s2x) ** 2 / 2.25 + (y - s2y) ** 2)
-                V = -(1.0 / (r1 + 0.5) + 1.0 / (r2 + 0.5)) * 3.0
-                v = max(0.0, min(1.0, (-V - 0.5) / 3.0)) * intensity
+                # Effective Roche potential including centrifugal term
+                r_cm = math.sqrt((x - cx) ** 2 / 2.25 + (y - cy) ** 2)
+                V = -(1.0 / (r1 + 0.5) + self._mass_ratio / (r2 + 0.5)
+                      + 0.5 * (r_cm / max(w, h) * 1.5) ** 2) * 3.0
+                v = max(0.0, min(1.0, (-V - 0.5) / 4.0)) * intensity
 
-                if abs(r1 - r2) < 0.8:
-                    ch = "\u2500"
-                    attr = accent_attr
+                # Roche lobe boundary — equipotential contour
+                # Detected as zero-crossing region of the Roche criterion
+                # |∇V| ≈ 0 near the L1 surface — approximate as |V+V_L1| < threshold
+                V_L1 = -(1.0 / (sep * 0.5 + 0.5) * 2) * 3.0
+                lobe_edge = abs(V - V_L1) < 0.18
+
+                if lobe_edge:
+                    # Roche lobe surface — pulsing equipotential line
+                    pulse = abs(math.sin(f * 0.06 + v * 8.0))
+                    lobe_chars = "─│╱╲┼"
+                    lci = int((angle + y * 0.3) % len(lobe_chars))
+                    phase = (hue_base + pulse * 0.4) % 1.0
+                    if (v + phase) % 1.0 > 0.65:
+                        attr = accent_attr
+                    else:
+                        attr = soft_attr
+                    ch = lobe_chars[lci]
                 else:
                     ci = int(v * (len(potential_chars) - 1))
                     ch = potential_chars[ci]
-                    if v > 0.8:
+                    # Phase ripple — potential wells glow inward over time
+                    phase = (hue_base + v + (r1 - r2) * 0.04) % 1.0
+                    if (v + phase) % 1.0 > 0.75:
                         attr = bright_attr
-                    elif v > 0.5:
+                    elif (v + phase) % 1.0 > 0.50:
                         attr = accent_attr
-                    elif v > 0.3:
+                    elif (v + phase) % 1.0 > 0.25:
                         attr = soft_attr
                     else:
                         attr = base_dim_attr
@@ -951,29 +1408,43 @@ class BinaryStarV2Plugin(ThemePlugin):
                 except curses.error:
                     pass
 
-        # Draw star bodies
-        for sx, sy in [(s1x, s1y), (s2x, s2y)]:
+        # Draw star bodies with coronae
+        star_glyphs = ["★", "✦"]
+        for si, (sx, sy) in enumerate([(s1x, s1y), (s2x, s2y)]):
             sxi = int(sx)
             syi = int(sy)
             if 1 <= syi <= h - 2 and 0 <= sxi <= w - 2:
-                try:
-                    stdscr.addstr(syi, sxi, "\u2605", bright_attr)
-                except curses.error:
-                    pass
+                _safe(stdscr, syi, sxi, star_glyphs[si % 2], bright_attr)
+                # Corona halo — one ring of dots at r=2 (terminal units)
+                for deg in range(0, 360, 45):
+                    theta = math.radians(deg)
+                    hx = int(sxi + math.cos(theta) * 2)
+                    hy = int(syi + math.sin(theta))
+                    if 1 <= hy <= h - 2 and 0 <= hx <= w - 2:
+                        _safe(stdscr, hy, hx, "·", accent_attr)
 
-        # Trailing light from 3 and 6 frames ago
-        for lag in (3, 6):
-            past_angle = f * (2 * math.pi / period) - lag * (2 * math.pi / period)
-            p1x = int(cx + math.cos(past_angle) * sep)
-            p1y = int(cy + math.sin(past_angle) * sep * 0.45)
-            p2x = int(cx - math.cos(past_angle) * sep)
-            p2y = int(cy - math.sin(past_angle) * sep * 0.45)
-            for px, py in [(p1x, p1y), (p2x, p2y)]:
-                if 1 <= py <= h - 2 and 0 <= px <= w - 2:
-                    try:
-                        stdscr.addstr(py, px, "\u00b7", base_dim_attr)
-                    except curses.error:
-                        pass
+        # Mass-transfer stream arc when active (reactive state)
+        if self._transfer_active:
+            l1x = (s1x + s2x) / 2
+            l1y = (s1y + s2y) / 2 - h * 0.04
+            steps = 30
+            stream_chars = "·:·"
+            for i in range(steps):
+                t = i / steps
+                bx = int((1-t)**2 * s1x + 2*(1-t)*t * l1x + t**2 * s2x)
+                by = int((1-t)**2 * s1y + 2*(1-t)*t * l1y + t**2 * s2y)
+                anim_t = (t + f * 0.04) % 1.0
+                ci = int(anim_t * (len(stream_chars) - 1)) % len(stream_chars)
+                if 1 <= by <= h - 2 and 0 <= bx <= w - 2:
+                    _safe(stdscr, by, bx, stream_chars[ci], accent_attr)
+
+        # L1 Lagrange point marker
+        l1xi = int((s1x + s2x) / 2)
+        l1yi = int((s1y + s2y) / 2)
+        if 1 <= l1yi <= h - 2 and 0 <= l1xi <= w - 2:
+            ch = "×" if self._transfer_active else "+"
+            attr = warn_attr if self._transfer_active else soft_attr
+            _safe(stdscr, l1yi, l1xi, ch, attr)
 
 
 # ── Fractal Engine: Real-time ASCII Mandelbrot set ────────────────────────────
