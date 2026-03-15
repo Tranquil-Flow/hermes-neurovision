@@ -125,6 +125,14 @@ class ThemeState:
     _shifted_palette: Optional[Tuple[int, int, int, int]] = None
     _last_event_time: float = 0.0  # for idle detection / ambient_tick
 
+    # Emergent systems (all Optional, None = disabled)
+    automaton: Any = None  # CellularAutomaton
+    physarum: Any = None   # PhysarumSim
+    neural_field: Any = None  # NeuralField
+    wave_field: Any = None  # WaveField
+    boids: Any = None  # BoidsFlock
+    reaction_diffusion: Any = None  # ReactionDiffusion
+
     MAX_DYNAMIC_NODES = 64
 
     def __post_init__(self) -> None:
@@ -132,6 +140,7 @@ class ThemeState:
         from hermes_neurovision.theme_plugins import get_plugin
         self.plugin = get_plugin(self.config.name)
         self._build_scene()
+        self._init_emergent()
 
     def resize(self, width: int, height: int) -> None:
         if width == self.width and height == self.height:
@@ -148,7 +157,14 @@ class ThemeState:
         self.overlay_effects.clear()
         self.active_specials.clear()
         self._cascade_queue.clear()
+        self.automaton = None
+        self.physarum = None
+        self.neural_field = None
+        self.wave_field = None
+        self.boids = None
+        self.reaction_diffusion = None
         self._build_scene()
+        self._init_emergent()
 
     def _build_scene(self) -> None:
         w = max(20, self.width)
@@ -417,6 +433,25 @@ class ThemeState:
                     ))
 
     def step(self) -> None:
+        # Step emergent systems
+        tune = getattr(self, 'tune', None)
+        speed = getattr(tune, 'emergent_speed', 1.0) if tune else 1.0
+        if speed > 0:
+            steps = max(1, int(speed))
+            for _ in range(steps):
+                if self.automaton:
+                    self.automaton.step()
+                if self.physarum:
+                    self.physarum.step()
+                if self.neural_field:
+                    self.neural_field.step()
+                if self.wave_field:
+                    self.wave_field.step()
+                if self.boids:
+                    self.boids.step()
+                if self.reaction_diffusion:
+                    self.reaction_diffusion.step()
+
         self._step_intensity()
         self.frame += 1
         self.plugin.step_nodes(self.nodes, self.frame, self.width, self.height)
@@ -570,3 +605,61 @@ class ThemeState:
             else:
                 remaining.append((node_idx, flash_time))
         self._cascade_queue = remaining
+
+    def _init_emergent(self) -> None:
+        """Initialize emergent systems from plugin config."""
+        from hermes_neurovision.emergent import (
+            CellularAutomaton, PhysarumSim, NeuralField,
+            WaveField, BoidsFlock, ReactionDiffusion,
+        )
+        cfg = self.plugin.automaton_config()
+        if cfg:
+            self.automaton = CellularAutomaton(
+                self.width, self.height,
+                rule=cfg.get('rule', 'brians_brain'),
+                density=cfg.get('density', 0.08),
+                update_interval=cfg.get('update_interval', 2),
+            )
+        cfg = self.plugin.physarum_config()
+        if cfg:
+            self.physarum = PhysarumSim(
+                self.width, self.height,
+                n_agents=cfg.get('n_agents', 150),
+                sensor_dist=cfg.get('sensor_dist', 4.0),
+                sensor_angle=cfg.get('sensor_angle', 0.785),
+                deposit=cfg.get('deposit', 1.0),
+                decay=cfg.get('decay', 0.95),
+            )
+        cfg = self.plugin.neural_field_config()
+        if cfg:
+            self.neural_field = NeuralField(
+                self.width, self.height,
+                threshold=cfg.get('threshold', 2),
+                fire_duration=cfg.get('fire_duration', 2),
+                refractory=cfg.get('refractory', 5),
+            )
+        cfg = self.plugin.wave_config()
+        if cfg:
+            self.wave_field = WaveField(
+                self.width, self.height,
+                speed=cfg.get('speed', 0.3),
+                damping=cfg.get('damping', 0.98),
+            )
+        cfg = self.plugin.boids_config()
+        if cfg:
+            self.boids = BoidsFlock(
+                self.width, self.height,
+                n_boids=cfg.get('n_boids', 40),
+                sep_dist=cfg.get('sep_dist', 3.0),
+                align_dist=cfg.get('align_dist', 8.0),
+                cohesion_dist=cfg.get('cohesion_dist', 12.0),
+                max_speed=cfg.get('max_speed', 1.5),
+            )
+        cfg = self.plugin.reaction_diffusion_config()
+        if cfg:
+            self.reaction_diffusion = ReactionDiffusion(
+                self.width, self.height,
+                feed=cfg.get('feed', 0.055),
+                kill=cfg.get('kill', 0.062),
+                update_interval=cfg.get('update_interval', 2),
+            )
