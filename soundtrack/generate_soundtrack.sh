@@ -56,10 +56,10 @@ python ./examples/run_music_generation.py \
   --save_path="$OUTPUT_DIR/track1_emergence.mp3" \
   --lazy_load true \
   --mula_device mps \
-  --codec_device mps \
+  --codec_device cpu \
+  --cfg_scale 1.0 \
   --max_audio_length_ms 90000 \
-  --temperature 1.0 \
-  --cfg_scale 1.5
+  --temperature 1.0
 echo "✓ Track 1 done"
 echo ""
 
@@ -77,10 +77,10 @@ python ./examples/run_music_generation.py \
   --save_path="$OUTPUT_DIR/track2_signal_fire.mp3" \
   --lazy_load true \
   --mula_device mps \
-  --codec_device mps \
+  --codec_device cpu \
+  --cfg_scale 1.0 \
   --max_audio_length_ms 90000 \
-  --temperature 1.05 \
-  --cfg_scale 1.5
+  --temperature 1.05
 echo "✓ Track 2 done"
 echo ""
 
@@ -98,10 +98,10 @@ python ./examples/run_music_generation.py \
   --save_path="$OUTPUT_DIR/track3_neural_dawn.mp3" \
   --lazy_load true \
   --mula_device mps \
-  --codec_device mps \
+  --codec_device cpu \
+  --cfg_scale 1.0 \
   --max_audio_length_ms 90000 \
-  --temperature 1.0 \
-  --cfg_scale 1.5
+  --temperature 1.0
 echo "✓ Track 3 done"
 echo ""
 

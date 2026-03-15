@@ -767,6 +767,13 @@ def section_terminal_boot(stdscr, renderer):
     while len(particles) < MAX_PARTICLES:
         particles.append(BootParticle(h, w, phase))
 
+    # "ASCII Engine Integrated" in block font — flashes centered on screen
+    # during the hold phase (boot text still visible, particles at max density)
+    _aei_label = "ASCII Engine Integrated"
+    _aei_red   = curses.color_pair(CP_RED) | curses.A_BOLD
+    _aei_blink = True
+    _aei_next  = time.time() + 0.2
+
     while time.time() < hold_end:
         now = time.time()
         dt = now - last_frame
@@ -788,6 +795,14 @@ def section_terminal_boot(stdscr, renderer):
         visible = displayed[-(h - 2):]
         for i, dl in enumerate(visible):
             draw_boot_line(stdscr, dl, i + 1)
+        # Blink the label — centered vertically at screen center
+        if now >= _aei_next:
+            _aei_blink = not _aei_blink
+            _aei_next  = now + 0.2
+        if _aei_blink:
+            # Block font is 5 rows tall; center it on h2//2
+            label_row = max(1, h2 // 2 - 2)
+            draw_big_text(stdscr, label_row, _aei_label, _aei_red)
         stdscr.refresh()
         time.sleep(FRAME_DELAY)
 
