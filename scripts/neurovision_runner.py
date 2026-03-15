@@ -65,8 +65,9 @@ def _pick_endpoint() -> tuple[str, str]:
     """
     import urllib.request, json
     candidates = [
-        ("http://192.168.1.112:11434", "qwen3:30b"),   # M4 Pro GPU (fast)
-        ("http://localhost:11434",      "qwen3:14b-nothink"),  # local CPU fallback
+        ("http://192.168.1.112:11434", "qwen3:30b"),        # M4 Pro GPU, full model
+        ("http://192.168.1.112:11434", "qwen3:14b"),         # M4 Pro GPU, lighter model
+        ("http://localhost:11434",      "qwen3:14b-nothink"), # local CPU, last resort
     ]
     for host, model in candidates:
         try:
