@@ -63,7 +63,7 @@ Read the full plan at `docs/superpowers/plans/2026-03-13-hermes-neurovision.md` 
 
 ### Legacy theme management
 
-- [ ] Task 48: Add --include-legacy flag and legacy subcommand to CLI. [QWEN14B]
+- [x] Task 48: Add --include-legacy flag and legacy subcommand to CLI. [QWEN14B]
   cli.py changes:
     Add --include-legacy flag: if set, append all legacy-* themes from build_theme_config()
     to the gallery themes list (load them from themes.py by scanning for "legacy-" prefix keys).
