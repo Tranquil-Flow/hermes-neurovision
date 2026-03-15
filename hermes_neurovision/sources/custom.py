@@ -18,6 +18,21 @@ EVENT_MAP = {
     "agent:end": ("agent", "agent_end"),
     "session:start": ("agent", "session_start"),
     "session:reset": ("agent", "session_reset"),
+    # NEW — v0.2.0 events
+    "tool:start":           ("agent",      "tool_call"),
+    "tool:end":             ("agent",      "tool_complete"),
+    "tool:error":           ("agent",      "tool_error"),
+    "compression:start":    ("agent",      "compression_started"),
+    "compression:end":      ("agent",      "compression_ended"),
+    "checkpoint:create":    ("agent",      "checkpoint_created"),
+    "checkpoint:rollback":  ("agent",      "checkpoint_rollback"),
+    "mcp:connect":          ("mcp",        "mcp_connected"),
+    "mcp:disconnect":       ("mcp",        "mcp_disconnected"),
+    "mcp:tool_call":        ("mcp",        "mcp_tool_call"),
+    "provider:fallback":    ("provider",   "provider_fallback"),
+    "provider:error":       ("provider",   "provider_error"),
+    "subagent:start":       ("agent",      "subagent_started"),
+    "subagent:end":         ("agent",      "subagent_ended"),
 }
 
 

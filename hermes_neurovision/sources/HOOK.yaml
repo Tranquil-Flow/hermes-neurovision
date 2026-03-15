@@ -7,6 +7,21 @@ events:
   - session:start
   - session:reset
   - command:*
+  # NEW — v0.2.0 events
+  - tool:start
+  - tool:end
+  - tool:error
+  - compression:start
+  - compression:end
+  - checkpoint:create
+  - checkpoint:rollback
+  - mcp:connect
+  - mcp:disconnect
+  - mcp:tool_call
+  - provider:fallback
+  - provider:error
+  - subagent:start
+  - subagent:end
 
 # Auto-launch configuration (optional):
 # Create ~/.hermes/vision/config.json with:
