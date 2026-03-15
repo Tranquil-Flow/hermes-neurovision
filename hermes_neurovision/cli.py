@@ -96,7 +96,12 @@ def parse_args(argv=None):
         type=float,
         default=None,
         metavar="0.0-1.0",
-        help="Suggested terminal opacity (saved to config, printed as a setup hint)",
+        help="Terminal opacity to apply automatically on start (0.0=transparent, 1.0=opaque, default: 0.45)",
+    )
+    bg_group.add_argument(
+        "--bg-no-auto-opacity",
+        action="store_true",
+        help="Disable automatic opacity control (user manages terminal opacity manually)",
     )
     bg_group.add_argument(
         "--bg-theme-seconds",
