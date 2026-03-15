@@ -10,6 +10,7 @@ from hermes_neurovision.themes import build_theme_config, FRAME_DELAY
 from hermes_neurovision.scene import ThemeState
 from hermes_neurovision.renderer import Renderer
 from hermes_neurovision.tune import TuneSettings, TuneOverlay
+from hermes_neurovision.debug_panel import DebugPanel
 
 
 class GalleryApp:
@@ -26,6 +27,7 @@ class GalleryApp:
         self.selected_theme = None
         self.tune = TuneSettings()
         self.tune_overlay = TuneOverlay(self.tune)
+        self.debug_panel = DebugPanel()
         self._escape_buf = ""
         self.state = self._make_state(self.themes[self.theme_index])
         self.switch_at = time.time() + self.theme_seconds if len(self.themes) > 1 else float("inf")
@@ -79,9 +81,11 @@ class GalleryApp:
             except curses.error:
                 pass
 
-        # Draw tune overlay if active
+        # Draw overlays
         if self.tune_overlay.active:
             self.tune_overlay.draw(self.stdscr, self.renderer.color_pairs)
+        if self.debug_panel.visible:
+            self.debug_panel.draw(self.stdscr, self.state, self.renderer.color_pairs)
 
         # Bottom: single consolidated footer with all hints
         tuned_flag = " [TUNED]" if not self.tune.is_default() else ""
@@ -140,6 +144,9 @@ class GalleryApp:
         elif ch == ord("t"):
             self.tune_overlay.active = True
             return
+        if ch == ord("d"):
+            self.debug_panel.toggle()
+            return
         if ch == ord("q"):
             self.quiet = not self.quiet
             self.state.quiet = self.quiet
@@ -193,6 +200,7 @@ class LiveApp:
         h, w = stdscr.getmaxyx()
         self.tune = TuneSettings()
         self.tune_overlay = TuneOverlay(self.tune)
+        self.debug_panel = DebugPanel()
         self.state = ThemeState(build_theme_config(theme_name), w, h, seed=hash(theme_name) & 0xFFFF, quiet=quiet)
         self.state.tune = self.tune
         self._last_event_time = time.time()
@@ -223,6 +231,8 @@ class LiveApp:
                     triggers = self.bridge.translate(ev)
                     for trigger in triggers:
                         self.state.apply_trigger(trigger)
+                        self.debug_panel.record_trigger(trigger, source_event=ev)
+                    self.debug_panel.record_event(ev)
                     if self.show_logs:
                         self.log_overlay.add_event(ev)
 
@@ -239,6 +249,8 @@ class LiveApp:
 
             if self.tune_overlay.active:
                 self.tune_overlay.draw(self.stdscr, self.renderer.color_pairs)
+            if self.debug_panel.visible:
+                self.debug_panel.draw(self.stdscr, self.state, self.renderer.color_pairs)
 
             self.stdscr.refresh()
             time.sleep(FRAME_DELAY / max(0.1, self.tune.animation_speed))
@@ -286,6 +298,8 @@ class LiveApp:
             elif ch == ord("t"):
                 self.tune_overlay.active = True
                 continue
+            if ch == ord("d"):
+                self.debug_panel.toggle()
             if ch == ord("l"):
                 self.show_logs = not self.show_logs
             if ch == ord(" "):
