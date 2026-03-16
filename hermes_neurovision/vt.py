@@ -167,7 +167,8 @@ class VTScreen:
         """Handle a complete CSI sequence."""
         params = self._csi_params
 
-        # Ignore DEC private mode sequences (e.g., ?1049h for alt screen)
+        # Ignore DEC private mode sequences (e.g., ?1049h for alt screen,
+        # ?25l/h for cursor hide/show, ?7h for autowrap, etc.)
         if params.startswith("?"):
             return
 

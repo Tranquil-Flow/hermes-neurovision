@@ -246,6 +246,11 @@ class OverlayApp:
         curses.curs_set(0)
         self.stdscr.nodelay(True)
         self.stdscr.timeout(0)
+        # Capture mouse events so they don't leak as garbage key input
+        try:
+            curses.mousemask(curses.ALL_MOUSE_EVENTS | curses.REPORT_MOUSE_POSITION)
+        except curses.error:
+            pass
 
         self._spawn_child()
 
@@ -264,7 +269,9 @@ class OverlayApp:
         pid, master_fd = pty.fork()
         if pid == 0:
             # Child process — do NOT access self.stdscr (curses is parent-only)
-            os.environ["TERM"] = "vt100"
+            # Use xterm so child programs format for actual terminal width
+            # (vt100 limits to 80 cols and breaks wide banners)
+            os.environ["TERM"] = "xterm"
             try:
                 os.execvp(self.child_cmd[0], self.child_cmd)
             except OSError:
@@ -364,6 +371,16 @@ class OverlayApp:
         """Forward a keypress to the PTY child."""
         if self.pty_master is None or self.child_exited:
             return
+
+        # Filter out mouse events and resize — don't forward to PTY
+        if ch == curses.KEY_MOUSE:
+            return
+        if ch == curses.KEY_RESIZE:
+            return
+        # Filter scroll wheel (some terminals send these as key events)
+        if ch in (curses.KEY_SR, curses.KEY_SF):  # scroll reverse/forward
+            return
+
         try:
             if ch < 256:
                 os.write(self.pty_master, bytes([ch]))
@@ -385,13 +402,18 @@ class OverlayApp:
                 os.write(self.pty_master, b"\x1b[F")
             elif ch == curses.KEY_DC:  # Delete
                 os.write(self.pty_master, b"\x1b[3~")
+            # Ignore other high keycodes (function keys, etc.) unless mapped
         except OSError:
             pass
 
     # ── Input routing ─────────────────────────────────────────────────────
 
     def _route_input(self) -> None:
-        """Read curses input and route to PTY or neurovision controls."""
+        """Read curses input and route to PTY or neurovision controls.
+
+        Prefix key: Ctrl+N (0x0E) or F12 (curses.KEY_F12).
+        Some terminals eat Ctrl+N, so F12 is always available as fallback.
+        """
         while True:
             ch = self.stdscr.getch()
             if ch == -1:
@@ -404,7 +426,7 @@ class OverlayApp:
             elif self.prefix_pending:
                 self._handle_prefix(ch)
                 self.prefix_pending = False
-            elif ch == 0x0E:  # Ctrl+N
+            elif ch == 0x0E or ch == curses.KEY_F12:  # Ctrl+N or F12
                 self.prefix_pending = True
             else:
                 self._write_pty(ch)
@@ -447,7 +469,7 @@ class OverlayApp:
             self.nv_mode = True
         elif c == "q":
             self.running = False
-        elif ch == 0x0E:  # Ctrl+N Ctrl+N → send literal
+        elif ch == 0x0E or ch == curses.KEY_F12:  # double-tap → send literal Ctrl+N
             self._write_pty(0x0E)
 
     def _handle_nv_key(self, ch: int) -> None:
@@ -511,7 +533,7 @@ class OverlayApp:
             if self.fade_config.text_color != "auto":
                 extras.append(self.fade_config.text_color)
             extra_str = " " + " ".join(extras) if extras else ""
-            bar = f" [{theme_name}] [{mode_str}] [{cmd_str}]{extra_str} [Ctrl+N: controls] "
+            bar = f" [{theme_name}] [{mode_str}] [{cmd_str}]{extra_str} [F12: controls] "
 
         bar = bar[:w - 1]
         try:

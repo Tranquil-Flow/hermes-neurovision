@@ -37,7 +37,7 @@ _ANSI_TO_PAIR = {
     4: "soft",      # blue
     5: "accent",    # magenta
     6: "soft",      # cyan
-    7: "bright",    # white
+    7: "soft",      # white/default — use "soft" so default text isn't blinding
 }
 
 
@@ -135,10 +135,14 @@ class FadeCompositor:
             else:
                 pair_key = "bright"
         else:
-            # Auto: map ANSI color to nearest pair
-            pair_key = _ANSI_TO_PAIR.get(vt_fg, "bright")
+            # Auto: map ANSI color to nearest neurovision pair
+            # Preserve child's bold/color intent as much as possible
+            pair_key = _ANSI_TO_PAIR.get(vt_fg, "soft")
             if vt_bold:
                 extra_attr |= curses.A_BOLD
+                # Bold text in a colored context → use bright pair for emphasis
+                if vt_fg != 7:  # non-default color + bold = bright
+                    pair_key = "bright"
 
         return color_pairs.get(pair_key, 1), extra_attr
 

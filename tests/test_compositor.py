@@ -101,11 +101,11 @@ def test_opacity_to_attr_bold():
 
 
 def test_resolve_color_auto():
-    """Auto mode maps ANSI colors to neurovision pairs."""
+    """Auto mode maps default text to soft (not blinding white)."""
     comp = FadeCompositor(FadeConfig(text_color="auto"))
     pairs = {"base": 1, "soft": 2, "bright": 3, "accent": 4, "warning": 5}
     pair_num, extra = comp.resolve_color_pair(7, False, pairs)
-    assert pair_num == 3  # white → bright
+    assert pair_num == 2  # default fg → soft (readable, not glaring)
 
 
 def test_resolve_color_override():
