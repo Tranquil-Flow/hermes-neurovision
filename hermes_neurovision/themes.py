@@ -13,6 +13,7 @@ LEGACY_THEMES: Tuple[str, ...] = (
     "legacy-rootsong", "legacy-stormglass", "legacy-spiral-galaxy", "legacy-black-hole",
     "legacy-deep-abyss", "legacy-storm-sea", "legacy-dark-forest",
     "legacy-mountain-stars", "legacy-beach-lighthouse",
+    "legacy-binary-rain",
 )
 
 THEMES: Tuple[str, ...] = (
@@ -182,7 +183,8 @@ def build_theme_config(name: str) -> ThemeConfig:
         # ── Cosmic ───────────────────────────────────────────────
         "aurora-borealis": ThemeConfig(name, "Aurora Borealis", "~", 0.024, 0.02, 0.30, 0.24, (0.03, 0.06), 0.08, 0.50, 3, palette=(curses.COLOR_GREEN, curses.COLOR_CYAN, curses.COLOR_MAGENTA, curses.COLOR_WHITE)),
         "nebula-nursery": ThemeConfig(name, "Nebula Nursery", "*", 0.050, 0.04, 0.22, 0.30, (0.04, 0.08), 0.10, 0.45, 4, palette=(curses.COLOR_MAGENTA, curses.COLOR_CYAN, curses.COLOR_YELLOW, curses.COLOR_WHITE)),
-        "binary-rain": ThemeConfig(name, "Binary Rain", "1", 0.038, 0.00, 0.06, 0.32, (0.04, 0.08), 0.08, 0.50, 3, palette=(curses.COLOR_GREEN, curses.COLOR_WHITE, curses.COLOR_CYAN, curses.COLOR_YELLOW)),
+        "binary-rain": ThemeConfig(name, "Binary Rain", "ｦ", 0.038, 0.00, 0.06, 0.32, (0.04, 0.08), 0.08, 0.50, 3, palette=(curses.COLOR_GREEN, curses.COLOR_WHITE, curses.COLOR_CYAN, curses.COLOR_YELLOW)),
+        "legacy-binary-rain": ThemeConfig(name, "Binary Rain (Legacy)", "1", 0.038, 0.00, 0.06, 0.32, (0.04, 0.08), 0.08, 0.50, 3, palette=(curses.COLOR_GREEN, curses.COLOR_WHITE, curses.COLOR_CYAN, curses.COLOR_YELLOW)),
         "wormhole": ThemeConfig(name, "Wormhole", "\u25cb", 0.032, 0.00, 0.14, 0.26, (0.03, 0.06), 0.08, 0.55, 3, palette=(curses.COLOR_MAGENTA, curses.COLOR_BLUE, curses.COLOR_CYAN, curses.COLOR_WHITE)),
         # ── Industrial ───────────────────────────────────────────
         "liquid-metal": ThemeConfig(name, "Liquid Metal", "\u2022", 0.016, 0.06, 0.52, 0.30, (0.04, 0.08), 0.12, 0.45, 3, palette=(curses.COLOR_WHITE, curses.COLOR_CYAN, curses.COLOR_BLUE, curses.COLOR_MAGENTA)),

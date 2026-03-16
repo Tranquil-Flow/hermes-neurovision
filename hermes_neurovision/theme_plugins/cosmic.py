@@ -299,9 +299,13 @@ class NebulaNurseryPlugin(ThemePlugin):
 
 
 class BinaryRainPlugin(ThemePlugin):
-    """Matrix digital rain — dense vertical columns of 0/1 falling at varied speeds."""
+    """Matrix digital rain (legacy) — dense vertical columns of 0/1 falling at varied speeds.
 
-    name = "binary-rain"
+    This is the original node-based implementation, preserved as ``legacy-binary-rain``.
+    The full-screen V2 redesign lives in ``cosmic_v2.py`` under the ``binary-rain`` name.
+    """
+
+    name = "legacy-binary-rain"
 
     def build_nodes(self, w, h, cx, cy, count, rng):
         # Dense columns spanning full width — use w // 3 columns
