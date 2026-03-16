@@ -198,17 +198,10 @@ class FadeCompositor:
             if attr is None and is_terminal_area:
                 attr = curses.A_DIM
 
-            if is_terminal_area:
-                # Darken the scene behind text so it doesn't compete with
-                # readability, but let the scene's colors glow through subtly.
-                # Write dim spaces — the scene was already rendered underneath,
-                # so this creates a semi-transparent dark layer over it.
-                for x in range(min(vt_screen.cols, w)):
-                    try:
-                        stdscr.addstr(y, x, " ",
-                                     curses.color_pair(0) | curses.A_DIM)
-                    except curses.error:
-                        pass
+            # In the text area, DON'T overwrite space cells — let the scene
+            # that was already rendered by renderer.draw() show through.
+            # This gives a transparent background effect. Text characters
+            # are written on top of the scene in the next loop.
 
             # Draw text characters on top of the scene/background
             for x in range(min(vt_screen.cols, w)):

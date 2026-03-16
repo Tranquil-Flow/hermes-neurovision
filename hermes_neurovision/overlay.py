@@ -359,7 +359,14 @@ class OverlayApp:
         while self.running:
             now = time.time()
 
-            self._route_input()
+            # Discard stray input during the first few frames — terminal
+            # negotiation (screen switch, cursor queries) can produce
+            # response bytes that arrive late and get forwarded to the PTY.
+            if frame < 5:
+                while self.stdscr.getch() != -1:
+                    pass
+            else:
+                self._route_input()
             self._poll_pty()
             self._check_child()
 
