@@ -15,7 +15,7 @@ def test_fade_config_defaults():
     assert cfg.text_glow is False
     assert cfg.text_glow_color == "theme"
     assert cfg.text_glow_intensity == 1.0
-    assert cfg.text_color == "auto"
+    assert cfg.text_color == "native"
 
 
 def test_position_opacity_bottom():
@@ -100,12 +100,20 @@ def test_opacity_to_attr_bold():
     assert attr == curses.A_BOLD
 
 
+def test_resolve_color_native():
+    """Native mode uses curses pair 0 (terminal default fg/bg)."""
+    comp = FadeCompositor(FadeConfig(text_color="native"))
+    pairs = {"base": 1, "soft": 2, "bright": 3, "accent": 4, "warning": 5, "text": 6}
+    pair_num, extra = comp.resolve_color_pair(7, False, pairs)
+    assert pair_num == 0  # pair 0 = terminal default
+
+
 def test_resolve_color_auto():
-    """Auto mode maps default text to fixed 'text' pair (white, never theme-swapped)."""
+    """Auto mode maps ANSI colors to neurovision pairs."""
     comp = FadeCompositor(FadeConfig(text_color="auto"))
     pairs = {"base": 1, "soft": 2, "bright": 3, "accent": 4, "warning": 5, "text": 6}
     pair_num, extra = comp.resolve_color_pair(7, False, pairs)
-    assert pair_num == 6  # default fg → "text" (fixed white pair)
+    assert pair_num == 6  # default fg=7 → "text" pair
 
 
 def test_resolve_color_override():

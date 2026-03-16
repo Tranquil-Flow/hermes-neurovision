@@ -196,6 +196,28 @@ def test_csi_alt_screen_ignored():
     assert vt.cells[0][0].char == "H"  # still on main screen
 
 
+def test_osc_hyperlink_consumed():
+    """OSC 8 hyperlinks should be silently consumed, not printed as text."""
+    vt = VTScreen(24, 80)
+    # OSC 8 hyperlink: \x1b]8;;URL\x1b\\text\x1b]8;;\x1b\\
+    vt.feed(b"\x1b]8;;https://example.com\x1b\\Click Here\x1b]8;;\x1b\\")
+    line = "".join(vt.cells[0][i].char for i in range(10)).rstrip()
+    assert line == "Click Here"
+    # The URL should NOT appear in the output
+    full = "".join(vt.cells[0][i].char for i in range(80)).rstrip()
+    assert "https" not in full
+    assert "8;;" not in full
+
+
+def test_osc_title_consumed():
+    """OSC title changes (\\x1b]0;title\\x07) should be silently consumed."""
+    vt = VTScreen(24, 80)
+    vt.feed(b"\x1b]0;My Window Title\x07Hello")
+    line = "".join(vt.cells[0][i].char for i in range(10)).rstrip()
+    assert line == "Hello"
+    assert "Window" not in line
+
+
 def test_resize():
     vt = VTScreen(3, 5)
     vt.feed(b"AAAAA\nBBBBB\nCCCCC")

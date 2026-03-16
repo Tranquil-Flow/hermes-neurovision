@@ -54,7 +54,8 @@ class FadeConfig:
     text_glow: bool = False         # enable glow effect on text
     text_glow_color: str = "theme"  # glow color: "theme", "white", "green", "cyan", "magenta", "yellow", "red"
     text_glow_intensity: float = 1.0  # glow intensity 0.0-1.0 (scales brightness)
-    text_color: str = "auto"        # "auto", "white", "green", "cyan", "magenta", "yellow", "red", "theme"
+    text_color: str = "native"      # "native" (terminal default), "auto" (map ANSI→pairs),
+                                    # or override: "white", "green", "cyan", "magenta", "yellow", "red", "theme"
     fade_lifetime: int = 1200       # frames for full age-based fade (60 seconds at 20fps)
 
     def __post_init__(self) -> None:
@@ -125,25 +126,30 @@ class FadeCompositor:
                 extra_attr |= curses.A_BOLD
             elif cfg.text_glow_intensity < 0.3:
                 extra_attr |= curses.A_DIM
-            pair_key = glow_key
-        elif cfg.text_color != "auto":
+            return color_pairs.get(glow_key, 1), extra_attr
+        elif cfg.text_color == "native":
+            # Use curses pair 0 — terminal's default fg/bg colors
+            # This preserves whatever the terminal normally looks like
+            if vt_bold:
+                extra_attr |= curses.A_BOLD
+            return 0, extra_attr
+        elif cfg.text_color == "auto":
+            # Map ANSI color to nearest neurovision pair
+            pair_key = _ANSI_TO_PAIR.get(vt_fg, "text")
+            if vt_bold:
+                extra_attr |= curses.A_BOLD
+                if vt_fg != 7:
+                    pair_key = "bright"
+            return color_pairs.get(pair_key, 1), extra_attr
+        else:
+            # Explicit color override
             if cfg.text_color in _COLOR_MAP:
                 pair_key, force_bold = _COLOR_MAP[cfg.text_color]
                 if force_bold:
                     extra_attr |= curses.A_BOLD
             else:
                 pair_key = "bright"
-        else:
-            # Auto: map ANSI color to nearest neurovision pair
-            # Preserve child's bold/color intent as much as possible
-            pair_key = _ANSI_TO_PAIR.get(vt_fg, "soft")
-            if vt_bold:
-                extra_attr |= curses.A_BOLD
-                # Bold text in a colored context → use bright pair for emphasis
-                if vt_fg != 7:  # non-default color + bold = bright
-                    pair_key = "bright"
-
-        return color_pairs.get(pair_key, 1), extra_attr
+            return color_pairs.get(pair_key, 1), extra_attr
 
     def composite(self, stdscr, vt_screen, color_pairs: dict,
                   current_frame: int = 0, status_row: int = -1) -> None:

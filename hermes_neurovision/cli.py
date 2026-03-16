@@ -152,8 +152,8 @@ def parse_args(argv=None):
     overlay_group.add_argument("--text-glow-intensity", type=float, default=1.0,
                                help="Glow intensity 0.0-1.0 (default: 1.0)")
     overlay_group.add_argument("--text-color",
-                               choices=["auto", "white", "green", "cyan", "magenta", "yellow", "red", "theme"],
-                               default="auto", help="Text color override")
+                               choices=["native", "auto", "white", "green", "cyan", "magenta", "yellow", "red", "theme"],
+                               default="native", help="Text color: native (terminal default) or override")
 
     return parser.parse_args(argv)
 

@@ -44,7 +44,7 @@ class VTScreen:
         self._fg = 7
 
         # ESC sequence parser state
-        self._state = "ground"  # "ground", "escape", "csi"
+        self._state = "ground"  # "ground", "escape", "csi", "osc", "osc_esc"
         self._csi_params = ""
 
     def set_frame(self, frame: int) -> None:
@@ -113,8 +113,22 @@ class VTScreen:
             if ch == "[":
                 self._state = "csi"
                 self._csi_params = ""
+            elif ch == "]":
+                self._state = "osc"  # Operating System Command (e.g., hyperlinks, title)
+            elif ch == "(":
+                self._state = "ground"  # charset designation — skip next char
             else:
                 self._state = "ground"  # unknown escape, drop
+        elif self._state == "osc":
+            # Consume everything until BEL (\x07) or ST (\x1b\\)
+            if ch == "\x07":
+                self._state = "ground"  # BEL terminates OSC
+            elif ch == "\x1b":
+                self._state = "osc_esc"  # might be ST (ESC \)
+            # else: consume silently
+        elif self._state == "osc_esc":
+            # After ESC inside OSC — if backslash, end OSC. Otherwise resume.
+            self._state = "ground" if ch == "\\" else "osc"
         elif self._state == "csi":
             if ch.isdigit() or ch == ";":
                 self._csi_params += ch

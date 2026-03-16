@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from hermes_neurovision.events import EventPoller
 
 _MODES = ("daemon", "gallery", "live")
-_TEXT_COLORS = ("auto", "theme", "white", "green", "cyan", "magenta", "yellow", "red")
+_TEXT_COLORS = ("native", "auto", "theme", "white", "green", "cyan", "magenta", "yellow", "red")
 _GLOW_COLORS = ("theme", "white", "green", "cyan", "magenta", "yellow", "red")
 _FADE_MODES = ("position", "age", "both")
 
@@ -246,9 +246,12 @@ class OverlayApp:
         curses.curs_set(0)
         self.stdscr.nodelay(True)
         self.stdscr.timeout(0)
-        # Capture mouse events so they don't leak as garbage key input
+        # Disable mouse reporting — on macOS, scroll events arrive as escape
+        # sequences that curses interprets as arrow keys, causing the shell
+        # to cycle through history. Keeping mouse disabled means scroll does
+        # nothing (harmless) rather than triggering unwanted shell commands.
         try:
-            curses.mousemask(curses.ALL_MOUSE_EVENTS | curses.REPORT_MOUSE_POSITION)
+            curses.mousemask(0)
         except curses.error:
             pass
 
