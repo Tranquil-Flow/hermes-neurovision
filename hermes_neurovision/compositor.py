@@ -218,8 +218,8 @@ class FadeCompositor:
             for x in range(min(vt_screen.cols, w)):
                 vt_cell = vt_screen.cells[y][x]
 
-                if vt_cell.char == " ":
-                    continue  # scene shows through (or already darkened above)
+                if vt_cell.char == " " or vt_cell.char == "":
+                    continue  # space or wide-char placeholder — scene/bg shows through
 
                 pair_num, extra_attr = self.resolve_color_pair(
                     vt_cell.fg, vt_cell.bold, color_pairs

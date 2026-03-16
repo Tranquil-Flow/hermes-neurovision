@@ -394,7 +394,7 @@ class OverlayApp:
     # ── PTY I/O ───────────────────────────────────────────────────────────
 
     def _poll_pty(self) -> None:
-        """Non-blocking read from PTY master fd."""
+        """Non-blocking read from PTY master fd, send any pending responses."""
         if self.pty_master is None:
             return
         try:
@@ -403,6 +403,13 @@ class OverlayApp:
                 data = os.read(self.pty_master, 4096)
                 if data:
                     self.vt.feed(data)
+                    # Send any pending responses back to PTY (e.g., CPR replies)
+                    for resp in self.vt.pending_responses:
+                        try:
+                            os.write(self.pty_master, resp)
+                        except OSError:
+                            pass
+                    self.vt.pending_responses.clear()
                 else:
                     self.child_exited = True
         except OSError:

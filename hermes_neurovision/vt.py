@@ -6,8 +6,15 @@ Supports basic ANSI escape sequences sufficient for shell and hermes-agent.
 
 from __future__ import annotations
 
+import unicodedata
 from collections import deque
 from dataclasses import dataclass
+
+
+def _char_width(ch: str) -> int:
+    """Return the display width of a Unicode character (1 or 2 columns)."""
+    w = unicodedata.east_asian_width(ch)
+    return 2 if w in ("W", "F") else 1
 
 
 def _rgb_to_ansi(r: int, g: int, b: int) -> int:
@@ -62,6 +69,7 @@ class VTScreen:
         self.scrolls_since_last_poll = 0
         self._utf8_buf = b""  # buffer for incomplete UTF-8 sequences at read boundaries
         self._current_frame = 0
+        self.pending_responses: list[bytes] = []  # responses to send back to PTY (e.g., CPR)
 
         # SGR state
         self._bold = False
@@ -204,15 +212,34 @@ class VTScreen:
         self.scrolls_since_last_poll += 1
 
     def _put_char(self, ch: str) -> None:
-        """Write character at cursor with current SGR attributes, advance cursor."""
-        if self.cursor_col >= self.cols:
+        """Write character at cursor with current SGR attributes, advance cursor.
+
+        Handles wide characters (emoji, CJK) that occupy 2 terminal columns.
+        Wide chars write the character in the first cell and a space placeholder
+        in the second cell, advancing the cursor by 2.
+        """
+        cw = _char_width(ch)
+
+        # Check if there's room — wrap if needed
+        if self.cursor_col + cw > self.cols:
             self._newline()
+
         cell = self.cells[self.cursor_row][self.cursor_col]
         cell.char = ch
         cell.bold = self._bold
         cell.fg = self._fg
         cell.born_frame = self._current_frame
         self.cursor_col += 1
+
+        # Wide character: fill the second column with a placeholder space
+        if cw == 2 and self.cursor_col < self.cols:
+            cell2 = self.cells[self.cursor_row][self.cursor_col]
+            cell2.char = ""  # empty = this cell is the right half of a wide char
+            cell2.bold = self._bold
+            cell2.fg = self._fg
+            cell2.born_frame = self._current_frame
+            self.cursor_col += 1
+
         if self.cursor_col >= self.cols:
             # Wrap: move to next line
             if self.cursor_row < self.rows - 1:
@@ -274,6 +301,11 @@ class VTScreen:
             elif mode == 2:   # Erase entire line
                 for c in range(self.cols):
                     self.cells[self.cursor_row][c] = VTCell(born_frame=self._current_frame)
+        elif final == "n":    # DSR — Device Status Report
+            if param(0) == 6:
+                # CPR (Cursor Position Report): respond with \x1b[row;colR (1-indexed)
+                response = f"\x1b[{self.cursor_row + 1};{self.cursor_col + 1}R"
+                self.pending_responses.append(response.encode("ascii"))
         elif final == "m":    # SGR — Select Graphic Rendition
             self._handle_sgr(parts)
 
