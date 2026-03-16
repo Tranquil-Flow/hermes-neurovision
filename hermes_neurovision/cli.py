@@ -118,6 +118,43 @@ def parse_args(argv=None):
     )
     bg_group.add_argument("--bg-quiet", action="store_true", help="Suppress sim activity in background (saves CPU)")
 
+    # ── Overlay mode (CLI-over-scene) ────────────────────────────────────────
+    overlay_group = parser.add_argument_group(
+        "overlay mode",
+        "Run neurovision as a background visual layer behind a CLI session. "
+        "Text fades toward the top, revealing the scene."
+    )
+    overlay_group.add_argument("--overlay", action="store_true",
+                               help="Enable overlay mode (spawn PTY with shell)")
+    overlay_group.add_argument("--cli", action="store_true",
+                               help="Shortcut: overlay + hermes chat")
+    overlay_group.add_argument("--cmd", default=None,
+                               help="Command to spawn in PTY (default: $SHELL)")
+    overlay_group.add_argument("--overlay-mode", choices=["daemon", "gallery", "live"],
+                               default="daemon", help="Scene mode for overlay (default: daemon)")
+    overlay_group.add_argument("--fade-mode", choices=["position", "age", "both"],
+                               default="position", help="Text fade type")
+    overlay_group.add_argument("--fade-start", type=float, default=0.0,
+                               help="Fade start row (0.0=top, default: 0.0)")
+    overlay_group.add_argument("--fade-end", type=float, default=0.4,
+                               help="Fade end row (fully opaque below, default: 0.4)")
+    overlay_group.add_argument("--text-opacity", type=float, default=1.0,
+                               help="Global text brightness 0.0-1.0")
+    overlay_group.add_argument("--text-bg", choices=["transparent", "dim", "solid"],
+                               default="transparent", help="Text background preset")
+    overlay_group.add_argument("--text-bg-opacity", type=float, default=None,
+                               help="Fine-grained text background opacity 0.0-1.0")
+    overlay_group.add_argument("--text-glow", action="store_true",
+                               help="Enable glow effect on text")
+    overlay_group.add_argument("--text-glow-color",
+                               choices=["theme", "white", "green", "cyan", "magenta", "yellow", "red"],
+                               default="theme", help="Glow color (default: theme)")
+    overlay_group.add_argument("--text-glow-intensity", type=float, default=1.0,
+                               help="Glow intensity 0.0-1.0 (default: 1.0)")
+    overlay_group.add_argument("--text-color",
+                               choices=["auto", "white", "green", "cyan", "magenta", "yellow", "red", "theme"],
+                               default="auto", help="Text color override")
+
     return parser.parse_args(argv)
 
 
@@ -130,6 +167,12 @@ def main(argv=None):
     if getattr(args, "bg", None) is not None:
         from hermes_neurovision.bg_mode import handle_bg_command
         handle_bg_command(args)
+        return
+    # ─────────────────────────────────────────────────────────────────────────
+
+    # ── Overlay mode early-exit ──────────────────────────────────────────────
+    if args.overlay or args.cli:
+        _run_overlay(args)
         return
     # ─────────────────────────────────────────────────────────────────────────
 

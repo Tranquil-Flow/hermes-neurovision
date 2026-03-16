@@ -92,7 +92,7 @@ Read the full plan at `docs/superpowers/plans/2026-03-13-hermes-neurovision.md` 
   Gallery key 'X': disables current theme and advances to next. Print brief notice.
   Test: test_disable_theme(), test_enable_theme(), test_disabled_themes_filtered_from_gallery().
 
-- [ ] Task 50: Create 5 new original screens. [QWEN30B]
+- [x] Task 50: Create 5 new original screens. [QWEN30B]
   Each screen must be a completely original ASCII visualization not already in the theme list.
   Add each to themes.py, theme_plugins/__init__.py, and tests/test_themes.py full_screen_themes set.
   Run tests after each addition. Commit after all 5 are done.
@@ -333,7 +333,7 @@ After each task: run `python -m pytest tests/ -q` — expect 4 pre-existing fail
 
 ---
 
-## Notes for Moondance
+## Notes for Moonsong
 
 - Each task above is self-contained: rename old plugin, create V2 plugin, update themes.py, update __init__.py
 - Always run `python -m pytest tests/ -q` after each task — expect exactly 4 failures (pre-existing)
@@ -362,7 +362,7 @@ Use the least powerful model that can succeed. Match model to task complexity:
   - Plasma fields, wave interference, colour cycling, gradient backgrounds
   - Any screen whose draw_extras() is essentially: for each cell, compute one formula, pick a char
 
-[QWEN14B] qwen3:14b (Moondance default, 40K ctx) — Medium complexity, 150-300 lines:
+[QWEN14B] qwen3:14b (Moonsong delegation default, 40K ctx) — Medium complexity, 150-300 lines:
   - Single physics system, particle trails, Voronoi, cellular automata
   - Screens with instance state but no complex multi-body simulation
 
@@ -375,4 +375,4 @@ Use the least powerful model that can succeed. Match model to task complexity:
   - NOT used for routine theme implementation (too expensive)
 
 Assignment hints already in each task via [MODEL] tag.
-For untagged tasks, Moondance should assess: if < 150 lines → HAIKU, else default → QWEN14B.
+For untagged tasks, Moonsong should assess: if < 150 lines → HAIKU, else default → QWEN14B.

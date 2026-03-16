@@ -50,6 +50,8 @@ def test_all_themes_can_be_built():
         "dna-strand", "pendulum-array", "mandala-scope", "ghost-echo", "magnetic-field",
         # Generated screens (draw_extras only, no graph layer)
         "quantum-foam",
+        # New Original Screens (Task 50)
+        "ascii-rain", "sand-automaton", "ascii-rorschach", "wireframe-cube", "hypercube-fold",
     }
     for name in THEMES:
         config = build_theme_config(name)

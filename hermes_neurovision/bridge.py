@@ -68,6 +68,9 @@ _MAPPING = {
     "provider_error":         ("burst",      0.8, "warning", "center"),
     "subagent_started":       ("spawn_node", 0.9, "bright",  "new"),
     "subagent_ended":         ("converge",   0.7, "bright",  "center"),
+    # VT terminal activity (overlay mode)
+    "vt_output":              ("pulse",      0.2, "soft",    "random_node"),
+    "vt_scroll":              ("ripple",     0.3, "soft",    "center"),
 }
 
 
