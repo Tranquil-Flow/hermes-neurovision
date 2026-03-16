@@ -128,6 +128,8 @@ THEMES: Tuple[str, ...] = (
     "ascii-rorschach",
     "wireframe-cube",
     "hypercube-fold",
+    # ── Mycelium (1) ─────────────────────────────────────────────────
+    "mycelium-pulse",
 )
 
 FRAME_DELAY = 0.05
@@ -300,5 +302,7 @@ def build_theme_config(name: str) -> ThemeConfig:
         "legacy-dark-forest":      ThemeConfig(name, "Dark Forest (Legacy)",      "\u25c9", 0.022, 0.04, 0.14, 0.26, (0.03, 0.06), 0.08, 0.55, 3, palette=(curses.COLOR_GREEN, curses.COLOR_YELLOW, curses.COLOR_WHITE, curses.COLOR_CYAN)),
         "legacy-mountain-stars":   ThemeConfig(name, "Mountain Stars (Legacy)",   "\u2726", 0.045, 0.00, 0.06, 0.20, (0.02, 0.04), 0.06, 0.60, 3, palette=(curses.COLOR_WHITE, curses.COLOR_CYAN, curses.COLOR_BLUE, curses.COLOR_MAGENTA)),
         "legacy-beach-lighthouse": ThemeConfig(name, "Beach Lighthouse (Legacy)", "\u00b7", 0.020, 0.03, 0.12, 0.18, (0.02, 0.04), 0.06, 0.45, 2, palette=(curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_YELLOW, curses.COLOR_BLUE)),
+        # ── Mycelium ────────────────────────────────────────────────────────────
+        "mycelium-pulse": ThemeConfig(name, "Mycelium Pulse", "\u00b7", 0.0, 0.0, 0.0, 0.0, (0.02, 0.05), 0.0, 0.55, 3, palette=(curses.COLOR_GREEN, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_YELLOW)),
     }
     return configs[name]
