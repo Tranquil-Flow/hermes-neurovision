@@ -210,10 +210,6 @@ class OverlayApp:
         self.exit_code: Optional[int] = None
         self._exit_timer: Optional[float] = None
 
-        # Scroll detection — track rapid arrow key bursts
-        self._arrow_burst: list[int] = []  # recent arrow keys in current input batch
-        self._last_arrow_time: float = 0.0
-
         # VT screen (sized to terminal, -1 for status bar)
         h, w = stdscr.getmaxyx()
         self.vt = VTScreen(h - 1, w)
@@ -254,19 +250,25 @@ class OverlayApp:
             return GalleryDelegate(self.theme_seconds)
 
     def run(self) -> None:
-        """Main entry point — spawn child, enter render loop."""
+        """Main entry point — spawn child, enter render loop.
+
+        Key design: we EXIT the alternate screen buffer immediately after
+        curses init. This means scroll works exactly like a normal terminal
+        (viewport moves through scrollback instead of sending arrow keys).
+        Curses still works for rendering — it just draws on the normal screen.
+        """
         curses.curs_set(0)
         self.stdscr.nodelay(True)
         self.stdscr.timeout(0)
 
-        # Disable alternate screen scroll — on macOS, trackpad scroll in
-        # alternate screen mode sends arrow key escape sequences that get
-        # forwarded to the PTY, cycling shell history.
-        # Write through curses (not stdout) since curses owns the terminal:
+        # EXIT alternate screen — stay on normal screen so scroll behaves
+        # like a regular terminal. curses.wrapper() entered alternate screen
+        # via smcup; we reverse that here. Curses rendering still works.
         try:
-            curses.putp(b"\x1b[?1007l")  # disable alternate screen scroll
-            curses.putp(b"\x1b[?1003l")  # disable all mouse tracking
-        except (curses.error, TypeError):
+            sys.stdout.buffer.write(b"\x1b[?1049l")  # leave alternate screen
+            sys.stdout.buffer.write(b"\x1b[2J\x1b[H")  # clear screen + home
+            sys.stdout.buffer.flush()
+        except OSError:
             pass
 
         self._spawn_child()
@@ -447,30 +449,14 @@ class OverlayApp:
         Prefix key: Ctrl+B (0x02). Works reliably on macOS Terminal.app and iTerm2.
         Ctrl+N (0x0E) also supported as alternative.
 
-        Scroll detection: trackpad scroll on macOS sends rapid bursts of
-        KEY_UP/KEY_DOWN that are indistinguishable from arrow keys. We detect
-        bursts (>2 arrow keys within 50ms) and discard them.
+        Scroll works naturally because we run on the normal screen buffer
+        (not alternate screen), so the terminal handles scroll as viewport
+        movement through scrollback — same as a regular terminal.
         """
-        # Collect all available input first
-        keys: list[int] = []
         while True:
             ch = self.stdscr.getch()
             if ch == -1:
-                break
-            keys.append(ch)
-
-        if not keys:
-            return
-
-        # Detect arrow key bursts (likely scroll, not deliberate presses)
-        now = time.time()
-        arrow_count = sum(1 for k in keys if k in (curses.KEY_UP, curses.KEY_DOWN))
-        is_scroll_burst = arrow_count > 2  # >2 arrows in one batch = scroll
-
-        for ch in keys:
-            # Filter scroll bursts — discard all arrow keys in the burst
-            if is_scroll_burst and ch in (curses.KEY_UP, curses.KEY_DOWN):
-                continue
+                return
 
             if self.nv_mode:
                 if ch == 27:  # Esc exits NV mode
@@ -622,7 +608,7 @@ class OverlayApp:
                 pass
 
     def _cleanup(self) -> None:
-        """Clean up child process."""
+        """Clean up child process and restore terminal."""
         if self.child_pid is not None and not self.child_exited:
             try:
                 os.kill(self.child_pid, signal.SIGHUP)
@@ -634,3 +620,9 @@ class OverlayApp:
                 os.close(self.pty_master)
             except OSError:
                 pass
+        # Clear the normal screen since we were drawing on it
+        try:
+            sys.stdout.buffer.write(b"\x1b[2J\x1b[H")  # clear + cursor home
+            sys.stdout.buffer.flush()
+        except OSError:
+            pass
