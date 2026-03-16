@@ -371,31 +371,14 @@ class OverlayApp:
                 self.state = self._make_state(self.themes[self.theme_index])
                 self.delegate.reset_timer()
 
+            # Render scene to full screen (erase + blit + overlay effects).
+            # This erases every frame — scrollback above the screen is lost.
+            # This is a known limitation of curses-based rendering.
+            self.renderer.draw(self.state, self.theme_index, len(self.themes),
+                              None, hide_hud=True, skip_refresh=True)
+
+            # Composite text over scene
             h, w = self.stdscr.getmaxyx()
-            terminal_bottom = self.vt.cursor_row
-            scene_start = terminal_bottom + 1  # scene renders below text
-
-            # Render scene into buffer (without erasing the screen).
-            # The renderer builds the full scene in its FrameBuffer.
-            # We call draw() with skip_refresh=True, but it calls erase()
-            # internally. To avoid that, we render to buffer directly.
-            self._render_scene_to_buffer(w, h)
-
-            # Write scene ONLY to rows below the terminal area.
-            # Text area (rows 0–cursor_row) is untouched — preserving
-            # scrollback and native text rendering.
-            buf = self.renderer._buffer
-            if buf:
-                for y in range(scene_start, h - 1):  # -1 for status bar
-                    for x in range(w):
-                        cell = buf.get(x, y)
-                        try:
-                            self.stdscr.addstr(y, x, cell.char,
-                                             curses.color_pair(cell.color_pair) | cell.attr)
-                        except curses.error:
-                            pass
-
-            # Composite text area (rows 0–terminal_bottom)
             self.compositor.composite(
                 self.stdscr, self.vt, self.renderer.color_pairs,
                 current_frame=frame, status_row=h - 1
@@ -618,51 +601,6 @@ class OverlayApp:
                               curses.color_pair(self.renderer.color_pairs.get("soft", 2)) | curses.A_BOLD)
         except curses.error:
             pass
-
-    def _render_scene_to_buffer(self, w: int, h: int) -> None:
-        """Build scene into renderer's FrameBuffer WITHOUT erasing stdscr.
-
-        This replicates what renderer.draw() does internally (lines 166-259
-        of renderer.py) but skips the erase() + blit_to_screen() step.
-        The caller can then selectively write buffer rows to the screen.
-        """
-        from hermes_neurovision.renderer import FrameBuffer, _BufferShim
-        state = self.state
-        r = self.renderer
-
-        state.resize(w, h)
-        r._apply_palette(state.config.palette)
-
-        if r._buffer is None or r._buffer.w != w or r._buffer.h != h:
-            r._buffer = FrameBuffer(w, h)
-        else:
-            r._buffer.clear()
-
-        tune = getattr(state, "tune", None)
-        layer = state.plugin.emergent_layer()
-        shim = _BufferShim(r._buffer)
-
-        if not tune or tune.show_stars:
-            r._draw_stars(state)
-        if layer == "background":
-            r._draw_emergent(state)
-        if not tune or tune.show_background:
-            state.plugin.draw_background(shim, state, r.color_pairs)
-        if not tune or tune.show_nodes:
-            r._draw_edges(state)
-        r._draw_pulses(state)
-        if not tune or tune.show_nodes:
-            r._draw_nodes(state)
-        if layer == "midground":
-            r._draw_emergent(state)
-        r._draw_packets(state)
-        r._draw_particles(state)
-        if not tune or getattr(tune, "show_streaks", True):
-            r._draw_streaks(state)
-        if not tune or tune.show_background:
-            state.plugin.draw_extras(shim, state, r.color_pairs)
-        if layer == "foreground":
-            r._draw_emergent(state)
 
     def _reinit_ansi_colors(self) -> None:
         """Re-initialize ANSI color pairs after screen buffer switch.
