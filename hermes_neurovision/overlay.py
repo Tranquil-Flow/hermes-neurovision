@@ -271,6 +271,10 @@ class OverlayApp:
         except OSError:
             pass
 
+        # Re-initialize color pairs AFTER exiting alternate screen.
+        # Color state may not survive the screen buffer switch.
+        self._reinit_ansi_colors()
+
         self._spawn_child()
 
         # SIGWINCH handler
@@ -581,6 +585,37 @@ class OverlayApp:
         try:
             self.stdscr.addstr(y, 0, bar.ljust(w - 1),
                               curses.color_pair(self.renderer.color_pairs.get("soft", 2)) | curses.A_BOLD)
+        except curses.error:
+            pass
+
+    def _reinit_ansi_colors(self) -> None:
+        """Re-initialize ANSI color pairs after screen buffer switch.
+
+        Color pairs initialized on the alternate screen may not persist
+        when we switch to the normal screen. This ensures pairs 7-14
+        (ANSI passthrough) are correctly set up for text rendering.
+        """
+        if not curses.has_colors():
+            return
+        ansi_colors = [
+            (7,  curses.COLOR_BLACK),
+            (8,  curses.COLOR_RED),
+            (9,  curses.COLOR_GREEN),
+            (10, curses.COLOR_YELLOW),
+            (11, curses.COLOR_BLUE),
+            (12, curses.COLOR_MAGENTA),
+            (13, curses.COLOR_CYAN),
+            (14, curses.COLOR_WHITE),
+        ]
+        for pair_id, fg in ansi_colors:
+            try:
+                curses.init_pair(pair_id, fg, -1)
+            except curses.error:
+                pass
+        # Also reinit the text pair and warning pair
+        try:
+            curses.init_pair(6, curses.COLOR_WHITE, -1)
+            curses.init_pair(5, curses.COLOR_YELLOW, -1)
         except curses.error:
             pass
 
