@@ -113,7 +113,13 @@ class FadeConfig:
     fade_start_pct: float = 0.0     # row % where fade begins (0.0 = top)
     fade_end_pct: float = 0.4       # row % where text is fully opaque
     text_opacity: float = 1.0       # global text brightness 0.0-1.0
-    text_bg: str = "transparent"    # "transparent" or "dim"
+    text_bg: str = "transparent"    # "transparent", "dim", "solid"
+    text_bg_opacity: float = 0.0    # 0.0 = fully transparent (text on animation)
+                                    # 1.0 = solid box (scene hidden behind text)
+                                    # sliding scale between the two extremes
+    text_glow: bool = False         # enable glow effect on text (bold + bright color pair)
+    text_color: str = "auto"        # "auto" (use child's ANSI colors), or override:
+                                    # "white", "green", "cyan", "magenta", "yellow", "red"
 
 class FadeCompositor:
     def __init__(self, config: FadeConfig):
@@ -153,7 +159,59 @@ Where `fade_start_row = h * fade_start_pct` and `fade_end_row = h * fade_end_pct
 
 **Age mode:** Each VTCell gets a `born_frame` timestamp. Opacity = `1.0 - (current_frame - born_frame) / fade_lifetime`. Combined mode multiplies position and age opacities.
 
-**`text_bg: "dim"`:** Darken scene cells behind visible text by rendering them with `A_DIM` for improved readability.
+**Text background opacity** (`text_bg_opacity`):
+
+This is a sliding scale controlling how much the scene shows through behind text:
+
+| `text_bg_opacity` | Visual |
+|---|---|
+| 0.0 | Fully transparent — text renders directly on the animation. Most immersive. |
+| 0.0–0.3 | Scene slightly dimmed behind text cells. Text floats over scene. |
+| 0.3–0.7 | Scene noticeably darkened. Text area is a translucent panel. |
+| 0.7–1.0 | Near-opaque. Text area is a dark box, scene barely visible behind it. |
+| 1.0 | Solid black background behind all text cells. Traditional terminal look. |
+
+Implementation: for each cell where VT text is visible, blend the scene cell's character toward a space/block character based on `text_bg_opacity`. At 0.0, the scene character is kept if the VT cell is a space. At 1.0, all cells in the text region get a solid dark background regardless of content.
+
+The `text_bg` string setting is a convenience alias:
+- `"transparent"` → `text_bg_opacity = 0.0`
+- `"dim"` → `text_bg_opacity = 0.3`
+- `"solid"` → `text_bg_opacity = 1.0`
+
+The `--text-bg-opacity` float flag overrides the string alias for fine-grained control.
+
+**Text glow effect** (`text_glow`):
+
+When enabled, visible text characters are rendered with `curses.A_BOLD` combined with the `"bright"` color pair from the current theme. This creates a glowing effect where text appears to emit light.
+
+The glow intensity follows the fade gradient — fully glowing at the bottom, fading to dim glow, then invisible at the top. This means the "glow" doesn't fight the fade; it enhances visibility in the opaque region.
+
+Curses limitation: true glow (bloom/halo around characters) is not possible in a terminal. What we can do:
+- `A_BOLD` makes the character brighter (most terminals render this as actual bold or bright color)
+- Use the theme's `"bright"` color pair, which is typically the most vivid color
+- On terminals that support it, bold + bright color creates a convincing glow-on-dark effect
+
+This is a best-effort feature. On terminals with limited color support, it degrades to just bold text.
+
+**Text color override** (`text_color`):
+
+By default (`"auto"`), text uses the ANSI colors sent by the child process (mapped to the nearest neurovision color pair). When overridden, ALL text is rendered in the specified color regardless of what the child sends.
+
+This is useful for matching text to different themes — e.g., green text on a matrix-style scene, cyan on aurora-borealis, magenta on nebula.
+
+Color mapping to curses pairs:
+| `text_color` | Curses pair used |
+|---|---|
+| `"auto"` | Child's ANSI color → nearest of base/soft/bright/accent/warning |
+| `"white"` | `"bright"` pair |
+| `"green"` | `"base"` pair (with green palette swap) |
+| `"cyan"` | `"soft"` pair (with cyan palette swap) |
+| `"magenta"` | `"accent"` pair |
+| `"yellow"` | `"warning"` pair |
+| `"red"` | `"warning"` pair with `A_BOLD` |
+| `"theme"` | Use the theme's `"bright"` pair (auto-matches any theme) |
+
+The `"theme"` option is the recommended non-auto choice — it picks whatever color the current theme considers its brightest, so text always looks intentional.
 
 ### 2.3 `hermes_neurovision/overlay.py` — OverlayApp
 
@@ -256,6 +314,10 @@ def _route_input(self):
 | `t` | Next theme |
 | `T` | Previous theme |
 | `f` | Cycle fade mode (position → age → both) |
+| `g` | Toggle text glow |
+| `c` | Cycle text color (auto → theme → green → cyan → magenta → ...) |
+| `[` | Decrease text background opacity (more transparent) |
+| `]` | Increase text background opacity (more solid) |
 | `d` | Toggle debug panel |
 | `1` | Daemon mode |
 | `2` | Gallery mode |
@@ -377,6 +439,19 @@ neurovision --cli --fade-mode age
 neurovision --cli --fade-mode both
 neurovision --cli --fade-start 0.0 --fade-end 0.6  # more opaque area
 neurovision --cli --text-bg dim                      # darken scene behind text
+neurovision --cli --text-bg-opacity 0.5              # fine-grained background opacity
+neurovision --cli --text-bg solid                    # full opaque box behind text
+
+# Text appearance
+neurovision --cli --text-glow                        # glowing text effect
+neurovision --cli --text-color green                 # green text on any theme
+neurovision --cli --text-color theme                 # auto-match theme's bright color
+
+# Full immersive setup: text floats on animation with glow
+neurovision --cli --text-bg transparent --text-glow --text-color theme
+
+# Readable setup: solid background, normal text
+neurovision --cli --text-bg solid --text-color auto
 ```
 
 `--cli` is sugar for `--overlay --cmd "hermes chat"`. If `hermes-aegis` is on PATH and `--aegis` is passed, uses `hermes-aegis run -- hermes chat`.
@@ -393,7 +468,10 @@ neurovision --cli --text-bg dim                      # darken scene behind text
 | `--fade-start` | float | 0.0 | Fade start position (0.0 = top) |
 | `--fade-end` | float | 0.4 | Fade end position (fully opaque below) |
 | `--text-opacity` | float | 1.0 | Global text brightness |
-| `--text-bg` | choice | "transparent" | Text background: transparent/dim |
+| `--text-bg` | choice | "transparent" | Text background: transparent/dim/solid |
+| `--text-bg-opacity` | float | None | Fine-grained background opacity 0.0-1.0 (overrides --text-bg) |
+| `--text-glow` | store_true | False | Enable glow effect on text |
+| `--text-color` | choice | "auto" | Text color: auto/white/green/cyan/magenta/yellow/red/theme |
 
 ---
 
