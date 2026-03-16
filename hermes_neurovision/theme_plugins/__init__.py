@@ -58,6 +58,7 @@ def _load_all() -> None:
         "new_screens",
         "legacy_v1_screens",
         "cosmic_v2",
+        "mechanical_v2",
     ]
     for mod in _mods:
         try:
