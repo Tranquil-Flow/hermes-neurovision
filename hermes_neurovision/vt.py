@@ -10,6 +10,29 @@ from collections import deque
 from dataclasses import dataclass
 
 
+def _rgb_to_ansi(r: int, g: int, b: int) -> int:
+    """Map an RGB color (0-255 each) to the nearest basic ANSI color (0-7)."""
+    # Basic ANSI colors and their approximate RGB values
+    ansi_rgb = [
+        (0, 0, 0),       # 0 black
+        (170, 0, 0),     # 1 red
+        (0, 170, 0),     # 2 green
+        (170, 170, 0),   # 3 yellow
+        (0, 0, 170),     # 4 blue
+        (170, 0, 170),   # 5 magenta
+        (0, 170, 170),   # 6 cyan
+        (170, 170, 170), # 7 white
+    ]
+    best = 7
+    best_dist = float("inf")
+    for i, (ar, ag, ab) in enumerate(ansi_rgb):
+        dist = (r - ar) ** 2 + (g - ag) ** 2 + (b - ab) ** 2
+        if dist < best_dist:
+            best_dist = dist
+            best = i
+    return best
+
+
 @dataclass
 class VTCell:
     """Single character cell in the terminal grid."""
@@ -291,7 +314,7 @@ class VTScreen:
                         i += 2
                         continue
                     if mode == 5 and i + 2 < len(parts):
-                        # 256-color: map to nearest basic color
+                        # 256-color: map to nearest basic ANSI color
                         try:
                             n = int(parts[i + 2])
                             if n < 8:
@@ -299,15 +322,32 @@ class VTScreen:
                             elif n < 16:
                                 self._fg = n - 8
                                 self._bold = True
+                            elif n < 232:
+                                # 6x6x6 color cube (16-231)
+                                # Decompose: n-16 = 36*r + 6*g + b (each 0-5)
+                                idx = n - 16
+                                r, g, b = idx // 36, (idx // 6) % 6, idx % 6
+                                self._fg = _rgb_to_ansi(r * 51, g * 51, b * 51)
+                                self._bold = max(r, g, b) >= 4
                             else:
-                                self._fg = 7  # default for extended colors
+                                # Grayscale ramp (232-255)
+                                gray = (n - 232) * 10 + 8  # 8-238
+                                self._fg = 7  # white
+                                self._bold = gray > 128
                         except ValueError:
                             pass
                         i += 3
                         continue
                     elif mode == 2 and i + 4 < len(parts):
-                        # RGB: skip R;G;B, use default
-                        self._fg = 7
+                        # RGB: map to nearest basic ANSI color
+                        try:
+                            r = int(parts[i + 2])
+                            g = int(parts[i + 3])
+                            b = int(parts[i + 4])
+                            self._fg = _rgb_to_ansi(r, g, b)
+                            self._bold = max(r, g, b) > 180
+                        except (ValueError, IndexError):
+                            self._fg = 7
                         i += 5
                         continue
                 i += 2

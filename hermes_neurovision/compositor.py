@@ -195,21 +195,31 @@ class FadeCompositor:
             if attr is None and is_terminal_area:
                 attr = curses.A_DIM
 
-            if is_terminal_area and cfg.text_bg_opacity > 0.0:
-                # Darken the ENTIRE row — every cell gets a dark background.
-                # This prevents scene characters from bleeding into text lines.
+            if is_terminal_area and cfg.text_bg_opacity >= 1.0:
+                # Solid mode: black out the entire row (no scene visible)
                 for x in range(min(vt_screen.cols, w)):
                     try:
                         stdscr.addstr(y, x, " ", curses.color_pair(0))
                     except curses.error:
                         pass
+            elif is_terminal_area and cfg.text_bg_opacity >= 0.7:
+                # High opacity: dim the scene behind text
+                for x in range(min(vt_screen.cols, w)):
+                    if vt_screen.cells[y][x].char == " ":
+                        try:
+                            # Read what the scene rendered, re-draw it dimmer
+                            stdscr.addstr(y, x, " ",
+                                         curses.color_pair(0) | curses.A_DIM)
+                        except curses.error:
+                            pass
+            # For opacity < 0.7: leave scene visible through spaces (transparent)
 
-            # Draw text characters on top of the darkened background
+            # Draw text characters on top of the scene/background
             for x in range(min(vt_screen.cols, w)):
                 vt_cell = vt_screen.cells[y][x]
 
                 if vt_cell.char == " ":
-                    continue  # already dark from background pass
+                    continue  # scene shows through (or already darkened above)
 
                 pair_num, extra_attr = self.resolve_color_pair(
                     vt_cell.fg, vt_cell.bold, color_pairs
