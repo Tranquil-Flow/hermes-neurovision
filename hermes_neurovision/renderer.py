@@ -117,33 +117,52 @@ class Renderer:
 
         curses.start_color()
         curses.use_default_colors()
-        palette = [
+        # Theme pairs (1-5) + fixed text pair (6)
+        theme_palette = [
             (1, curses.COLOR_BLUE, -1),
             (2, curses.COLOR_CYAN, -1),
             (3, curses.COLOR_WHITE, -1),
             (4, curses.COLOR_MAGENTA, -1),
             (5, curses.COLOR_YELLOW, -1),
             (6, curses.COLOR_WHITE, -1),   # "text" — fixed white, never theme-swapped
-            # ANSI passthrough pairs (7-14) — for overlay text with native colors
-            # These are NEVER theme-swapped. They map 1:1 to ANSI fg colors 0-7.
-            (7,  curses.COLOR_BLACK, -1),    # ansi_0 (black)
-            (8,  curses.COLOR_RED, -1),      # ansi_1 (red)
-            (9,  curses.COLOR_GREEN, -1),    # ansi_2 (green)
-            (10, curses.COLOR_YELLOW, -1),   # ansi_3 (yellow)
-            (11, curses.COLOR_BLUE, -1),     # ansi_4 (blue)
-            (12, curses.COLOR_MAGENTA, -1),  # ansi_5 (magenta)
-            (13, curses.COLOR_CYAN, -1),     # ansi_6 (cyan)
-            (14, curses.COLOR_WHITE, -1),    # ansi_7 (white/default)
         ]
-        for pair_id, fg, bg in palette:
+        for pair_id, fg, bg in theme_palette:
             try:
                 curses.init_pair(pair_id, fg, bg)
             except curses.error:
                 pass
+
+        # 256-color passthrough pairs (16-271) — for overlay text.
+        # Each xterm color index N gets pair N+16, using color N directly.
+        # These are NEVER theme-swapped. Falls back gracefully if terminal
+        # doesn't support enough pairs or colors.
+        max_pairs = min(getattr(curses, 'COLOR_PAIRS', 256), 512)
+        max_colors = min(getattr(curses, 'COLORS', 8), 256)
+        if max_colors >= 256 and max_pairs >= 272:
+            for color_idx in range(256):
+                try:
+                    curses.init_pair(16 + color_idx, color_idx, -1)
+                except curses.error:
+                    break  # terminal doesn't support this many pairs
+            pairs["_256color"] = True
+        else:
+            # Fallback: basic 8-color ANSI pairs (7-14) for terminals
+            # that don't support 256 colors
+            ansi_colors = [
+                (7,  curses.COLOR_BLACK),  (8,  curses.COLOR_RED),
+                (9,  curses.COLOR_GREEN),  (10, curses.COLOR_YELLOW),
+                (11, curses.COLOR_BLUE),   (12, curses.COLOR_MAGENTA),
+                (13, curses.COLOR_CYAN),   (14, curses.COLOR_WHITE),
+            ]
+            for pair_id, fg in ansi_colors:
+                try:
+                    curses.init_pair(pair_id, fg, -1)
+                except curses.error:
+                    pass
+            pairs["_256color"] = False
+
         pairs.update({
             "base": 1, "soft": 2, "bright": 3, "accent": 4, "warning": 5, "text": 6,
-            "ansi_0": 7, "ansi_1": 8, "ansi_2": 9, "ansi_3": 10,
-            "ansi_4": 11, "ansi_5": 12, "ansi_6": 13, "ansi_7": 14,
         })
         return pairs
 

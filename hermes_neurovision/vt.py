@@ -17,6 +17,22 @@ def _char_width(ch: str) -> int:
     return 2 if w in ("W", "F") else 1
 
 
+def _rgb_to_256(r: int, g: int, b: int) -> int:
+    """Map RGB (0-255 each) to nearest xterm 256-color index."""
+    # Check grayscale first (232-255)
+    if r == g == b:
+        if r < 8:
+            return 16  # near-black
+        if r > 248:
+            return 231  # near-white
+        return 232 + round((r - 8) / 247 * 23)
+    # Map to 6x6x6 color cube (16-231)
+    ri = round(r / 255 * 5)
+    gi = round(g / 255 * 5)
+    bi = round(b / 255 * 5)
+    return 16 + 36 * ri + 6 * gi + bi
+
+
 def _rgb_to_ansi(r: int, g: int, b: int) -> int:
     """Map an RGB color (0-255 each) to the nearest basic ANSI color (0-7)."""
     # Basic ANSI colors and their approximate RGB values
@@ -45,7 +61,7 @@ class VTCell:
     """Single character cell in the terminal grid."""
     char: str = " "
     bold: bool = False
-    fg: int = 7           # ANSI color 0-7
+    fg: int = 7           # Color index: 0-7 basic, 8-15 bright, 16-255 extended
     born_frame: int = 0   # frame when last written (for age-based fading)
 
 
@@ -382,38 +398,23 @@ class VTScreen:
                         i += 2
                         continue
                     if mode == 5 and i + 2 < len(parts):
-                        # 256-color: map to nearest basic ANSI color
+                        # 256-color: store the actual index (0-255)
                         try:
                             n = int(parts[i + 2])
-                            if n < 8:
-                                self._fg = n
-                            elif n < 16:
-                                self._fg = n - 8
+                            self._fg = max(0, min(255, n))
+                            if 8 <= n <= 15:
                                 self._bold = True
-                            elif n < 232:
-                                # 6x6x6 color cube (16-231)
-                                # Decompose: n-16 = 36*r + 6*g + b (each 0-5)
-                                idx = n - 16
-                                r, g, b = idx // 36, (idx // 6) % 6, idx % 6
-                                self._fg = _rgb_to_ansi(r * 51, g * 51, b * 51)
-                                self._bold = max(r, g, b) >= 4
-                            else:
-                                # Grayscale ramp (232-255)
-                                gray = (n - 232) * 10 + 8  # 8-238
-                                self._fg = 7  # white
-                                self._bold = gray > 128
                         except ValueError:
                             pass
                         i += 3
                         continue
                     elif mode == 2 and i + 4 < len(parts):
-                        # RGB: map to nearest basic ANSI color
+                        # RGB: find nearest 256-color index
                         try:
                             r = int(parts[i + 2])
                             g = int(parts[i + 3])
                             b = int(parts[i + 4])
-                            self._fg = _rgb_to_ansi(r, g, b)
-                            self._bold = max(r, g, b) > 180
+                            self._fg = _rgb_to_256(r, g, b)
                         except (ValueError, IndexError):
                             self._fg = 7
                         i += 5

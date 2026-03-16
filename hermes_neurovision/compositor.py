@@ -131,17 +131,20 @@ class FadeCompositor:
                 extra_attr |= curses.A_DIM
             return color_pairs.get(glow_key, 1), extra_attr
         elif cfg.text_color == "native":
-            # Default text (fg=7) uses pair 0 = terminal's actual default color.
-            # Explicitly colored text (fg != 7) uses ANSI passthrough pairs (7-14).
-            # This makes normal text look EXACTLY like the user's terminal,
-            # while preserving colored prompts, ls, git output, etc.
+            # Use the terminal's actual colors via passthrough pairs.
+            # 256-color mode: pair = vt_fg + 16 (direct xterm color index)
+            # 8-color fallback: map to basic ANSI pairs
             if vt_fg == 7 and not vt_bold:
                 return 0, extra_attr  # pair 0 = terminal default
-            ansi_key = f"ansi_{vt_fg}"
-            pair_num = color_pairs.get(ansi_key, 0)
             if vt_bold:
                 extra_attr |= curses.A_BOLD
-            return pair_num, extra_attr
+            if color_pairs.get("_256color"):
+                # Direct 256-color: pair N+16 maps to xterm color N
+                return 16 + vt_fg, extra_attr
+            else:
+                # Fallback: map to basic 8 pairs (7-14)
+                basic = vt_fg if vt_fg < 8 else (vt_fg - 8 if vt_fg < 16 else 7)
+                return 7 + basic, extra_attr
         elif cfg.text_color == "auto":
             # Map ANSI color to nearest neurovision pair
             pair_key = _ANSI_TO_PAIR.get(vt_fg, "text")

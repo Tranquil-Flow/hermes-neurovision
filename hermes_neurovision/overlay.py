@@ -627,35 +627,41 @@ class OverlayApp:
             pass
 
     def _reinit_ansi_colors(self) -> None:
-        """Re-initialize ANSI color pairs after screen buffer switch.
+        """Re-initialize color pairs after screen buffer switch.
 
         Color pairs initialized on the alternate screen may not persist
-        when we switch to the normal screen. This ensures pairs 7-14
-        (ANSI passthrough) are correctly set up for text rendering.
+        when we switch to the normal screen. Reinit all 256 passthrough
+        pairs (or 8-color fallback on limited terminals).
         """
         if not curses.has_colors():
             return
-        ansi_colors = [
-            (7,  curses.COLOR_BLACK),
-            (8,  curses.COLOR_RED),
-            (9,  curses.COLOR_GREEN),
-            (10, curses.COLOR_YELLOW),
-            (11, curses.COLOR_BLUE),
-            (12, curses.COLOR_MAGENTA),
-            (13, curses.COLOR_CYAN),
-            (14, curses.COLOR_WHITE),
-        ]
-        for pair_id, fg in ansi_colors:
-            try:
-                curses.init_pair(pair_id, fg, -1)
-            except curses.error:
-                pass
-        # Also reinit the text pair and warning pair
+        # Reinit theme-fixed pairs
         try:
-            curses.init_pair(6, curses.COLOR_WHITE, -1)
             curses.init_pair(5, curses.COLOR_YELLOW, -1)
+            curses.init_pair(6, curses.COLOR_WHITE, -1)
         except curses.error:
             pass
+        # Reinit 256-color or 8-color passthrough pairs
+        max_pairs = min(getattr(curses, 'COLOR_PAIRS', 256), 512)
+        max_colors = min(getattr(curses, 'COLORS', 8), 256)
+        if max_colors >= 256 and max_pairs >= 272:
+            for color_idx in range(256):
+                try:
+                    curses.init_pair(16 + color_idx, color_idx, -1)
+                except curses.error:
+                    break
+        else:
+            ansi = [
+                (7, curses.COLOR_BLACK), (8, curses.COLOR_RED),
+                (9, curses.COLOR_GREEN), (10, curses.COLOR_YELLOW),
+                (11, curses.COLOR_BLUE), (12, curses.COLOR_MAGENTA),
+                (13, curses.COLOR_CYAN), (14, curses.COLOR_WHITE),
+            ]
+            for pair_id, fg in ansi:
+                try:
+                    curses.init_pair(pair_id, fg, -1)
+                except curses.error:
+                    pass
 
     # ── Resize / cleanup ──────────────────────────────────────────────────
 
