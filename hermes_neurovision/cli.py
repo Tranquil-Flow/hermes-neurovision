@@ -390,3 +390,90 @@ def _run_daemon(args):
         curses.wrapper(run_curses)
     except KeyboardInterrupt:
         pass
+
+
+def _run_overlay(args):
+    import shlex
+    from hermes_neurovision.overlay import OverlayApp
+    from hermes_neurovision.compositor import FadeConfig
+    from hermes_neurovision.events import EventPoller
+    from hermes_neurovision.bridge import Bridge
+    from hermes_neurovision.sources.custom import CustomSource
+    from hermes_neurovision.sources.state_db import StateDbSource
+    from hermes_neurovision.sources.memories import MemoriesSource
+    from hermes_neurovision.sources.cron import CronSource
+    from hermes_neurovision.sources.aegis import AegisSource
+    from hermes_neurovision.sources.trajectories import TrajectoriesSource
+    from hermes_neurovision.sources.docker_tasks import DockerTaskSource
+
+    # Determine child command
+    if args.cli:
+        child_cmd = ["hermes", "chat"]
+    elif args.cmd:
+        child_cmd = shlex.split(args.cmd)
+    else:
+        child_cmd = [os.environ.get("SHELL", "/bin/zsh")]
+
+    # Build FadeConfig
+    bg_presets = {"transparent": 0.0, "dim": 0.3, "solid": 1.0}
+    bg_opacity = args.text_bg_opacity if args.text_bg_opacity is not None else bg_presets.get(args.text_bg, 0.0)
+    fade_config = FadeConfig(
+        mode=args.fade_mode,
+        fade_start_pct=args.fade_start,
+        fade_end_pct=args.fade_end,
+        text_opacity=args.text_opacity,
+        text_bg=args.text_bg,
+        text_bg_opacity=bg_opacity,
+        text_glow=args.text_glow,
+        text_glow_color=args.text_glow_color,
+        text_glow_intensity=args.text_glow_intensity,
+        text_color=args.text_color,
+    )
+
+    # Event sources
+    sources = [
+        CustomSource().poll,
+        StateDbSource().poll,
+        MemoriesSource().poll,
+        CronSource().poll,
+        TrajectoriesSource().poll,
+        DockerTaskSource().poll,
+    ]
+    if not args.no_aegis:
+        sources.append(AegisSource().poll)
+
+    poller = EventPoller(sources=sources)
+    bridge = Bridge()
+
+    # Determine scene mode
+    mode = getattr(args, "overlay_mode", "daemon")
+    if args.gallery:
+        mode = "gallery"
+    elif args.live:
+        mode = "live"
+
+    # Theme list — respect --theme flag
+    if args.theme is None:
+        args.theme = _load_default_theme()
+    if args.theme and args.theme != "neural-sky":
+        themes = [args.theme]
+    else:
+        themes = list(THEMES)
+
+    def run_curses(stdscr):
+        app = OverlayApp(
+            stdscr=stdscr,
+            child_cmd=child_cmd,
+            themes=themes,
+            theme_seconds=args.theme_seconds,
+            mode=mode,
+            fade_config=fade_config,
+            poller=poller,
+            bridge=bridge,
+        )
+        app.run()
+
+    try:
+        curses.wrapper(run_curses)
+    except KeyboardInterrupt:
+        pass

@@ -31,7 +31,8 @@ def test_gallery_delegate_steps_state():
 def test_gallery_delegate_switches_theme():
     d = GalleryDelegate(theme_seconds=0.1)
     d.reset_timer()
-    time.sleep(0.15)
+    # Force the switch time to be in the past
+    d._switch_at = time.time() - 1.0
     assert d.should_switch_theme(time.time()) is True
 
 
