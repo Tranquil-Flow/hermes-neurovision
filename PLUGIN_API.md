@@ -765,3 +765,20 @@ hermes_neurovision/
 *For practical patterns, read `attractors.py` (density accumulator),
 `spectacular.py` (full-field math), `ascii_fields.py` (simpler per-pixel fields),
 and `emergent_v2.py` (emergent system integration).*
+
+---
+
+## Hermes Agent Skill
+
+If you use [hermes-agent](https://github.com/VoltAgent/hermes-agent), the
+`hermes-neurovision-theme-design` skill is bundled and auto-installed on first run.
+It contains this full API reference condensed into a form the agent can load in a
+single context window — covering all three screen archetypes, the v0.2 react/emergent
+layer, postFX methods, intensity coupling patterns, and a ready-to-use plugin template.
+
+Load it any time you want the agent to design or implement a new screen:
+
+    /skill load hermes-neurovision-theme-design
+
+Or just describe what you want — the skill triggers automatically on phrases like
+"add a theme to hermes-neurovision" or "build a new visualizer screen".

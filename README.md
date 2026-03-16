@@ -370,6 +370,11 @@ See [PLUGIN_API.md](PLUGIN_API.md) for the complete plugin API reference —
 all hooks, state fields, colour helpers, rainbow pairs, reactive system,
 and full worked examples including a strange attractor from scratch.
 
+> **hermes-agent users:** the `hermes-neurovision-theme-design` skill is
+> bundled and auto-installed. Ask your agent to build a screen and it will
+> load the full API guide automatically. See the bottom of PLUGIN_API.md
+> for details.
+
 ### Writing Hybrid Themes
 
 To create a theme that combines an ASCII field backdrop with node-based event storytelling:
