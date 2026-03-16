@@ -29,15 +29,16 @@ _COLOR_MAP = {
 }
 
 # ANSI fg code (0-7) → nearest neurovision color pair key
+# Note: "text" is a fixed white pair that's never theme-swapped
 _ANSI_TO_PAIR = {
-    0: "base",      # black
+    0: "text",      # black → use text (white) since black-on-dark is invisible
     1: "warning",   # red
     2: "base",      # green
     3: "warning",   # yellow
     4: "soft",      # blue
     5: "accent",    # magenta
     6: "soft",      # cyan
-    7: "soft",      # white/default — use "soft" so default text isn't blinding
+    7: "text",      # white/default → use fixed white "text" pair
 }
 
 
@@ -48,8 +49,8 @@ class FadeConfig:
     fade_start_pct: float = 0.0     # row % where fade begins (0.0 = top)
     fade_end_pct: float = 0.4       # row % where text is fully opaque
     text_opacity: float = 1.0       # global text brightness 0.0-1.0
-    text_bg: str = "transparent"    # convenience alias: "transparent", "dim", "solid"
-    text_bg_opacity: float = 0.0    # 0.0=transparent, 1.0=solid (overrides text_bg)
+    text_bg: str = "dim"            # convenience alias: "transparent", "dim", "solid"
+    text_bg_opacity: float = 0.3    # 0.0=transparent, 1.0=solid (default: 30% for readability)
     text_glow: bool = False         # enable glow effect on text
     text_glow_color: str = "theme"  # glow color: "theme", "white", "green", "cyan", "magenta", "yellow", "red"
     text_glow_intensity: float = 1.0  # glow intensity 0.0-1.0 (scales brightness)
@@ -57,9 +58,7 @@ class FadeConfig:
     fade_lifetime: int = 1200       # frames for full age-based fade (60 seconds at 20fps)
 
     def __post_init__(self) -> None:
-        # If text_bg_opacity wasn't explicitly set, derive from text_bg preset
-        if self.text_bg in _BG_PRESETS and self.text_bg_opacity == 0.0:
-            self.text_bg_opacity = _BG_PRESETS[self.text_bg]
+        pass  # text_bg_opacity is set directly by CLI; no auto-derivation needed
 
 
 class FadeCompositor:

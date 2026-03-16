@@ -123,13 +123,14 @@ class Renderer:
             (3, curses.COLOR_WHITE, -1),
             (4, curses.COLOR_MAGENTA, -1),
             (5, curses.COLOR_YELLOW, -1),
+            (6, curses.COLOR_WHITE, -1),   # "text" — fixed white, never theme-swapped
         ]
         for pair_id, fg, bg in palette:
             try:
                 curses.init_pair(pair_id, fg, bg)
             except curses.error:
                 pass
-        pairs.update({"base": 1, "soft": 2, "bright": 3, "accent": 4, "warning": 5})
+        pairs.update({"base": 1, "soft": 2, "bright": 3, "accent": 4, "warning": 5, "text": 6})
         return pairs
 
     def _apply_palette(self, palette: Tuple[int, int, int, int]) -> None:

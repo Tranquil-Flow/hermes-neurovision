@@ -218,14 +218,22 @@ class VTScreen:
             self._handle_sgr(parts)
 
     def _handle_sgr(self, parts: list[str]) -> None:
-        """Process SGR parameters."""
+        """Process SGR parameters.
+
+        Handles basic 8-color SGR codes. 256-color (38;5;N) and RGB (38;2;R;G;B)
+        sequences are recognized and consumed without crashing — we map them to
+        the nearest basic color since we only have 8-color support.
+        """
         if not parts or parts == [""]:
             parts = ["0"]
-        for p in parts:
+        i = 0
+        while i < len(parts):
             try:
-                code = int(p)
+                code = int(parts[i])
             except ValueError:
+                i += 1
                 continue
+
             if code == 0:       # Reset
                 self._bold = False
                 self._fg = 7
@@ -237,3 +245,54 @@ class VTScreen:
                 self._fg = code - 30
             elif code == 39:    # Default foreground
                 self._fg = 7
+            elif code == 38:    # Extended foreground color
+                # 38;5;N = 256-color, 38;2;R;G;B = RGB
+                if i + 1 < len(parts):
+                    try:
+                        mode = int(parts[i + 1])
+                    except ValueError:
+                        i += 2
+                        continue
+                    if mode == 5 and i + 2 < len(parts):
+                        # 256-color: map to nearest basic color
+                        try:
+                            n = int(parts[i + 2])
+                            if n < 8:
+                                self._fg = n
+                            elif n < 16:
+                                self._fg = n - 8
+                                self._bold = True
+                            else:
+                                self._fg = 7  # default for extended colors
+                        except ValueError:
+                            pass
+                        i += 3
+                        continue
+                    elif mode == 2 and i + 4 < len(parts):
+                        # RGB: skip R;G;B, use default
+                        self._fg = 7
+                        i += 5
+                        continue
+                i += 2
+                continue
+            elif code == 48:    # Extended background color (skip)
+                if i + 1 < len(parts):
+                    try:
+                        mode = int(parts[i + 1])
+                    except ValueError:
+                        i += 2
+                        continue
+                    if mode == 5:
+                        i += 3
+                        continue
+                    elif mode == 2:
+                        i += 5
+                        continue
+                i += 2
+                continue
+            elif 40 <= code <= 47:   # Background color (ignore, we don't track bg)
+                pass
+            elif code == 49:    # Default background (ignore)
+                pass
+
+            i += 1

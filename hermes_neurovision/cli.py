@@ -141,7 +141,7 @@ def parse_args(argv=None):
     overlay_group.add_argument("--text-opacity", type=float, default=1.0,
                                help="Global text brightness 0.0-1.0")
     overlay_group.add_argument("--text-bg", choices=["transparent", "dim", "solid"],
-                               default="transparent", help="Text background preset")
+                               default="dim", help="Text background preset (default: dim = 30%% opacity)")
     overlay_group.add_argument("--text-bg-opacity", type=float, default=None,
                                help="Fine-grained text background opacity 0.0-1.0")
     overlay_group.add_argument("--text-glow", action="store_true",

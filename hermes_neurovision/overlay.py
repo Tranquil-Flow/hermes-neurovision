@@ -411,8 +411,8 @@ class OverlayApp:
     def _route_input(self) -> None:
         """Read curses input and route to PTY or neurovision controls.
 
-        Prefix key: Ctrl+N (0x0E) or F12 (curses.KEY_F12).
-        Some terminals eat Ctrl+N, so F12 is always available as fallback.
+        Prefix key: Ctrl+B (0x02). Works reliably on macOS Terminal.app and iTerm2.
+        Ctrl+N (0x0E) also supported as alternative.
         """
         while True:
             ch = self.stdscr.getch()
@@ -426,7 +426,7 @@ class OverlayApp:
             elif self.prefix_pending:
                 self._handle_prefix(ch)
                 self.prefix_pending = False
-            elif ch == 0x0E or ch == curses.KEY_F12:  # Ctrl+N or F12
+            elif ch == 0x02 or ch == 0x0E:  # Ctrl+B or Ctrl+N
                 self.prefix_pending = True
             else:
                 self._write_pty(ch)
@@ -469,8 +469,8 @@ class OverlayApp:
             self.nv_mode = True
         elif c == "q":
             self.running = False
-        elif ch == 0x0E or ch == curses.KEY_F12:  # double-tap → send literal Ctrl+N
-            self._write_pty(0x0E)
+        elif ch == 0x02 or ch == 0x0E:  # double-tap → send literal to PTY
+            self._write_pty(ch)
 
     def _handle_nv_key(self, ch: int) -> None:
         """Handle key in neurovision mode."""
@@ -519,7 +519,9 @@ class OverlayApp:
 
         theme_name = self.themes[self.theme_index] if self.themes else "?"
 
-        if self.nv_mode:
+        if self.prefix_pending:
+            bar = f" [{theme_name}] [CTRL+B pressed — t:theme g:glow c:color [/]:bg 1/2/3:mode m:menu q:quit] "
+        elif self.nv_mode:
             bar = f" [{theme_name}] [NV MODE] [t/T theme | f fade | g glow | G glow-color | +/- intensity | c color | Esc exit] "
         elif self.child_exited:
             code = self.exit_code if self.exit_code is not None else "?"
@@ -533,7 +535,7 @@ class OverlayApp:
             if self.fade_config.text_color != "auto":
                 extras.append(self.fade_config.text_color)
             extra_str = " " + " ".join(extras) if extras else ""
-            bar = f" [{theme_name}] [{mode_str}] [{cmd_str}]{extra_str} [F12: controls] "
+            bar = f" [{theme_name}] [{mode_str}] [{cmd_str}]{extra_str} [Ctrl+B: controls] "
 
         bar = bar[:w - 1]
         try:

@@ -10,8 +10,8 @@ def test_fade_config_defaults():
     assert cfg.fade_start_pct == 0.0
     assert cfg.fade_end_pct == 0.4
     assert cfg.text_opacity == 1.0
-    assert cfg.text_bg == "transparent"
-    assert cfg.text_bg_opacity == 0.0
+    assert cfg.text_bg == "dim"
+    assert cfg.text_bg_opacity == 0.3
     assert cfg.text_glow is False
     assert cfg.text_glow_color == "theme"
     assert cfg.text_glow_intensity == 1.0
@@ -101,11 +101,11 @@ def test_opacity_to_attr_bold():
 
 
 def test_resolve_color_auto():
-    """Auto mode maps default text to soft (not blinding white)."""
+    """Auto mode maps default text to fixed 'text' pair (white, never theme-swapped)."""
     comp = FadeCompositor(FadeConfig(text_color="auto"))
-    pairs = {"base": 1, "soft": 2, "bright": 3, "accent": 4, "warning": 5}
+    pairs = {"base": 1, "soft": 2, "bright": 3, "accent": 4, "warning": 5, "text": 6}
     pair_num, extra = comp.resolve_color_pair(7, False, pairs)
-    assert pair_num == 2  # default fg → soft (readable, not glaring)
+    assert pair_num == 6  # default fg → "text" (fixed white pair)
 
 
 def test_resolve_color_override():
@@ -135,15 +135,18 @@ def test_resolve_color_glow_low_intensity():
 
 
 def test_bg_preset_transparent():
-    cfg = FadeConfig(text_bg="transparent")
+    """Explicit transparent bg opacity."""
+    cfg = FadeConfig(text_bg="transparent", text_bg_opacity=0.0)
     assert cfg.text_bg_opacity == 0.0
 
 
 def test_bg_preset_dim():
-    cfg = FadeConfig(text_bg="dim")
+    """Default config has dim (0.3) bg opacity."""
+    cfg = FadeConfig()
     assert cfg.text_bg_opacity == 0.3
 
 
 def test_bg_preset_solid():
-    cfg = FadeConfig(text_bg="solid")
+    """Explicit solid bg opacity."""
+    cfg = FadeConfig(text_bg="solid", text_bg_opacity=1.0)
     assert cfg.text_bg_opacity == 1.0
