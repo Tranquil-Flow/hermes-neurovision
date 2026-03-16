@@ -459,12 +459,14 @@ class OverlayApp:
             return
 
         try:
-            if ch < 256:
-                os.write(self.pty_master, bytes([ch]))
-            elif ch == curses.KEY_BACKSPACE:
+            if ch == 10 or ch == 13 or ch == curses.KEY_ENTER:
+                # Enter key — send CR (what real terminals send).
+                # PTY line discipline converts CR→NL via ICRNL.
+                os.write(self.pty_master, b"\r")
+            elif ch == curses.KEY_BACKSPACE or ch == 127:
                 os.write(self.pty_master, b"\x7f")
-            elif ch == curses.KEY_ENTER or ch == 10:
-                os.write(self.pty_master, b"\n")
+            elif ch < 256:
+                os.write(self.pty_master, bytes([ch]))
             elif ch == curses.KEY_UP:
                 os.write(self.pty_master, b"\x1b[A")
             elif ch == curses.KEY_DOWN:
