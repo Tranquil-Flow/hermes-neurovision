@@ -231,15 +231,12 @@ class FadeCompositor:
                 except curses.error:
                     pass
 
-        # Draw cursor (block via A_REVERSE)
+        # Position the curses cursor at the VT cursor location.
+        # The terminal's native cursor renders here automatically
+        # (enabled via curs_set(1) in OverlayApp).
         cy, cx = vt_screen.cursor_row, vt_screen.cursor_col
-        if 0 <= cy < h and cy != status_row and 0 <= cx < w:
-            opacity = self.compute_opacity(cy, h, 0, current_frame)
-            if opacity >= 0.15:
-                try:
-                    cursor_char = vt_screen.cells[cy][cx].char if cx < vt_screen.cols else " "
-                    pair_num = color_pairs.get("bright", 1)
-                    stdscr.addstr(cy, cx, cursor_char,
-                                 curses.color_pair(pair_num) | curses.A_REVERSE)
-                except curses.error:
-                    pass
+        if 0 <= cy < h and 0 <= cx < w:
+            try:
+                stdscr.move(cy, cx)
+            except curses.error:
+                pass
