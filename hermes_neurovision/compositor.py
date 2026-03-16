@@ -196,8 +196,10 @@ class FadeCompositor:
             if attr is None:
                 continue  # entire row hidden — scene shows through
 
-            # Darken background for rows with content (or all rows if high opacity)
-            if cfg.text_bg_opacity > 0.0 and (y in has_content or cfg.text_bg_opacity >= 0.8):
+            # Darken background ONLY for rows that have actual text content.
+            # Empty rows (no text) let the scene show through — this is how
+            # the animation stays visible above and around the terminal text.
+            if cfg.text_bg_opacity > 0.0 and y in has_content:
                 for x in range(min(vt_screen.cols, w)):
                     vt_cell = vt_screen.cells[y][x]
                     if vt_cell.char == " ":

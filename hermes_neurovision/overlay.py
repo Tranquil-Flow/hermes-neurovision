@@ -260,12 +260,14 @@ class OverlayApp:
         self.stdscr.timeout(0)
 
         # Disable alternate screen scroll — on macOS, trackpad scroll in
-        # alternate screen mode (which curses uses) sends arrow key escape
-        # sequences that get forwarded to the PTY, cycling shell history.
-        # These xterm sequences disable that behavior:
-        sys.stdout.buffer.write(b"\x1b[?1007l")  # disable alternate scroll
-        sys.stdout.buffer.write(b"\x1b[?1003l")  # disable all mouse tracking
-        sys.stdout.buffer.flush()
+        # alternate screen mode sends arrow key escape sequences that get
+        # forwarded to the PTY, cycling shell history.
+        # Write through curses (not stdout) since curses owns the terminal:
+        try:
+            curses.putp(b"\x1b[?1007l")  # disable alternate screen scroll
+            curses.putp(b"\x1b[?1003l")  # disable all mouse tracking
+        except (curses.error, TypeError):
+            pass
 
         self._spawn_child()
 

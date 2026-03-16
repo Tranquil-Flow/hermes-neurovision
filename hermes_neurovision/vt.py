@@ -37,6 +37,7 @@ class VTScreen:
         self.scrollback: deque[list[VTCell]] = deque(maxlen=scrollback_limit)
         self.bytes_since_last_poll = 0
         self.scrolls_since_last_poll = 0
+        self._utf8_buf = b""  # buffer for incomplete UTF-8 sequences at read boundaries
         self._current_frame = 0
 
         # SGR state
@@ -52,10 +53,32 @@ class VTScreen:
         self._current_frame = frame
 
     def feed(self, data: bytes) -> None:
-        """Parse raw bytes from PTY, update cell grid and cursor."""
+        """Parse raw bytes from PTY, update cell grid and cursor.
+
+        Decodes input as UTF-8 so Unicode characters (emoji, box drawing,
+        CJK, etc.) are preserved instead of turning into '????'.
+        Handles partial multi-byte sequences at read boundaries.
+        """
         self.bytes_since_last_poll += len(data)
-        for byte in data:
-            ch = chr(byte) if byte < 128 else "?"
+        # Prepend any leftover bytes from a previous partial UTF-8 sequence
+        raw = self._utf8_buf + data
+        self._utf8_buf = b""
+        # Decode as UTF-8 — 'ignore' drops truly invalid bytes,
+        # but we need to handle truncated sequences at the end
+        try:
+            text = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            # Find the longest valid prefix
+            for i in range(len(raw) - 1, max(len(raw) - 4, -1), -1):
+                try:
+                    text = raw[:i].decode("utf-8")
+                    self._utf8_buf = raw[i:]  # save remainder for next feed()
+                    break
+                except UnicodeDecodeError:
+                    continue
+            else:
+                text = raw.decode("utf-8", errors="replace")
+        for ch in text:
             self._process_char(ch)
 
     def resize(self, rows: int, cols: int) -> None:
@@ -106,9 +129,9 @@ class VTScreen:
                     self.cursor_col -= 1
             elif ch == "\t":
                 self.cursor_col = min((self.cursor_col // 8 + 1) * 8, self.cols - 1)
-            elif ch >= " ":  # printable
+            elif ch >= " " or ord(ch) > 127:  # printable ASCII or Unicode
                 self._put_char(ch)
-            # else: ignore other control chars
+            # else: ignore other control chars (0x01-0x1F excluding handled ones)
         elif self._state == "escape":
             if ch == "[":
                 self._state = "csi"
