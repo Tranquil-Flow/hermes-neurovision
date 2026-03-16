@@ -10,8 +10,8 @@ def test_fade_config_defaults():
     assert cfg.fade_start_pct == 0.0
     assert cfg.fade_end_pct == 0.4
     assert cfg.text_opacity == 1.0
-    assert cfg.text_bg == "dim"
-    assert cfg.text_bg_opacity == 0.3
+    assert cfg.text_bg == "solid"
+    assert cfg.text_bg_opacity == 1.0
     assert cfg.text_glow is False
     assert cfg.text_glow_color == "theme"
     assert cfg.text_glow_intensity == 1.0
@@ -101,14 +101,14 @@ def test_opacity_to_attr_bold():
 
 
 def test_resolve_color_native():
-    """Native mode maps VT fg color to ANSI passthrough pairs."""
+    """Native mode: default text uses pair 0, colored text uses ANSI pairs."""
     comp = FadeCompositor(FadeConfig(text_color="native"))
     pairs = {"base": 1, "soft": 2, "bright": 3, "accent": 4, "warning": 5, "text": 6,
              "ansi_0": 7, "ansi_1": 8, "ansi_2": 9, "ansi_3": 10,
              "ansi_4": 11, "ansi_5": 12, "ansi_6": 13, "ansi_7": 14}
-    # Default fg=7 → ansi_7 → pair 14 (white)
+    # Default fg=7, not bold → pair 0 (terminal's actual default)
     pair_num, extra = comp.resolve_color_pair(7, False, pairs)
-    assert pair_num == 14
+    assert pair_num == 0
     # Red fg=1 → ansi_1 → pair 8 (red)
     pair_num, extra = comp.resolve_color_pair(1, False, pairs)
     assert pair_num == 8
@@ -117,6 +117,9 @@ def test_resolve_color_native():
     assert pair_num == 9
     import curses
     assert extra & curses.A_BOLD
+    # Default fg=7 + bold → ansi_7 → pair 14 (not pair 0, because bold is explicit)
+    pair_num, extra = comp.resolve_color_pair(7, True, pairs)
+    assert pair_num == 14
 
 
 def test_resolve_color_auto():
@@ -160,8 +163,8 @@ def test_bg_preset_transparent():
 
 
 def test_bg_preset_dim():
-    """Default config has dim (0.3) bg opacity."""
-    cfg = FadeConfig()
+    """Dim preset gives 0.3 opacity."""
+    cfg = FadeConfig(text_bg="dim", text_bg_opacity=0.3)
     assert cfg.text_bg_opacity == 0.3
 
 

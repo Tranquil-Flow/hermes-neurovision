@@ -210,6 +210,10 @@ class OverlayApp:
         self.exit_code: Optional[int] = None
         self._exit_timer: Optional[float] = None
 
+        # Scroll detection — track rapid arrow key bursts
+        self._arrow_burst: list[int] = []  # recent arrow keys in current input batch
+        self._last_arrow_time: float = 0.0
+
         # VT screen (sized to terminal, -1 for status bar)
         h, w = stdscr.getmaxyx()
         self.vt = VTScreen(h - 1, w)
@@ -440,11 +444,32 @@ class OverlayApp:
 
         Prefix key: Ctrl+B (0x02). Works reliably on macOS Terminal.app and iTerm2.
         Ctrl+N (0x0E) also supported as alternative.
+
+        Scroll detection: trackpad scroll on macOS sends rapid bursts of
+        KEY_UP/KEY_DOWN that are indistinguishable from arrow keys. We detect
+        bursts (>2 arrow keys within 50ms) and discard them.
         """
+        # Collect all available input first
+        keys: list[int] = []
         while True:
             ch = self.stdscr.getch()
             if ch == -1:
-                return
+                break
+            keys.append(ch)
+
+        if not keys:
+            return
+
+        # Detect arrow key bursts (likely scroll, not deliberate presses)
+        now = time.time()
+        arrow_count = sum(1 for k in keys if k in (curses.KEY_UP, curses.KEY_DOWN))
+        is_scroll_burst = arrow_count > 2  # >2 arrows in one batch = scroll
+
+        for ch in keys:
+            # Filter scroll bursts — discard all arrow keys in the burst
+            if is_scroll_burst and ch in (curses.KEY_UP, curses.KEY_DOWN):
+                continue
+
             if self.nv_mode:
                 if ch == 27:  # Esc exits NV mode
                     self.nv_mode = False

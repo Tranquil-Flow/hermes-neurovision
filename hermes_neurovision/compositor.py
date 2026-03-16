@@ -49,8 +49,8 @@ class FadeConfig:
     fade_start_pct: float = 0.0     # row % where fade begins (0.0 = top)
     fade_end_pct: float = 0.4       # row % where text is fully opaque
     text_opacity: float = 1.0       # global text brightness 0.0-1.0
-    text_bg: str = "dim"            # convenience alias: "transparent", "dim", "solid"
-    text_bg_opacity: float = 0.3    # 0.0=transparent, 1.0=solid (default: 30% for readability)
+    text_bg: str = "solid"           # convenience alias: "transparent", "dim", "solid"
+    text_bg_opacity: float = 1.0    # 0.0=transparent, 1.0=solid (default: solid black behind text)
     text_glow: bool = False         # enable glow effect on text
     text_glow_color: str = "theme"  # glow color: "theme", "white", "green", "cyan", "magenta", "yellow", "red"
     text_glow_intensity: float = 1.0  # glow intensity 0.0-1.0 (scales brightness)
@@ -128,11 +128,14 @@ class FadeCompositor:
                 extra_attr |= curses.A_DIM
             return color_pairs.get(glow_key, 1), extra_attr
         elif cfg.text_color == "native":
-            # Use ANSI passthrough pairs (7-14) — maps VT fg color directly
-            # to a fixed curses pair that matches the ANSI color.
-            # This preserves colored prompts, ls output, etc.
+            # Default text (fg=7) uses pair 0 = terminal's actual default color.
+            # Explicitly colored text (fg != 7) uses ANSI passthrough pairs (7-14).
+            # This makes normal text look EXACTLY like the user's terminal,
+            # while preserving colored prompts, ls, git output, etc.
+            if vt_fg == 7 and not vt_bold:
+                return 0, extra_attr  # pair 0 = terminal default
             ansi_key = f"ansi_{vt_fg}"
-            pair_num = color_pairs.get(ansi_key, color_pairs.get("ansi_7", 14))
+            pair_num = color_pairs.get(ansi_key, 0)
             if vt_bold:
                 extra_attr |= curses.A_BOLD
             return pair_num, extra_attr
@@ -167,41 +170,57 @@ class FadeCompositor:
 
         cfg = self.config
 
+        # Determine which rows have ANY non-space VT content
+        # so we can darken entire lines (not just individual cells)
+        has_content = set()
+        if cfg.text_bg_opacity > 0.0:
+            for y in range(min(vt_screen.rows, h)):
+                if y == status_row:
+                    continue
+                for x in range(min(vt_screen.cols, w)):
+                    if vt_screen.cells[y][x].char != " ":
+                        has_content.add(y)
+                        break
+
         for y in range(min(vt_screen.rows, h)):
             if y == status_row:
                 continue
 
+            opacity = self.compute_opacity(
+                y, h,
+                vt_screen.cells[y][0].born_frame if vt_screen.cols > 0 else 0,
+                current_frame
+            )
+
+            attr = self.opacity_to_curses_attr(opacity)
+            if attr is None:
+                continue  # entire row hidden — scene shows through
+
+            # Darken background for rows with content (or all rows if high opacity)
+            if cfg.text_bg_opacity > 0.0 and (y in has_content or cfg.text_bg_opacity >= 0.8):
+                for x in range(min(vt_screen.cols, w)):
+                    vt_cell = vt_screen.cells[y][x]
+                    if vt_cell.char == " ":
+                        try:
+                            # Use pair 0 (terminal default = black bg) for dimming
+                            # NOT a theme pair, which would bleed theme colors
+                            stdscr.addstr(y, x, " ", curses.color_pair(0))
+                        except curses.error:
+                            pass
+
+            # Draw text characters
             for x in range(min(vt_screen.cols, w)):
                 vt_cell = vt_screen.cells[y][x]
 
-                # Skip empty VT cells (let scene show through)
-                if vt_cell.char == " " and cfg.text_bg_opacity < 0.5:
-                    continue
-
-                opacity = self.compute_opacity(
-                    y, h, vt_cell.born_frame, current_frame
-                )
-
-                attr = self.opacity_to_curses_attr(opacity)
-                if attr is None:
-                    continue  # hidden — scene shows through
-
-                # Handle space cells with high bg opacity
                 if vt_cell.char == " ":
-                    if cfg.text_bg_opacity >= 0.5:
-                        try:
-                            stdscr.addstr(y, x, " ",
-                                         curses.color_pair(color_pairs.get("base", 1)) | curses.A_DIM)
-                        except curses.error:
-                            pass
-                    continue
+                    continue  # already handled by background pass
 
                 # Resolve color
                 pair_num, extra_attr = self.resolve_color_pair(
                     vt_cell.fg, vt_cell.bold, color_pairs
                 )
 
-                # Write text character over the scene
+                # Write text character over the darkened background
                 try:
                     stdscr.addstr(y, x, vt_cell.char,
                                  curses.color_pair(pair_num) | attr | extra_attr)
