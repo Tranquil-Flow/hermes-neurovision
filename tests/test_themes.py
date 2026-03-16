@@ -52,6 +52,7 @@ def test_all_themes_can_be_built():
         "quantum-foam",
         # New Original Screens (Task 50)
         "ascii-rain", "sand-automaton", "ascii-rorschach", "wireframe-cube", "hypercube-fold",
+        "mycelium-pulse",
     }
     for name in THEMES:
         config = build_theme_config(name)
