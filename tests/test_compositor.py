@@ -101,11 +101,22 @@ def test_opacity_to_attr_bold():
 
 
 def test_resolve_color_native():
-    """Native mode uses curses pair 0 (terminal default fg/bg)."""
+    """Native mode maps VT fg color to ANSI passthrough pairs."""
     comp = FadeCompositor(FadeConfig(text_color="native"))
-    pairs = {"base": 1, "soft": 2, "bright": 3, "accent": 4, "warning": 5, "text": 6}
+    pairs = {"base": 1, "soft": 2, "bright": 3, "accent": 4, "warning": 5, "text": 6,
+             "ansi_0": 7, "ansi_1": 8, "ansi_2": 9, "ansi_3": 10,
+             "ansi_4": 11, "ansi_5": 12, "ansi_6": 13, "ansi_7": 14}
+    # Default fg=7 → ansi_7 → pair 14 (white)
     pair_num, extra = comp.resolve_color_pair(7, False, pairs)
-    assert pair_num == 0  # pair 0 = terminal default
+    assert pair_num == 14
+    # Red fg=1 → ansi_1 → pair 8 (red)
+    pair_num, extra = comp.resolve_color_pair(1, False, pairs)
+    assert pair_num == 8
+    # Green fg=2 + bold → ansi_2 → pair 9 (green) with A_BOLD
+    pair_num, extra = comp.resolve_color_pair(2, True, pairs)
+    assert pair_num == 9
+    import curses
+    assert extra & curses.A_BOLD
 
 
 def test_resolve_color_auto():

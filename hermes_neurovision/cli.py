@@ -452,13 +452,10 @@ def _run_overlay(args):
     elif args.live:
         mode = "live"
 
-    # Theme list — respect --theme flag
+    # Theme — default to halvorsen-star for overlay (simple, performant)
     if args.theme is None:
-        args.theme = _load_default_theme()
-    if args.theme and args.theme != "neural-sky":
-        themes = [args.theme]
-    else:
-        themes = list(THEMES)
+        args.theme = "halvorsen-star"
+    themes = [args.theme]
 
     def run_curses(stdscr):
         app = OverlayApp(

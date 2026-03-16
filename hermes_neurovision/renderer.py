@@ -124,13 +124,27 @@ class Renderer:
             (4, curses.COLOR_MAGENTA, -1),
             (5, curses.COLOR_YELLOW, -1),
             (6, curses.COLOR_WHITE, -1),   # "text" — fixed white, never theme-swapped
+            # ANSI passthrough pairs (7-14) — for overlay text with native colors
+            # These are NEVER theme-swapped. They map 1:1 to ANSI fg colors 0-7.
+            (7,  curses.COLOR_BLACK, -1),    # ansi_0 (black)
+            (8,  curses.COLOR_RED, -1),      # ansi_1 (red)
+            (9,  curses.COLOR_GREEN, -1),    # ansi_2 (green)
+            (10, curses.COLOR_YELLOW, -1),   # ansi_3 (yellow)
+            (11, curses.COLOR_BLUE, -1),     # ansi_4 (blue)
+            (12, curses.COLOR_MAGENTA, -1),  # ansi_5 (magenta)
+            (13, curses.COLOR_CYAN, -1),     # ansi_6 (cyan)
+            (14, curses.COLOR_WHITE, -1),    # ansi_7 (white/default)
         ]
         for pair_id, fg, bg in palette:
             try:
                 curses.init_pair(pair_id, fg, bg)
             except curses.error:
                 pass
-        pairs.update({"base": 1, "soft": 2, "bright": 3, "accent": 4, "warning": 5, "text": 6})
+        pairs.update({
+            "base": 1, "soft": 2, "bright": 3, "accent": 4, "warning": 5, "text": 6,
+            "ansi_0": 7, "ansi_1": 8, "ansi_2": 9, "ansi_3": 10,
+            "ansi_4": 11, "ansi_5": 12, "ansi_6": 13, "ansi_7": 14,
+        })
         return pairs
 
     def _apply_palette(self, palette: Tuple[int, int, int, int]) -> None:

@@ -220,6 +220,12 @@ class OverlayApp:
             vt_source = VTEventSource(self.vt)
             self.poller._sources.append(vt_source.poll)
 
+        # Performance mode — enabled by default for smooth overlay experience
+        from hermes_neurovision.tune import TuneSettings
+        from hermes_neurovision.app import _apply_performance_mode
+        self.tune = TuneSettings()
+        _apply_performance_mode(self.tune, True)
+
         # Scene state
         self.state = self._make_state(self.themes[self.theme_index])
 
@@ -229,7 +235,9 @@ class OverlayApp:
     def _make_state(self, theme_name: str) -> ThemeState:
         h, w = self.stdscr.getmaxyx()
         config = build_theme_config(theme_name)
-        return ThemeState(config, w, h, seed=hash(theme_name) & 0xFFFF)
+        state = ThemeState(config, w, h, seed=hash(theme_name) & 0xFFFF)
+        state.tune = self.tune
+        return state
 
     def _make_delegate(self, mode: str) -> SceneDelegate:
         if mode == "gallery":
@@ -246,14 +254,14 @@ class OverlayApp:
         curses.curs_set(0)
         self.stdscr.nodelay(True)
         self.stdscr.timeout(0)
-        # Disable mouse reporting — on macOS, scroll events arrive as escape
-        # sequences that curses interprets as arrow keys, causing the shell
-        # to cycle through history. Keeping mouse disabled means scroll does
-        # nothing (harmless) rather than triggering unwanted shell commands.
-        try:
-            curses.mousemask(0)
-        except curses.error:
-            pass
+
+        # Disable alternate screen scroll — on macOS, trackpad scroll in
+        # alternate screen mode (which curses uses) sends arrow key escape
+        # sequences that get forwarded to the PTY, cycling shell history.
+        # These xterm sequences disable that behavior:
+        sys.stdout.buffer.write(b"\x1b[?1007l")  # disable alternate scroll
+        sys.stdout.buffer.write(b"\x1b[?1003l")  # disable all mouse tracking
+        sys.stdout.buffer.flush()
 
         self._spawn_child()
 
@@ -268,13 +276,23 @@ class OverlayApp:
             self._cleanup()
 
     def _spawn_child(self) -> None:
-        """Fork a PTY and exec the child command."""
+        """Fork a PTY and exec the child command.
+
+        Sets terminal size on the PTY master fd BEFORE the child shell
+        reads its dimensions, then sends SIGWINCH to force a re-read.
+        This avoids a race where the shell sees the default 80x24 size.
+        """
+        import termios
+
+        h, w = self.stdscr.getmaxyx()
+        child_rows = h - 1  # reserve bottom row for status bar
+
         pid, master_fd = pty.fork()
         if pid == 0:
             # Child process — do NOT access self.stdscr (curses is parent-only)
-            # Use xterm so child programs format for actual terminal width
-            # (vt100 limits to 80 cols and breaks wide banners)
-            os.environ["TERM"] = "xterm"
+            os.environ["TERM"] = "xterm-256color"
+            os.environ["COLUMNS"] = str(w)
+            os.environ["LINES"] = str(child_rows)
             try:
                 os.execvp(self.child_cmd[0], self.child_cmd)
             except OSError:
@@ -283,17 +301,23 @@ class OverlayApp:
             # Parent process
             self.child_pid = pid
             self.pty_master = master_fd
-            # Set non-blocking
-            flags = fcntl.fcntl(master_fd, fcntl.F_GETFL)
-            fcntl.fcntl(master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
-            # Set terminal size on PTY
-            h, w = self.stdscr.getmaxyx()
-            import termios
-            winsize = struct.pack("HHHH", h - 1, w, 0, 0)
+
+            # Set terminal size IMMEDIATELY — before child shell starts
+            winsize = struct.pack("HHHH", child_rows, w, 0, 0)
             try:
                 fcntl.ioctl(master_fd, termios.TIOCSWINSZ, winsize)
             except OSError:
                 pass
+
+            # Send SIGWINCH so child re-reads terminal size if it already started
+            try:
+                os.kill(pid, signal.SIGWINCH)
+            except OSError:
+                pass
+
+            # Set non-blocking for polling
+            flags = fcntl.fcntl(master_fd, fcntl.F_GETFL)
+            fcntl.fcntl(master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
 
     def _main_loop(self) -> None:
         """50ms frame loop: input → PTY poll → scene step → composite → refresh."""

@@ -128,11 +128,14 @@ class FadeCompositor:
                 extra_attr |= curses.A_DIM
             return color_pairs.get(glow_key, 1), extra_attr
         elif cfg.text_color == "native":
-            # Use curses pair 0 — terminal's default fg/bg colors
-            # This preserves whatever the terminal normally looks like
+            # Use ANSI passthrough pairs (7-14) — maps VT fg color directly
+            # to a fixed curses pair that matches the ANSI color.
+            # This preserves colored prompts, ls output, etc.
+            ansi_key = f"ansi_{vt_fg}"
+            pair_num = color_pairs.get(ansi_key, color_pairs.get("ansi_7", 14))
             if vt_bold:
                 extra_attr |= curses.A_BOLD
-            return 0, extra_attr
+            return pair_num, extra_attr
         elif cfg.text_color == "auto":
             # Map ANSI color to nearest neurovision pair
             pair_key = _ANSI_TO_PAIR.get(vt_fg, "text")
