@@ -79,9 +79,16 @@ def test_feed_tab():
 def test_line_wrap():
     vt = VTScreen(24, 5)
     vt.feed(b"ABCDE")
-    assert vt.cursor_col == 0
-    assert vt.cursor_row == 1
+    # Deferred wrap: cursor is at col 5 (past margin) but wrap
+    # doesn't happen until the next character is written
+    assert vt.cursor_col == 5
+    assert vt.cursor_row == 0
     assert vt.cells[0][4].char == "E"
+    # Now write another char — THIS triggers the wrap
+    vt.feed(b"F")
+    assert vt.cursor_row == 1
+    assert vt.cursor_col == 1
+    assert vt.cells[1][0].char == "F"
 
 
 def test_scroll_up():

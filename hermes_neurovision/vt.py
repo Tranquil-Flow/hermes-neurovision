@@ -230,15 +230,30 @@ class VTScreen:
     def _put_char(self, ch: str) -> None:
         """Write character at cursor with current SGR attributes, advance cursor.
 
-        Handles wide characters (emoji, CJK) that occupy 2 terminal columns.
-        Wide chars write the character in the first cell and a space placeholder
-        in the second cell, advancing the cursor by 2.
+        Uses DEFERRED WRAP (standard VT100 behavior): when a character is
+        written at the last column, the cursor stays there. The wrap only
+        happens when the NEXT character is written. This prevents lines that
+        fill exactly to the right margin from creating an extra blank line
+        when followed by CR+LF.
         """
         cw = _char_width(ch)
 
-        # Check if there's room — wrap if needed
-        if self.cursor_col + cw > self.cols:
-            self._newline()
+        # Deferred wrap: if cursor is past the right margin from a previous
+        # character, NOW is when we actually wrap to the next line.
+        if self.cursor_col >= self.cols:
+            if self.cursor_row < self.rows - 1:
+                self.cursor_row += 1
+            else:
+                self._scroll_up()
+            self.cursor_col = 0
+
+        # Check if wide char fits — wrap if needed
+        if cw == 2 and self.cursor_col + 2 > self.cols:
+            if self.cursor_row < self.rows - 1:
+                self.cursor_row += 1
+            else:
+                self._scroll_up()
+            self.cursor_col = 0
 
         cell = self.cells[self.cursor_row][self.cursor_col]
         cell.char = ch
@@ -247,22 +262,18 @@ class VTScreen:
         cell.born_frame = self._current_frame
         self.cursor_col += 1
 
-        # Wide character: fill the second column with a placeholder space
+        # Wide character: fill the second column with a placeholder
         if cw == 2 and self.cursor_col < self.cols:
             cell2 = self.cells[self.cursor_row][self.cursor_col]
-            cell2.char = ""  # empty = this cell is the right half of a wide char
+            cell2.char = ""
             cell2.bold = self._bold
             cell2.fg = self._fg
             cell2.born_frame = self._current_frame
             self.cursor_col += 1
 
-        if self.cursor_col >= self.cols:
-            # Wrap: move to next line
-            if self.cursor_row < self.rows - 1:
-                self.cursor_row += 1
-            else:
-                self._scroll_up()
-            self.cursor_col = 0
+        # NOTE: cursor_col may now equal self.cols — that's OK.
+        # The wrap is DEFERRED until the next _put_char() call.
+        # CR (\r) and LF (\n) handle this correctly by resetting cursor_col.
 
     # ── CSI sequence dispatch ─────────────────────────────────────────────
 
