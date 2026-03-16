@@ -76,8 +76,11 @@ class FadeCompositor:
         if cfg.mode == "position" or cfg.mode == "both":
             fade_start = total_rows * cfg.fade_start_pct
             fade_end = total_rows * cfg.fade_end_pct
-            denom = max(fade_end - fade_start, 1.0)
-            pos_opacity = max(0.0, min(1.0, (row - fade_start) / denom))
+            if fade_start >= fade_end:
+                # No fade zone defined → all text fully visible
+                pos_opacity = 1.0
+            else:
+                pos_opacity = max(0.0, min(1.0, (row - fade_start) / (fade_end - fade_start)))
         else:
             pos_opacity = 1.0
 
