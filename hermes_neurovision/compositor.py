@@ -199,13 +199,18 @@ class FadeCompositor:
                 attr = curses.A_DIM
 
             if is_terminal_area:
-                # ALWAYS darken the text area with solid black background.
-                # This matches how a normal terminal looks — clean dark bg
-                # behind text, no scene artifacts bleeding through spaces.
-                # The scene is only visible BELOW the text area.
+                # Dim the scene behind text — scene colors glow through
+                # faintly (like a transparent terminal) but scene characters
+                # don't compete with text readability.
                 for x in range(min(vt_screen.cols, w)):
                     try:
-                        stdscr.addstr(y, x, " ", curses.color_pair(0))
+                        # Read what the scene rendered at this cell
+                        inch = stdscr.inch(y, x)
+                        scene_char = chr(inch & 0xFF)
+                        scene_attr = inch & ~0xFF
+                        # Rewrite with A_DIM to fade the scene content
+                        stdscr.addstr(y, x, scene_char,
+                                     (scene_attr & ~curses.A_BOLD) | curses.A_DIM)
                     except curses.error:
                         pass
 

@@ -301,6 +301,42 @@ class VTScreen:
             elif mode == 2:   # Erase entire line
                 for c in range(self.cols):
                     self.cells[self.cursor_row][c] = VTCell(born_frame=self._current_frame)
+        elif final == "G":    # Cursor Horizontal Absolute (1-indexed)
+            self.cursor_col = max(0, min(self.cols - 1, param(0) - 1))
+        elif final == "d":    # Cursor Vertical Absolute (1-indexed)
+            self.cursor_row = max(0, min(self.rows - 1, param(0) - 1))
+        elif final == "L":    # Insert Lines
+            n = param(0)
+            for _ in range(min(n, self.rows - self.cursor_row)):
+                if len(self.cells) > self.cursor_row:
+                    self.cells.pop()  # remove bottom row
+                    self.cells.insert(self.cursor_row, [VTCell() for _ in range(self.cols)])
+        elif final == "M":    # Delete Lines
+            n = param(0)
+            for _ in range(min(n, self.rows - self.cursor_row)):
+                if self.cursor_row < len(self.cells):
+                    self.cells.pop(self.cursor_row)
+                    self.cells.append([VTCell() for _ in range(self.cols)])
+        elif final == "P":    # Delete Characters
+            n = min(param(0), self.cols - self.cursor_col)
+            row = self.cells[self.cursor_row]
+            del row[self.cursor_col:self.cursor_col + n]
+            row.extend(VTCell() for _ in range(n))
+        elif final == "@":    # Insert Characters
+            n = min(param(0), self.cols - self.cursor_col)
+            row = self.cells[self.cursor_row]
+            for _ in range(n):
+                row.insert(self.cursor_col, VTCell())
+            self.cells[self.cursor_row] = row[:self.cols]
+        elif final == "S":    # Scroll Up
+            for _ in range(param(0)):
+                self._scroll_up()
+        elif final == "T":    # Scroll Down
+            for _ in range(param(0)):
+                self.cells.insert(0, [VTCell() for _ in range(self.cols)])
+                self.cells.pop()
+        elif final in ("h", "l", "r"):
+            pass  # set/reset mode, scroll region — silently ignore
         elif final == "n":    # DSR — Device Status Report
             if param(0) == 6:
                 # CPR (Cursor Position Report): respond with \x1b[row;colR (1-indexed)
