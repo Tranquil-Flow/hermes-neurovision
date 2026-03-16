@@ -47,10 +47,10 @@ class FadeConfig:
     """Configuration for the text fade overlay."""
     mode: str = "position"          # "position", "age", "both"
     fade_start_pct: float = 0.0     # row % where fade begins (0.0 = top)
-    fade_end_pct: float = 0.4       # row % where text is fully opaque
+    fade_end_pct: float = 0.0       # row % where text is fully opaque (0.0 = no fade)
     text_opacity: float = 1.0       # global text brightness 0.0-1.0
-    text_bg: str = "solid"           # convenience alias: "transparent", "dim", "solid"
-    text_bg_opacity: float = 1.0    # 0.0=transparent, 1.0=solid (default: solid black behind text)
+    text_bg: str = "dim"             # convenience alias: "transparent", "dim", "solid"
+    text_bg_opacity: float = 0.5    # 0.0=transparent, 1.0=solid (default: 50% — scene partially visible)
     text_glow: bool = False         # enable glow effect on text
     text_glow_color: str = "theme"  # glow color: "theme", "white", "green", "cyan", "magenta", "yellow", "red"
     text_glow_intensity: float = 1.0  # glow intensity 0.0-1.0 (scales brightness)
@@ -170,21 +170,16 @@ class FadeCompositor:
 
         cfg = self.config
 
-        # Determine which rows have ANY non-space VT content
-        # so we can darken entire lines (not just individual cells)
-        has_content = set()
-        if cfg.text_bg_opacity > 0.0:
-            for y in range(min(vt_screen.rows, h)):
-                if y == status_row:
-                    continue
-                for x in range(min(vt_screen.cols, w)):
-                    if vt_screen.cells[y][x].char != " ":
-                        has_content.add(y)
-                        break
+        # The terminal's "used area" is rows 0 through cursor_row.
+        # Everything above cursor_row has been written to (text, empty lines).
+        # Everything below is unused terminal space → show the scene.
+        terminal_bottom = vt_screen.cursor_row
 
         for y in range(min(vt_screen.rows, h)):
             if y == status_row:
                 continue
+
+            is_terminal_area = y <= terminal_bottom
 
             opacity = self.compute_opacity(
                 y, h,
@@ -193,36 +188,33 @@ class FadeCompositor:
             )
 
             attr = self.opacity_to_curses_attr(opacity)
-            if attr is None:
-                continue  # entire row hidden — scene shows through
+            if attr is None and not is_terminal_area:
+                continue  # hidden + not terminal area → scene shows through
 
-            # Darken background ONLY for rows that have actual text content.
-            # Empty rows (no text) let the scene show through — this is how
-            # the animation stays visible above and around the terminal text.
-            if cfg.text_bg_opacity > 0.0 and y in has_content:
+            # Use at least A_DIM for terminal area even in fade zone
+            if attr is None and is_terminal_area:
+                attr = curses.A_DIM
+
+            if is_terminal_area and cfg.text_bg_opacity > 0.0:
+                # Darken the ENTIRE row — every cell gets a dark background.
+                # This prevents scene characters from bleeding into text lines.
                 for x in range(min(vt_screen.cols, w)):
-                    vt_cell = vt_screen.cells[y][x]
-                    if vt_cell.char == " ":
-                        try:
-                            # Use pair 0 (terminal default = black bg) for dimming
-                            # NOT a theme pair, which would bleed theme colors
-                            stdscr.addstr(y, x, " ", curses.color_pair(0))
-                        except curses.error:
-                            pass
+                    try:
+                        stdscr.addstr(y, x, " ", curses.color_pair(0))
+                    except curses.error:
+                        pass
 
-            # Draw text characters
+            # Draw text characters on top of the darkened background
             for x in range(min(vt_screen.cols, w)):
                 vt_cell = vt_screen.cells[y][x]
 
                 if vt_cell.char == " ":
-                    continue  # already handled by background pass
+                    continue  # already dark from background pass
 
-                # Resolve color
                 pair_num, extra_attr = self.resolve_color_pair(
                     vt_cell.fg, vt_cell.bold, color_pairs
                 )
 
-                # Write text character over the darkened background
                 try:
                     stdscr.addstr(y, x, vt_cell.char,
                                  curses.color_pair(pair_num) | attr | extra_attr)

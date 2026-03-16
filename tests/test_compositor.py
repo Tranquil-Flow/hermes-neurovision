@@ -8,10 +8,10 @@ def test_fade_config_defaults():
     cfg = FadeConfig()
     assert cfg.mode == "position"
     assert cfg.fade_start_pct == 0.0
-    assert cfg.fade_end_pct == 0.4
+    assert cfg.fade_end_pct == 0.0
     assert cfg.text_opacity == 1.0
-    assert cfg.text_bg == "solid"
-    assert cfg.text_bg_opacity == 1.0
+    assert cfg.text_bg == "dim"
+    assert cfg.text_bg_opacity == 0.5
     assert cfg.text_glow is False
     assert cfg.text_glow_color == "theme"
     assert cfg.text_glow_intensity == 1.0

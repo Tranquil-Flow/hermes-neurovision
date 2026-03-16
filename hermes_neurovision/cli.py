@@ -136,12 +136,12 @@ def parse_args(argv=None):
                                default="position", help="Text fade type")
     overlay_group.add_argument("--fade-start", type=float, default=0.0,
                                help="Fade start row (0.0=top, default: 0.0)")
-    overlay_group.add_argument("--fade-end", type=float, default=0.4,
-                               help="Fade end row (fully opaque below, default: 0.4)")
+    overlay_group.add_argument("--fade-end", type=float, default=0.0,
+                               help="Fade end row (0.0=no fade, default: 0.0)")
     overlay_group.add_argument("--text-opacity", type=float, default=1.0,
                                help="Global text brightness 0.0-1.0")
     overlay_group.add_argument("--text-bg", choices=["transparent", "dim", "solid"],
-                               default="solid", help="Text background preset (default: solid black)")
+                               default="dim", help="Text background preset (default: 50%% transparent)")
     overlay_group.add_argument("--text-bg-opacity", type=float, default=None,
                                help="Fine-grained text background opacity 0.0-1.0")
     overlay_group.add_argument("--text-glow", action="store_true",
