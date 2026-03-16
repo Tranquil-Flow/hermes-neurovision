@@ -275,19 +275,29 @@ class OverlayApp:
         # Color state may not survive the screen buffer switch.
         self._reinit_ansi_colors()
 
-        # Flush any buffered input from the screen switch.
-        # Without this, stray bytes (like 'q') get forwarded to the PTY.
-        while self.stdscr.getch() != -1:
-            pass
+        # Flush ALL buffered input — screen switch and curses init can
+        # leave stray bytes that would get forwarded to the PTY as 'q' etc.
+        # Flush aggressively: multiple passes with a small delay between.
+        for _ in range(3):
+            while self.stdscr.getch() != -1:
+                pass
+            time.sleep(0.02)
+        # Also drain curses' internal input buffer
+        curses.flushinp()
 
-        # Show native terminal cursor instead of drawing our own pink block.
-        # curses.curs_set(1) enables the terminal's blinking cursor.
+        # Show native terminal cursor.
         try:
             curses.curs_set(1)
         except curses.error:
             pass
 
         self._spawn_child()
+
+        # Flush again after child spawn — the PTY setup can generate responses
+        time.sleep(0.05)
+        curses.flushinp()
+        while self.stdscr.getch() != -1:
+            pass
 
         # SIGWINCH handler
         def on_resize(signum, frame):
